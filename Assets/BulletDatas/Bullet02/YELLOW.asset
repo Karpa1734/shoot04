@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21264d726d8d3e24a9f6272f291feb5d, type: 3}
+  m_Name: YELLOW
+  m_EditorClassIdentifier: 
+  bulletPrefab: {fileID: 412534742802360219, guid: 77c4ce23d9179ce4fbb88e39b9867f7b, type: 3}
+  sizeType: 2
+  bulletSprite: {fileID: 893318809, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
+  radius: 0.06
+  delaySprite: {fileID: 7099077274376888169, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
+  breakColor: {r: 1, g: 1, b: 0, a: 1}
+  material: {fileID: 0}

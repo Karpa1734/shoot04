@@ -97,3 +97,6 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+Assets/Fonts/TogeMaruGothic-600-Medium SDF.asset
+Assets/Fonts/TogeMaruGothic-700-Bold SDF.asset
+Assets/Fonts/TogeMaruGothic-700-Bold SDF_Nega.asset

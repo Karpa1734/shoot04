@@ -1,0 +1,2197 @@
+fileFormatVersion: 2
+guid: 9a4f93cb9bd666a40b00791b76939480
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4804378015151188512
+    second: ShotAll-1-2_0
+  - first:
+      213: 6693796097811232546
+    second: ShotAll-1-2_1
+  - first:
+      213: 7098379136656450219
+    second: ShotAll-1-2_2
+  - first:
+      213: -5966533854631644339
+    second: ShotAll-1-2_3
+  - first:
+      213: 3966483907343413454
+    second: ShotAll-1-2_4
+  - first:
+      213: -4618505247793187743
+    second: ShotAll-1-2_5
+  - first:
+      213: 1625177006252272054
+    second: ShotAll-1-2_6
+  - first:
+      213: 5249088941610131023
+    second: ShotAll-1-2_7
+  - first:
+      213: 8661367410705081193
+    second: ShotAll-1-2_8
+  - first:
+      213: 3389159807651390098
+    second: ShotAll-1-2_9
+  - first:
+      213: 6186169857062207908
+    second: ShotAll-1-2_10
+  - first:
+      213: -6755534364365572841
+    second: ShotAll-1-2_11
+  - first:
+      213: -2808827496134422220
+    second: ShotAll-1-2_12
+  - first:
+      213: -3096167621580526334
+    second: ShotAll-1-2_13
+  - first:
+      213: -3239090969002145911
+    second: ShotAll-1-2_14
+  - first:
+      213: -4236612703884304983
+    second: ShotAll-1-2_15
+  - first:
+      213: -3430462627175625187
+    second: ShotAll-1-2_16
+  - first:
+      213: -3102637874739268463
+    second: ShotAll-1-2_17
+  - first:
+      213: -3247150257586883737
+    second: ShotAll-1-2_18
+  - first:
+      213: 7526952318661071375
+    second: ShotAll-1-2_19
+  - first:
+      213: -6024392847611383961
+    second: ShotAll-1-2_20
+  - first:
+      213: -3765153087211652357
+    second: ShotAll-1-2_21
+  - first:
+      213: 7580896825192861418
+    second: ShotAll-1-2_22
+  - first:
+      213: 6466269231445920810
+    second: ShotAll-1-2_23
+  - first:
+      213: 1996174678499482545
+    second: ShotAll-1-2_24
+  - first:
+      213: -4923998719794071614
+    second: ShotAll-1-2_25
+  - first:
+      213: -1953200340461491260
+    second: ShotAll-1-2_26
+  - first:
+      213: -2935507208340824775
+    second: ShotAll-1-2_27
+  - first:
+      213: -2556789965955955405
+    second: ShotAll-1-2_28
+  - first:
+      213: 1238135811497320814
+    second: ShotAll-1-2_29
+  - first:
+      213: 2729432484171363254
+    second: ShotAll-1-2_30
+  - first:
+      213: 1747185836283580787
+    second: ShotAll-1-2_31
+  - first:
+      213: -8935790201734159765
+    second: ShotAll-1-2_32
+  - first:
+      213: 5956835059805086972
+    second: ShotAll-1-2_33
+  - first:
+      213: -8896350816633548957
+    second: ShotAll-1-2_34
+  - first:
+      213: 3485460269444751169
+    second: ShotAll-1-2_35
+  - first:
+      213: 9105804112376922617
+    second: ShotAll-1-2_36
+  - first:
+      213: -3275623834567099695
+    second: ShotAll-1-2_37
+  - first:
+      213: -6178035616667623072
+    second: ShotAll-1-2_38
+  - first:
+      213: 8516868934841030310
+    second: ShotAll-1-2_39
+  - first:
+      213: -3222623471526375102
+    second: ShotAll-1-2_40
+  - first:
+      213: 2901159912732928360
+    second: ShotAll-1-2_41
+  - first:
+      213: -8378325300030874813
+    second: ShotAll-1-2_42
+  - first:
+      213: -349962171970760966
+    second: ShotAll-1-2_43
+  - first:
+      213: 6201623883933659176
+    second: ShotAll-1-2_44
+  - first:
+      213: 6709977881589784685
+    second: ShotAll-1-2_45
+  - first:
+      213: 6802356625704704363
+    second: ShotAll-1-2_46
+  - first:
+      213: 775427377857195616
+    second: ShotAll-1-2_47
+  - first:
+      213: 188765867491002939
+    second: ShotAll-1-2_48
+  - first:
+      213: -3435637057674023438
+    second: ShotAll-1-2_49
+  - first:
+      213: 3128594850615332072
+    second: ShotAll-1-2_50
+  - first:
+      213: 6432605626455519896
+    second: ShotAll-1-2_51
+  - first:
+      213: 4566770552275045960
+    second: ShotAll-1-2_52
+  - first:
+      213: 8662185980050050246
+    second: ShotAll-1-2_53
+  - first:
+      213: 3441302586453623324
+    second: ShotAll-1-2_54
+  - first:
+      213: -78947591923538482
+    second: ShotAll-1-2_55
+  - first:
+      213: 3137295632791319791
+    second: ShotAll-1-2_56
+  - first:
+      213: 227399466784757803
+    second: ShotAll-1-2_57
+  - first:
+      213: -7439279883099895974
+    second: ShotAll-1-2_58
+  - first:
+      213: 8589868426260324515
+    second: ShotAll-1-2_59
+  - first:
+      213: -4659833628807519864
+    second: ShotAll-1-2_60
+  - first:
+      213: 815209469887774610
+    second: ShotAll-1-2_61
+  - first:
+      213: 4940460518984964166
+    second: ShotAll-1-2_62
+  - first:
+      213: -3826768265993188719
+    second: ShotAll-1-2_63
+  - first:
+      213: -8623400142334762658
+    second: ShotAll-1-2_64
+  - first:
+      213: 1951992422797189241
+    second: ShotAll-1-2_65
+  - first:
+      213: 4978680782216973538
+    second: ShotAll-1-2_66
+  - first:
+      213: 4665485725423925526
+    second: ShotAll-1-2_67
+  - first:
+      213: -4272383919375949713
+    second: ShotAll-1-2_68
+  - first:
+      213: 1511651834220127170
+    second: ShotAll-1-2_69
+  - first:
+      213: 8308622728092017922
+    second: ShotAll-1-2_70
+  - first:
+      213: 7706756739572606020
+    second: ShotAll-1-2_71
+  - first:
+      213: -6887024566413973864
+    second: ShotAll-1-2_72
+  - first:
+      213: 2566225846117420265
+    second: ShotAll-1-2_73
+  - first:
+      213: 2452657247571828589
+    second: ShotAll-1-2_74
+  - first:
+      213: -5942231604475742251
+    second: ShotAll-1-2_75
+  - first:
+      213: -6399722858552518777
+    second: ShotAll-1-2_76
+  - first:
+      213: -8078161092416161453
+    second: ShotAll-1-2_77
+  - first:
+      213: -573098087570924778
+    second: ShotAll-1-2_78
+  - first:
+      213: 4726100304857409196
+    second: ShotAll-1-2_79
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ShotAll-1-2_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 02a68cf99549ca240800000000000000
+      internalID: 4804378015151188512
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_1
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2273fe0f51425ec50800000000000000
+      internalID: 6693796097811232546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_2
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ba2a3794732828260800000000000000
+      internalID: 7098379136656450219
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_3
+      rect:
+        serializedVersion: 2
+        x: 21
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d43b65e321d923da0800000000000000
+      internalID: -5966533854631644339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_4
+      rect:
+        serializedVersion: 2
+        x: 36
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec0f1803918cb0730800000000000000
+      internalID: 3966483907343413454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_5
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 164720072f5c7efb0800000000000000
+      internalID: -4618505247793187743
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_6
+      rect:
+        serializedVersion: 2
+        x: 54
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6b9acca60e9cd8610800000000000000
+      internalID: 1625177006252272054
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_7
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f4e5a1fd49288d840800000000000000
+      internalID: 5249088941610131023
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_8
+      rect:
+        serializedVersion: 2
+        x: 72
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 963a83825cb533870800000000000000
+      internalID: 8661367410705081193
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_9
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 292a71673e6b80f20800000000000000
+      internalID: 3389159807651390098
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_10
+      rect:
+        serializedVersion: 2
+        x: 90
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a10c6295b0b9d550800000000000000
+      internalID: 6186169857062207908
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_11
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 715bb08b9458f32a0800000000000000
+      internalID: -6755534364365572841
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_12
+      rect:
+        serializedVersion: 2
+        x: 108
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 431de89264a0509d0800000000000000
+      internalID: -2808827496134422220
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_13
+      rect:
+        serializedVersion: 2
+        x: 111
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 20d60aec3f33805d0800000000000000
+      internalID: -3096167621580526334
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_14
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 144
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9878375dcef6c03d0800000000000000
+      internalID: -3239090969002145911
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_15
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 162
+        width: 11
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9ad911e31378435c0800000000000000
+      internalID: -4236612703884304983
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_16
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1e81fb7a6c8460d0800000000000000
+      internalID: -3430462627175625187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_17
+      rect:
+        serializedVersion: 2
+        x: 21
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1943e799a4731f4d0800000000000000
+      internalID: -3102637874739268463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_18
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 763373c7b0ecfe2d0800000000000000
+      internalID: -3247150257586883737
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_19
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f02981b114b157860800000000000000
+      internalID: 7526952318661071375
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_20
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 76f28baaf9e056ca0800000000000000
+      internalID: -6024392847611383961
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_21
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bfab8cf373d7fbbc0800000000000000
+      internalID: -3765153087211652357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_22
+      rect:
+        serializedVersion: 2
+        x: 111
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aeec1884f71c43960800000000000000
+      internalID: 7580896825192861418
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_23
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 126
+        width: 11
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a2c4f523b9dccb950800000000000000
+      internalID: 6466269231445920810
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_24
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1bb579d3b46d3bb10800000000000000
+      internalID: 1996174678499482545
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_25
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c73238b0417aabb0800000000000000
+      internalID: -4923998719794071614
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_26
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4cbee9b83a6d4e4e0800000000000000
+      internalID: -1953200340461491260
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_27
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 93d1f3b3fbbf247d0800000000000000
+      internalID: -2935507208340824775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_28
+      rect:
+        serializedVersion: 2
+        x: 36
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 33589e98215748cd0800000000000000
+      internalID: -2556789965955955405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_29
+      rect:
+        serializedVersion: 2
+        x: 38
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e61ecfbe5fdbe2110800000000000000
+      internalID: 1238135811497320814
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_30
+      rect:
+        serializedVersion: 2
+        x: 54
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6b332791264e0e520800000000000000
+      internalID: 2729432484171363254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_31
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 371d648d2404f3810800000000000000
+      internalID: 1747185836283580787
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_32
+      rect:
+        serializedVersion: 2
+        x: 72
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b622836c722bdf380800000000000000
+      internalID: -8935790201734159765
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_33
+      rect:
+        serializedVersion: 2
+        x: 74
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf4664d1dedeaa250800000000000000
+      internalID: 5956835059805086972
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_34
+      rect:
+        serializedVersion: 2
+        x: 90
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 36f0d413110d98480800000000000000
+      internalID: -8896350816633548957
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_35
+      rect:
+        serializedVersion: 2
+        x: 92
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 14fddf6f5a7de5030800000000000000
+      internalID: 3485460269444751169
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_36
+      rect:
+        serializedVersion: 2
+        x: 108
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f1848878905e5e70800000000000000
+      internalID: 9105804112376922617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_37
+      rect:
+        serializedVersion: 2
+        x: 110
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1da33da3a75aa82d0800000000000000
+      internalID: -3275623834567099695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_38
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 91
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 061a0dad655334aa0800000000000000
+      internalID: -6178035616667623072
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_39
+      rect:
+        serializedVersion: 2
+        x: 128
+        y: 108
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6a652c30c2ff13670800000000000000
+      internalID: 8516868934841030310
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_40
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 24195ded601f643d0800000000000000
+      internalID: -3222623471526375102
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_41
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 869ac03d19df24820800000000000000
+      internalID: 2901159912732928360
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_42
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34bddf6a7853abb80800000000000000
+      internalID: -8378325300030874813
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_43
+      rect:
+        serializedVersion: 2
+        x: 58
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: afecbde324fa42bf0800000000000000
+      internalID: -349962171970760966
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_44
+      rect:
+        serializedVersion: 2
+        x: 76
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 820b1789018901650800000000000000
+      internalID: 6201623883933659176
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_45
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d6023e21551ae1d50800000000000000
+      internalID: 6709977881589784685
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_46
+      rect:
+        serializedVersion: 2
+        x: 112
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6957a68f43d66e50800000000000000
+      internalID: 6802356625704704363
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_47
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 77
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06e6a4e771fd2ca00800000000000000
+      internalID: 775427377857195616
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_48
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b3a058d6e81ae9200800000000000000
+      internalID: 188765867491002939
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_49
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2fdeb208c4a2250d0800000000000000
+      internalID: -3435637057674023438
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_50
+      rect:
+        serializedVersion: 2
+        x: 40
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ec0b0dc0700b6b20800000000000000
+      internalID: 3128594850615332072
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_51
+      rect:
+        serializedVersion: 2
+        x: 58
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8927f016cb4354950800000000000000
+      internalID: 6432605626455519896
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_52
+      rect:
+        serializedVersion: 2
+        x: 76
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84e811b1f9d606f30800000000000000
+      internalID: 4566770552275045960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_53
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6cc804f2144463870800000000000000
+      internalID: 8662185980050050246
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_54
+      rect:
+        serializedVersion: 2
+        x: 112
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c1283363876f1cf20800000000000000
+      internalID: 3441302586453623324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_55
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 59
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec5668b559587eef0800000000000000
+      internalID: -78947591923538482
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_56
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 36
+        width: 18
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fe439e381c9e98b20800000000000000
+      internalID: 3137295632791319791
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_57
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b2891d73c92e72300800000000000000
+      internalID: 227399466784757803
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_58
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a570f1f7c5e52c890800000000000000
+      internalID: -7439279883099895974
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_59
+      rect:
+        serializedVersion: 2
+        x: 21
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3a0279692d7553770800000000000000
+      internalID: 8589868426260324515
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_60
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8812282e002f45fb0800000000000000
+      internalID: -4659833628807519864
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_61
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29ff13691b4305b00800000000000000
+      internalID: 815209469887774610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_62
+      rect:
+        serializedVersion: 2
+        x: 53
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 648d0f49aaa009440800000000000000
+      internalID: 4940460518984964166
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_63
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 19a0db3898694eac0800000000000000
+      internalID: -3826768265993188719
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_64
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e5165106247835880800000000000000
+      internalID: -8623400142334762658
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_65
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 970a41534ced61b10800000000000000
+      internalID: 1951992422797189241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_66
+      rect:
+        serializedVersion: 2
+        x: 89
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ec4b121bc3d71540800000000000000
+      internalID: 4978680782216973538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_67
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6197c886c822fb040800000000000000
+      internalID: 4665485725423925526
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_68
+      rect:
+        serializedVersion: 2
+        x: 107
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f60618d167175b4c0800000000000000
+      internalID: -4272383919375949713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_69
+      rect:
+        serializedVersion: 2
+        x: 111
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c322ca85577af410800000000000000
+      internalID: 1511651834220127170
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_70
+      rect:
+        serializedVersion: 2
+        x: 125
+        y: 36
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 20569a8a9582e4370800000000000000
+      internalID: 8308622728092017922
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_71
+      rect:
+        serializedVersion: 2
+        x: 129
+        y: 18
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 444a2982c66e3fa60800000000000000
+      internalID: 7706756739572606020
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_72
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 18
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 896a18755af5c60a0800000000000000
+      internalID: -6887024566413973864
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_73
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9ec41438fc01d9320800000000000000
+      internalID: 2566225846117420265
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_74
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d6f5e4d95c6990220800000000000000
+      internalID: 2452657247571828589
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_75
+      rect:
+        serializedVersion: 2
+        x: 53
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5d7bf1ac6d3f88da0800000000000000
+      internalID: -5942231604475742251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_76
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7879703a7fd9f27a0800000000000000
+      internalID: -6399722858552518777
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_77
+      rect:
+        serializedVersion: 2
+        x: 89
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3593720594b94ef80800000000000000
+      internalID: -8078161092416161453
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_78
+      rect:
+        serializedVersion: 2
+        x: 107
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 61b11e46352fb08f0800000000000000
+      internalID: -573098087570924778
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShotAll-1-2_79
+      rect:
+        serializedVersion: 2
+        x: 125
+        y: 0
+        width: 19
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca624e3ff2b769140800000000000000
+      internalID: 4726100304857409196
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ShotAll-1-2_0: 4804378015151188512
+      ShotAll-1-2_1: 6693796097811232546
+      ShotAll-1-2_10: 6186169857062207908
+      ShotAll-1-2_11: -6755534364365572841
+      ShotAll-1-2_12: -2808827496134422220
+      ShotAll-1-2_13: -3096167621580526334
+      ShotAll-1-2_14: -3239090969002145911
+      ShotAll-1-2_15: -4236612703884304983
+      ShotAll-1-2_16: -3430462627175625187
+      ShotAll-1-2_17: -3102637874739268463
+      ShotAll-1-2_18: -3247150257586883737
+      ShotAll-1-2_19: 7526952318661071375
+      ShotAll-1-2_2: 7098379136656450219
+      ShotAll-1-2_20: -6024392847611383961
+      ShotAll-1-2_21: -3765153087211652357
+      ShotAll-1-2_22: 7580896825192861418
+      ShotAll-1-2_23: 6466269231445920810
+      ShotAll-1-2_24: 1996174678499482545
+      ShotAll-1-2_25: -4923998719794071614
+      ShotAll-1-2_26: -1953200340461491260
+      ShotAll-1-2_27: -2935507208340824775
+      ShotAll-1-2_28: -2556789965955955405
+      ShotAll-1-2_29: 1238135811497320814
+      ShotAll-1-2_3: -5966533854631644339
+      ShotAll-1-2_30: 2729432484171363254
+      ShotAll-1-2_31: 1747185836283580787
+      ShotAll-1-2_32: -8935790201734159765
+      ShotAll-1-2_33: 5956835059805086972
+      ShotAll-1-2_34: -8896350816633548957
+      ShotAll-1-2_35: 3485460269444751169
+      ShotAll-1-2_36: 9105804112376922617
+      ShotAll-1-2_37: -3275623834567099695
+      ShotAll-1-2_38: -6178035616667623072
+      ShotAll-1-2_39: 8516868934841030310
+      ShotAll-1-2_4: 3966483907343413454
+      ShotAll-1-2_40: -3222623471526375102
+      ShotAll-1-2_41: 2901159912732928360
+      ShotAll-1-2_42: -8378325300030874813
+      ShotAll-1-2_43: -349962171970760966
+      ShotAll-1-2_44: 6201623883933659176
+      ShotAll-1-2_45: 6709977881589784685
+      ShotAll-1-2_46: 6802356625704704363
+      ShotAll-1-2_47: 775427377857195616
+      ShotAll-1-2_48: 188765867491002939
+      ShotAll-1-2_49: -3435637057674023438
+      ShotAll-1-2_5: -4618505247793187743
+      ShotAll-1-2_50: 3128594850615332072
+      ShotAll-1-2_51: 6432605626455519896
+      ShotAll-1-2_52: 4566770552275045960
+      ShotAll-1-2_53: 8662185980050050246
+      ShotAll-1-2_54: 3441302586453623324
+      ShotAll-1-2_55: -78947591923538482
+      ShotAll-1-2_56: 3137295632791319791
+      ShotAll-1-2_57: 227399466784757803
+      ShotAll-1-2_58: -7439279883099895974
+      ShotAll-1-2_59: 8589868426260324515
+      ShotAll-1-2_6: 1625177006252272054
+      ShotAll-1-2_60: -4659833628807519864
+      ShotAll-1-2_61: 815209469887774610
+      ShotAll-1-2_62: 4940460518984964166
+      ShotAll-1-2_63: -3826768265993188719
+      ShotAll-1-2_64: -8623400142334762658
+      ShotAll-1-2_65: 1951992422797189241
+      ShotAll-1-2_66: 4978680782216973538
+      ShotAll-1-2_67: 4665485725423925526
+      ShotAll-1-2_68: -4272383919375949713
+      ShotAll-1-2_69: 1511651834220127170
+      ShotAll-1-2_7: 5249088941610131023
+      ShotAll-1-2_70: 8308622728092017922
+      ShotAll-1-2_71: 7706756739572606020
+      ShotAll-1-2_72: -6887024566413973864
+      ShotAll-1-2_73: 2566225846117420265
+      ShotAll-1-2_74: 2452657247571828589
+      ShotAll-1-2_75: -5942231604475742251
+      ShotAll-1-2_76: -6399722858552518777
+      ShotAll-1-2_77: -8078161092416161453
+      ShotAll-1-2_78: -573098087570924778
+      ShotAll-1-2_79: 4726100304857409196
+      ShotAll-1-2_8: 8661367410705081193
+      ShotAll-1-2_9: 3389159807651390098
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
