@@ -4,7 +4,9 @@ using KanKikuchi.AudioManager;
 public class PlayerStatusManager : MonoBehaviour
 {
     public static PlayerStatusManager Instance;
-
+    [Header("Replay Settings")]
+    public int replaySeed; // 記録したシード値
+    public bool isReplaying = false;
     [Header("Resources")]
     public int life = 2;          // から移行
     public int bomb = 3;          // から移行
@@ -43,16 +45,26 @@ public class PlayerStatusManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
 
-        // ★修正：練習モードなら残機とボムを0にする
-        if (BossPracticeManager.IsPracticeMode)
+        // --- リプレイの再現性を確保するために乱数を固定 ---
+        if (isReplaying)
         {
-            life = 0;
-            bomb = 0;
+            Random.InitState(replaySeed);
         }
         else
         {
-            life = initialLife;
-            bomb = initialSpell;
+            // 新規プレイ時は現在の時間などからシードを作成して保存
+            replaySeed = System.DateTime.Now.Millisecond;
+            Random.InitState(replaySeed);
+        }
+
+        // 練習モードの判定などはそのまま
+        if (BossPracticeManager.IsPracticeMode)
+        {
+            life = 0; bomb = 0;
+        }
+        else
+        {
+            life = initialLife; bomb = initialSpell;
         }
     }
     void Start()

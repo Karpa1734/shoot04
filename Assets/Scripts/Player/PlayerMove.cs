@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
@@ -9,6 +10,18 @@ public class PlayerMove : MonoBehaviour
     private SpriteRenderer sr;
     private Vector2 inputVec;
 
+    [System.Serializable]
+    public struct ReplayFrame
+    {
+        public float h;     // 水平入力
+        public float v;     // 垂直入力
+        public bool slow;   // 低速(Shift)
+        public bool bomb;   // ボム入力(仮)
+    }
+    public enum ReplayMode { None, Recording, Playing }
+    public ReplayMode currentMode = ReplayMode.None;
+    public List<ReplayFrame> replayData = new List<ReplayFrame>();
+    private int currentFrame = 0;
     [Header("Movement Bounds")]
     public float minX = -4.0f;
     public float maxX = 4.0f;
@@ -42,10 +55,21 @@ public class PlayerMove : MonoBehaviour
 
     void Update()
     {
+        // --- デバッグ用操作 ---
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            StartRecording();
+        }
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            StartPlayback(this.replayData);
+        }
+        if (currentMode == ReplayMode.Playing) return; // 再生中は入力を受け付けない
+
         inputVec.x = Input.GetAxisRaw("Horizontal");
         inputVec.y = Input.GetAxisRaw("Vertical");
 
-        // タイマーの更新（計算のみ）
+        // タイマー更新は共通
         if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
     }
@@ -67,15 +91,65 @@ public class PlayerMove : MonoBehaviour
             }
         }
     }
-
+    // 録画開始メソッド
+    public void StartRecording()
+    {
+        replayData.Clear();
+        currentFrame = 0;
+        currentMode = ReplayMode.Recording;
+        Debug.Log("<color=red>● リプレイ録画開始</color>");
+    }
     void FixedUpdate()
     {
-        float speed = Input.GetKey(KeyCode.LeftShift) ? lowSpeed : highSpeed;
+        ReplayFrame frame;
+
+        if (currentMode == ReplayMode.Playing)
+        {
+            // --- 再生モード：リストから入力を読み出す ---
+            if (currentFrame < replayData.Count)
+            {
+                frame = replayData[currentFrame];
+                inputVec = new Vector2(frame.h, frame.v);
+                currentFrame++;
+            }
+            else
+            {
+                frame = new ReplayFrame(); // データ終了
+            }
+        }
+        else
+        {
+            // --- 通常・記録モード：現在の入力を取得 ---
+            frame = new ReplayFrame
+            {
+                h = inputVec.x,
+                v = inputVec.y,
+                slow = Input.GetKey(KeyCode.LeftShift),
+                bomb = Input.GetKeyDown(KeyCode.X) // ボムキーの例
+            };
+
+            if (currentMode == ReplayMode.Recording)
+            {
+                replayData.Add(frame);
+            }
+        }
+
+        // 移動処理（入力元がキーかリプレイデータかに関わらず同じ計算を通す）
+        float speed = frame.slow ? lowSpeed : highSpeed;
         Vector2 velocity = inputVec.normalized * speed;
         Vector2 nextPosition = rb.position + velocity * Time.fixedDeltaTime;
+
         nextPosition.x = Mathf.Clamp(nextPosition.x, minX, maxX);
         nextPosition.y = Mathf.Clamp(nextPosition.y, minY, maxY);
         rb.MovePosition(nextPosition);
+    }
+
+    // リプレイ開始時の初期化用
+    public void StartPlayback(List<ReplayFrame> data)
+    {
+        replayData = data;
+        currentFrame = 0;
+        currentMode = ReplayMode.Playing;
     }
 
     public void SetInvincible(float duration)
