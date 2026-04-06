@@ -23,15 +23,21 @@ public class PlayerShotManager : MonoBehaviour
     void Start()
     {
         optionManager = GetComponent<OptionManager>();
-
-        // --- 修正：GetComponent ではなく GetComponentInChildren を使う ---
         hitHandler = GetComponentInChildren<PlayerHitHandler>();
 
-        // デバッグ用：見つからなかったらエラーを出す
         if (hitHandler == null) Debug.LogError("PlayerHitHandler が子オブジェクトに見つかりません！");
     }
+
+    // --- Update は削除、または入力を受け取らないように空にする ---
     void Update()
     {
+        // リプレイ実装時はここで Input を直接参照せず、
+        // すべて FixedUpdate 内で PlayerMove.Instance.currentFrameInput を通して処理します。
+    }
+
+    void FixedUpdate()
+    {
+        // タイムスケール停止中や、被弾中などは発射しない
         if (Time.timeScale <= 0) return;
         if (hitHandler == null || hitHandler.currentState != PlayerHitHandler.PlayerState.Normal)
         {
@@ -39,26 +45,34 @@ public class PlayerShotManager : MonoBehaviour
             subTimer = 0;
             return;
         }
-        if (Input.GetKey(KeyCode.Z))
+
+        // --- リプレイ・操作共通の入力参照 ---
+        // PlayerMove.cs で記録・再現されている入力データを使用する
+        bool isShooting = PlayerMove.Instance.currentFrameInput.shot;
+        bool isSlow = PlayerMove.Instance.currentFrameInput.slow;
+
+        if (isShooting)
         {
-            mainTimer -= Time.deltaTime;
-            subTimer -= Time.deltaTime;
+            // FixedUpdate 内なので、必ず fixedDeltaTime を使用する
+            mainTimer -= Time.fixedDeltaTime;
+            subTimer -= Time.fixedDeltaTime;
 
             if (mainTimer <= 0)
             {
                 FireMainShot();
+                // インターバルをリセット
                 mainTimer = mainShotInterval;
             }
 
             if (subTimer <= 0)
             {
-                bool isSlow = Input.GetKey(KeyCode.LeftShift);
                 FireSubShot(isSlow);
                 subTimer = isSlow ? needleInterval : homingInterval;
             }
         }
         else
         {
+            // 撃っていない時はタイマーをリセット（即座に撃ち始められるように 0 にする）
             mainTimer = 0;
             subTimer = 0;
         }
@@ -66,9 +80,7 @@ public class PlayerShotManager : MonoBehaviour
 
     void FireMainShot()
     {
-
-        SEManager.Instance.Play(SEPath.SE_PLST00,0.5f);
-        // Shot.txtのMainShot座標再現 (±8) [cite: 1, 2]
+        SEManager.Instance.Play(SEPath.SE_PLST00, 0.5f);
         Spawn(mainShotPrefab, transform.position + new Vector3(-0.18f, 0, 0));
         Spawn(mainShotPrefab, transform.position + new Vector3(0.18f, 0, 0));
     }
@@ -82,13 +94,11 @@ public class PlayerShotManager : MonoBehaviour
 
             if (isSlow)
             {
-                // 針弾
                 Spawn(needlePrefab, options[i].transform.position + new Vector3(-0.08f, 0, 0));
                 Spawn(needlePrefab, options[i].transform.position + new Vector3(0.08f, 0, 0));
             }
             else
             {
-                // ホーミング弾
                 Quaternion rot = Quaternion.Euler(0, 0, homingInitialAngles[i]);
                 Instantiate(homingPrefab, options[i].transform.position, rot);
             }

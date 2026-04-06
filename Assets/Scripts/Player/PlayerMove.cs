@@ -1,180 +1,117 @@
+// --- シェルクラス：データ保持と外部スクリプト用インターフェースのみを残す ---
 using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
 {
-    [SerializeField] private float highSpeed = 4.5f;
-    [SerializeField] private float lowSpeed = 2.0f;
+    // ★ 複数プレイヤー対応のための管理リスト
+    private static List<PlayerMove> _allPlayers = new List<PlayerMove>();
 
-    private Rigidbody2D rb;
-    private SpriteRenderer sr;
-    private Vector2 inputVec;
+    // ★ 既存スクリプトとの整合性を保つための Singleton プロパティ
+    // リストの最初に見つかったプレイヤーを返すことで、既存の敵の弾やUIがエラーにならないようにします
+    public static PlayerMove Instance => _allPlayers.Count > 0 ? _allPlayers[0] : null;
+
+    // ★ 全プレイヤーにアクセスするための公開プロパティ
+    public static IReadOnlyList<PlayerMove> AllPlayers => _allPlayers;
 
     [System.Serializable]
     public struct ReplayFrame
     {
-        public float h;     // 水平入力
-        public float v;     // 垂直入力
-        public bool slow;   // 低速(Shift)
-        public bool bomb;   // ボム入力(仮)
+        public float h;
+        public float v;
+        public bool slow;
+        public bool shotZ;
+        public bool shotX;
+        public bool shotC;
+        public bool shotV;
+
+        // ★ 既存スクリプト（PlayerShotManager等）との互換性を保つためのプロパティ
+        // .shot を参照すると自動的に .shotZ の値を返します
+        public bool shot => shotZ;
+        // .bomb を参照すると自動的に .shotX の値を返します
+        public bool bomb => shotX;
     }
+
     public enum ReplayMode { None, Recording, Playing }
     public ReplayMode currentMode = ReplayMode.None;
     public List<ReplayFrame> replayData = new List<ReplayFrame>();
     private int currentFrame = 0;
-    [Header("Movement Bounds")]
-    public float minX = -4.0f;
-    public float maxX = 4.0f;
-    public float minY = -4.5f;
-    public float maxY = 4.5f;
 
-    [Header("Status Timers")]
+    // 各インスタンスごとに保持されるため、プレイヤー間でデータが混ざることはありません
+    public ReplayFrame currentFrameInput;
+
     private float invincibleTimer = 0f;
     private float deathBombTimer = 0f;
 
     public bool IsInvincible => invincibleTimer > 0;
     public bool IsInDeathBombWindow => deathBombTimer > 0;
 
-    public static PlayerMove Instance { get; private set; }
+    private SpriteRenderer sr;
 
     void Awake()
     {
         Time.timeScale = 1f;
-        //Application.targetFrameRate = 60;
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+    }
+
+    // ★ 有効化・無効化時にリストを更新する
+    void OnEnable()
+    {
+        if (!_allPlayers.Contains(this)) _allPlayers.Add(this);
+    }
+
+    void OnDisable()
+    {
+        _allPlayers.Remove(this);
     }
 
     void Start()
     {
-        rb = GetComponent<Rigidbody2D>();
-        // スプライトの取得をより確実に
         sr = GetComponent<SpriteRenderer>();
         if (sr == null) sr = GetComponentInChildren<SpriteRenderer>();
     }
 
     void Update()
     {
-        // --- デバッグ用操作 ---
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            StartRecording();
-        }
-        if (Input.GetKeyDown(KeyCode.P))
-        {
-            StartPlayback(this.replayData);
-        }
-        if (currentMode == ReplayMode.Playing) return; // 再生中は入力を受け付けない
-
-        inputVec.x = Input.GetAxisRaw("Horizontal");
-        inputVec.y = Input.GetAxisRaw("Vertical");
-
-        // タイマー更新は共通
+        // 状態タイマーの更新
         if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
+
+        // リプレイ処理（データの出し入れのみ担当）
+        UpdateReplayLogic();
     }
 
-    // 【重要】LateUpdate は Animator の処理が終わった後に呼ばれる
-    // ここで色を塗ることで、Animatorによるリセットを上書きできる
-    void LateUpdate()
+    private void UpdateReplayLogic()
     {
-        if (IsInvincible)
-        {
-            UpdateInvincibleVisual();
-        }
-        else
-        {
-            // 無敵が終わった瞬間に一度だけ色を戻すための判定
-            if (sr != null && sr.color != Color.white)
-            {
-                ResetVisual();
-            }
-        }
-    }
-    // 録画開始メソッド
-    public void StartRecording()
-    {
-        replayData.Clear();
-        currentFrame = 0;
-        currentMode = ReplayMode.Recording;
-        Debug.Log("<color=red>● リプレイ録画開始</color>");
-    }
-    void FixedUpdate()
-    {
-        ReplayFrame frame;
-
         if (currentMode == ReplayMode.Playing)
         {
-            // --- 再生モード：リストから入力を読み出す ---
             if (currentFrame < replayData.Count)
             {
-                frame = replayData[currentFrame];
-                inputVec = new Vector2(frame.h, frame.v);
+                currentFrameInput = replayData[currentFrame];
                 currentFrame++;
             }
-            else
-            {
-                frame = new ReplayFrame(); // データ終了
-            }
         }
-        else
+        else if (currentMode == ReplayMode.Recording)
         {
-            // --- 通常・記録モード：現在の入力を取得 ---
-            frame = new ReplayFrame
-            {
-                h = inputVec.x,
-                v = inputVec.y,
-                slow = Input.GetKey(KeyCode.LeftShift),
-                bomb = Input.GetKeyDown(KeyCode.X) // ボムキーの例
-            };
-
-            if (currentMode == ReplayMode.Recording)
-            {
-                replayData.Add(frame);
-            }
+            replayData.Add(currentFrameInput);
         }
-
-        // 移動処理（入力元がキーかリプレイデータかに関わらず同じ計算を通す）
-        float speed = frame.slow ? lowSpeed : highSpeed;
-        Vector2 velocity = inputVec.normalized * speed;
-        Vector2 nextPosition = rb.position + velocity * Time.fixedDeltaTime;
-
-        nextPosition.x = Mathf.Clamp(nextPosition.x, minX, maxX);
-        nextPosition.y = Mathf.Clamp(nextPosition.y, minY, maxY);
-        rb.MovePosition(nextPosition);
     }
 
-    // リプレイ開始時の初期化用
-    public void StartPlayback(List<ReplayFrame> data)
+    void LateUpdate()
     {
-        replayData = data;
-        currentFrame = 0;
-        currentMode = ReplayMode.Playing;
+        if (IsInvincible) UpdateInvincibleVisual();
+        else if (sr != null && sr.color != Color.white) ResetVisual();
     }
 
-    public void SetInvincible(float duration)
-    {
-        invincibleTimer = duration;
-        deathBombTimer = 0f;
-    }
-
-    public void StartDeathBombWindow(float duration)
-    {
-        if (!IsInvincible) deathBombTimer = duration;
-    }
+    public void SetInvincible(float duration) => invincibleTimer = duration;
+    public void StartDeathBombWindow(float duration) { if (!IsInvincible) deathBombTimer = duration; }
 
     private void UpdateInvincibleVisual()
     {
         if (sr == null) return;
         float pingPong = Mathf.PingPong(Time.time * 20f, 1f);
         float alpha = 0.3f + pingPong * 0.7f;
-        // 青い点滅色を適用
         sr.color = Color.Lerp(new Color(0.4f, 0.4f, 1f, alpha), new Color(1f, 1f, 1f, alpha), pingPong);
     }
 
-    private void ResetVisual()
-    {
-        if (sr == null) return;
-        sr.color = Color.white;
-    }
+    private void ResetVisual() { if (sr != null) sr.color = Color.white; }
 }

@@ -4,9 +4,7 @@ using KanKikuchi.AudioManager;
 public class PlayerStatusManager : MonoBehaviour
 {
     public static PlayerStatusManager Instance;
-    [Header("Replay Settings")]
-    public int replaySeed; // 記録したシード値
-    public bool isReplaying = false;
+
     [Header("Resources")]
     public int life = 2;          // から移行
     public int bomb = 3;          // から移行
@@ -22,7 +20,9 @@ public class PlayerStatusManager : MonoBehaviour
     // ★個別の要求数（インスペクターで調整可能に）
     public int lifePiecesRequired = 3;
     public int bombPiecesRequired = 3;
-
+    [Header("Replay Settings")]
+    public int replaySeed; // 記録したシード値
+    public bool isReplaying = false;
 
 
     [Header("Timers")]
