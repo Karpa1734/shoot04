@@ -1,58 +1,71 @@
 using UnityEngine;
 
+/// <summary>
+/// プレイヤーのスキルから弾幕を射出するクラス
+/// </summary>
 public class PlayerDanmakuEmitter : MonoBehaviour
 {
     public void Fire(PlayerSkillData.SkillSettings s)
     {
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
 
-        // 正面（上向き）を90度として計算
+        // 正面（上向き）を90度として、オフセットを加味
         float baseAngle = 90f + s.angleOffset;
         Vector3 pos = transform.position;
+
+        // ★対戦用ターゲット設定
+        // 1vs1対戦の場合、相手も "Player" タグであるため、攻撃対象を "Player" に設定します。
+        // 自分自身へのヒットは DanmakuBullet 側の owner チェックで除外されます。
+        string targetTag = "Player";
 
         switch (s.patternType)
         {
             case SkillPatternType.Standard:
-                CreateShot(s.bulletData, pos, s.speed, baseAngle);
+                CreateShot(s.bulletData, pos, s.speed, baseAngle, targetTag);
                 break;
 
             case SkillPatternType.nWay:
                 float wayAngle = s.count > 1 ? s.wideAngle / (s.count - 1) : 0;
                 float startAngle = baseAngle - (s.wideAngle / 2f);
                 for (int i = 0; i < s.count; i++)
-                    CreateShot(s.bulletData, pos, s.speed, startAngle + (wayAngle * i));
+                    CreateShot(s.bulletData, pos, s.speed, startAngle + (wayAngle * i), targetTag);
                 break;
 
             case SkillPatternType.Round:
                 float step = 360f / Mathf.Max(1, s.count);
                 for (int i = 0; i < s.count; i++)
-                    CreateShot(s.bulletData, pos, s.speed, baseAngle + (step * i));
+                    CreateShot(s.bulletData, pos, s.speed, baseAngle + (step * i), targetTag);
                 break;
 
             case SkillPatternType.Polygon:
-                ExecutePolygon(s, pos, baseAngle);
+                ExecutePolygon(s, pos, baseAngle, targetTag);
                 break;
 
             case SkillPatternType.Line:
                 for (int i = 0; i < s.count; i++)
-                    CreateShot(s.bulletData, pos, s.speed + (i * 0.4f), baseAngle);
+                    CreateShot(s.bulletData, pos, s.speed + (i * 0.4f), baseAngle, targetTag);
                 break;
         }
     }
 
-    private void CreateShot(BulletData data, Vector3 pos, float speed, float angle)
+    /// <summary>
+    /// 弾を生成し、初期化する
+    /// </summary>
+    private void CreateShot(BulletData data, Vector3 pos, float speed, float angle, string target)
     {
         GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
         DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
 
         if (bullet != null)
         {
-            // 自分自身を owner として渡し、自爆を防ぐ
-            bullet.Initialize(gameObject, speed, angle, 0, speed, 0, 0, data);
+            // ★修正ポイント：gameObject ではなく transform.root.gameObject を渡す
+            // これにより、このスクリプトがどの子階層にあっても、自機の「一番上の親」がオーナーになります。
+            // DanmakuBullet 側の IsChildOf(owner.transform) がこれで正しく機能します。
+            bullet.Initialize(transform.root.gameObject, target, speed, angle, 0, speed, 0, 0, data);
         }
     }
 
-    private void ExecutePolygon(PlayerSkillData.SkillSettings s, Vector3 pos, float startAngle)
+    private void ExecutePolygon(PlayerSkillData.SkillSettings s, Vector3 pos, float startAngle, string target)
     {
         int edges = Mathf.Max(3, s.count);
         int bulletCount = 32;
@@ -62,7 +75,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             float angleDeg = i * (360f / bulletCount) + startAngle;
             float relativeAngle = ((angleDeg - startAngle) % segmentAngle) - (segmentAngle / 2f);
             float speedMult = 1f / Mathf.Cos(relativeAngle * Mathf.Deg2Rad);
-            CreateShot(s.bulletData, pos, s.speed * speedMult, angleDeg);
+            CreateShot(s.bulletData, pos, s.speed * speedMult, angleDeg, target);
         }
     }
 }

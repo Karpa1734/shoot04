@@ -84,29 +84,37 @@ public class PlayerStatusManager : MonoBehaviour
     }
     void Update()
     {
-
-        // タイマー処理の集約
+        // 状態タイマーの更新（これはローカル変数なので安全）
         if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
 
-        // ★追加：エディタ上のみ、キー入力でデバッグ無敵を切り替える
 #if UNITY_EDITOR
-        // Iキーで有効、Uキーで無効
+        // Iキーで無敵有効
         if (Input.GetKeyDown(KeyCode.I))
         {
-            PlayerMove.Instance.SetInvincible(3.0f);
-            isDebugInvincible = true;
-            Debug.Log("<color=cyan>[Debug] 無敵固定: ON</color>");
+            // ★修正：PlayerMove.Instance が null でないことを確認してから呼ぶ
+            if (PlayerMove.Instance != null)
+            {
+                PlayerMove.Instance.SetInvincible(3.0f);
+                isDebugInvincible = true;
+                Debug.Log("<color=cyan>[Debug] 無敵固定: ON</color>");
+            }
         }
+
+        // Uキーで無敵無効
         if (Input.GetKeyDown(KeyCode.U))
         {
-            PlayerMove.Instance.SetInvincible(0);
-            isDebugInvincible = false;
-            Debug.Log("<color=yellow>[Debug] 無敵固定: OFF</color>");
+            if (PlayerMove.Instance != null)
+            {
+                PlayerMove.Instance.SetInvincible(0);
+                isDebugInvincible = false;
+                Debug.Log("<color=yellow>[Debug] 無敵固定: OFF</color>");
+            }
         }
+
+        // デバッグ無敵がONの間、毎フレームタイマーを固定する
         if (isDebugInvincible && PlayerMove.Instance != null)
         {
-            // StatusManager ではなく、PlayerMove 側のタイマーを直接固定する
             PlayerMove.Instance.SetInvincible(3.0f);
         }
 #endif
@@ -219,19 +227,15 @@ public class PlayerStatusManager : MonoBehaviour
     }
 
     private void UpdateUI()
-    {
-        Debug.Log("!!"); // ★このログが出るか？（UI更新の確認）
-                         // Life用のUIを更新（要求数も渡す）
+    {                         // Life用のUIを更新（要求数も渡す）
         if (lifeUI != null)
         {
-            Debug.Log("!!1"); // ★このログが出るか？（UI更新の確認）
             lifeUI.SetCount(life, lifePieces, lifePiecesRequired);
         }
 
         // Bomb用のUIを更新（要求数も渡す）
         if (spellUI != null)
         {
-            Debug.Log("!!2"); // ★このログが出るか？（UI更新の確認）
             spellUI.SetCount(bomb, bombPieces, bombPiecesRequired);
         }
     }

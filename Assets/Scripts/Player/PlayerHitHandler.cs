@@ -1,6 +1,5 @@
 using KanKikuchi.AudioManager;
 using System.Collections;
-using TMPro;
 using UnityEngine;
 
 public class PlayerHitHandler : MonoBehaviour
@@ -21,16 +20,15 @@ public class PlayerHitHandler : MonoBehaviour
     [Header("Bullet Clear")]
     public GameObject bulletClearPrefab;
 
-    // --- 追加：本体のSpriteRendererを特定するため ---
     private SpriteRenderer characterRenderer;
     private ItemEffectHandler itemHandler;
+
     void Awake()
     {
-        // 親オブジェクトや他の子オブジェクトから必要なコンポーネントを自動取得
         if (playerMove == null) playerMove = GetComponentInParent<PlayerMove>();
         if (playerAnim == null) playerAnim = GetComponentInParent<PlayerAnimation>();
         itemHandler = GetComponent<ItemEffectHandler>();
-        // 通常、キャラの画像は親か別の子にあるので、それを見つける
+
         characterRenderer = GetComponentInParent<SpriteRenderer>();
         if (characterRenderer == null)
         {
@@ -48,29 +46,40 @@ public class PlayerHitHandler : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // 1. 敵弾の消去（レーザーは消さない）
-        if (collision.CompareTag("EnemyBullet"))
-        {
-            EnemyBullet bullet = collision.GetComponent<EnemyBullet>();
-            if (bullet != null) bullet.Deactivate(true);
-        }
-
+        // 1. アイテムの取得処理
         if (collision.CompareTag("Item"))
         {
-            itemHandler.HandleItemCollision(collision);
+            if (itemHandler != null) itemHandler.HandleItemCollision(collision);
             return;
         }
 
-        if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
-
-        // 3. 被弾開始（Laserタグを追加。ただし破壊はしない）
+        // 2. 弾丸または敵との接触判定
         if (collision.CompareTag("EnemyBullet") || collision.CompareTag("Enemy") || collision.CompareTag("Laser"))
         {
+            // ★ 自爆防止の核となる修正点：
+            // 弾に DanmakuBullet スクリプトが付いているか確認し、
+            // そのオーナーが自分（transform.root）なら、被弾処理をスキップする
+            DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
+            if (bullet != null)
+            {
+                if (bullet.owner == transform.root.gameObject)
+                {
+                    return; // 自分の弾なので無視
+                }
+            }
+
+            // 無敵中、または既に被弾状態なら無視
+            if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
+
+            // 被弾確定時の処理
             EnemyStatus boss = Object.FindFirstObjectByType<EnemyStatus>();
             if (boss != null) boss.FailSpell();
 
             currentState = PlayerState.DeathBomb;
             StartCoroutine(CheckDeathBombRoutine());
+
+            // 弾を消去（DanmakuBullet側で消去処理があればそちらに任せても良い）
+            if (bullet != null) bullet.Deactivate();
         }
     }
 
@@ -93,20 +102,11 @@ public class PlayerHitHandler : MonoBehaviour
         StartCoroutine(ExplosionAndRebirthRoutine());
     }
 
-    // --- PlayerHitHandler.cs の修正 ---
-
     IEnumerator ExplosionAndRebirthRoutine()
     {
-        if (playerMove.IsInvincible)
-        {
-            currentState = PlayerState.Normal;
-            yield break;
-        }
-
         Vector3 deathPos = transform.position;
         currentState = PlayerState.Hit;
 
-        // 1. エフェクトと弾消し（共通）
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, deathPos, Quaternion.identity);
         if (bulletClearPrefab != null)
         {
@@ -114,19 +114,14 @@ public class PlayerHitHandler : MonoBehaviour
             clearObj.SendMessage("StartClearing", deathPos, SendMessageOptions.DontRequireReceiver);
         }
 
-        // --- 修正ポイント：残機に関わらず、一旦プレイヤーを画面外へ飛ばして非表示にする ---
-        // これによりゲームオーバー時も「その場で止まる」のではなく「ミスして消える」演出になります
         playerMove.enabled = false;
-        transform.parent.position = new Vector3(-2.0f, -100f, 0); // 画面外へ
-        if (characterRenderer != null) characterRenderer.enabled = false; // 非表示
+        transform.parent.position = new Vector3(-2.0f, -100f, 0);
+        if (characterRenderer != null) characterRenderer.enabled = false;
 
-        // --- 残機チェック ---
         if (PlayerStatusManager.Instance.SubtractLifeAndCheckRebirth())
         {
-            // 復活可能な場合：既存のダウンタイム待機
             yield return new WaitForSeconds(downTime);
 
-            // 復活処理（Rebirth）
             currentState = PlayerState.Rebirth;
             transform.parent.position = new Vector3(-2.0f, -6.0f, 0);
             if (characterRenderer != null) characterRenderer.enabled = true;
@@ -147,16 +142,12 @@ public class PlayerHitHandler : MonoBehaviour
         }
         else
         {
-            // --- 修正ポイント：最後の残機だった場合 ---
-            // 爆発を見てから1秒間待機する
             yield return new WaitForSeconds(0.5f);
-
-            // ゲームオーバーUIの表示指示
             PlayerStatusManager.Instance.TriggerGameOver();
             yield break;
         }
     }
-    // コンティニューボタンから呼ばれる復活開始メソッド
+
     public void StartRebirthFromContinue()
     {
         StartCoroutine(RebirthRoutine());
@@ -165,24 +156,22 @@ public class PlayerHitHandler : MonoBehaviour
     private IEnumerator RebirthRoutine()
     {
         currentState = PlayerState.Rebirth;
-
-        // 画面下部から登場
         transform.parent.position = new Vector3(-2.0f, -6.0f, 0);
         if (characterRenderer != null) characterRenderer.enabled = true;
 
         float elapsed = 0;
         Vector3 startPos = transform.parent.position;
-        Vector3 targetPos = new Vector3(-2.0f, -3.5f, 0); // 目標位置
+        Vector3 targetPos = new Vector3(-2.0f, -3.5f, 0);
 
         while (elapsed < 0.6f)
         {
             transform.parent.position = Vector3.Lerp(startPos, targetPos, elapsed / 0.6f);
-            elapsed += Time.unscaledDeltaTime; // ポーズ解除直後のため unscaled を推奨
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
 
         playerMove.enabled = true;
         currentState = PlayerState.Normal;
-        playerMove.SetInvincible(invincibilityTime); // 復活後の無敵付与
+        playerMove.SetInvincible(invincibilityTime);
     }
 }

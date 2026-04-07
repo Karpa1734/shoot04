@@ -20,10 +20,10 @@ TagManager:
   - PlayerGraze
   - EnemyBullet
   - Background3D
-  - 
-  - 
-  - 
-  - 
+  - Player1
+  - Player2
+  - Player1Bullet
+  - Player2
   - 
   - 
   - 
