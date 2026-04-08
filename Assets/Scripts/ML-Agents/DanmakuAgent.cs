@@ -9,7 +9,7 @@ public class DanmakuAgent : Agent
 
     // 他のエージェント（対戦相手）の位置を知るための参照
     [SerializeField] private Transform opponent;
-
+    public int playerID = 1; // インスペクターで1または2に設定
     public override void Initialize()
     {
         playerMove = GetComponent<PlayerMove>();
@@ -75,25 +75,27 @@ public class DanmakuAgent : Agent
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var discrete = actionsOut.DiscreteActions;
+        discrete.Clear();
 
-        // 水平移動 (Branch 0)
-        discrete[0] = 0;
-        if (Input.GetKey(KeyCode.LeftArrow)) discrete[0] = 1;
-        else if (Input.GetKey(KeyCode.RightArrow)) discrete[0] = 2;
-
-        // 垂直移動 (Branch 1)
-        discrete[1] = 0;
-        if (Input.GetKey(KeyCode.UpArrow)) discrete[1] = 1;
-        else if (Input.GetKey(KeyCode.DownArrow)) discrete[1] = 2;
-
-        // スキル (Branch 2)
-        discrete[2] = 0;
-        if (Input.GetKey(KeyCode.Z)) discrete[2] = 1;
-        else if (Input.GetKey(KeyCode.X)) discrete[2] = 2;
-        else if (Input.GetKey(KeyCode.C)) discrete[2] = 3; // discrete[3]を[2]へ
-        else if (Input.GetKey(KeyCode.V)) discrete[2] = 4; // discrete[4]を[2]へ
-
-        // 低速 (Branch 3)
-        discrete[3] = Input.GetKey(KeyCode.LeftShift) ? 1 : 0; // discrete[3]へ
+        if (playerID == 1)
+        {
+            // Player 1: 矢印キー + Z / X
+            if (Input.GetKey(KeyCode.LeftArrow)) discrete[0] = 1;
+            else if (Input.GetKey(KeyCode.RightArrow)) discrete[0] = 2;
+            if (Input.GetKey(KeyCode.UpArrow)) discrete[1] = 1;
+            else if (Input.GetKey(KeyCode.DownArrow)) discrete[1] = 2;
+            if (Input.GetKey(KeyCode.Z)) discrete[2] = 1;
+            else if (Input.GetKey(KeyCode.X)) discrete[2] = 2;
+        }
+        else
+        {
+            // Player 2: WASD + F / G
+            if (Input.GetKey(KeyCode.A)) discrete[0] = 1;
+            else if (Input.GetKey(KeyCode.D)) discrete[0] = 2;
+            if (Input.GetKey(KeyCode.W)) discrete[1] = 1;
+            else if (Input.GetKey(KeyCode.S)) discrete[1] = 2;
+            if (Input.GetKey(KeyCode.F)) discrete[2] = 1;
+            else if (Input.GetKey(KeyCode.G)) discrete[2] = 2;
+        }
     }
 }

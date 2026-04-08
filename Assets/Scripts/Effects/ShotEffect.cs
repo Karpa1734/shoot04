@@ -14,6 +14,7 @@ public class ShotEffect : MonoBehaviour
     public IEnumerator PlayDelay(float duration, Sprite delaySprite, float targetScale)
     {
         if (sr == null) sr = GetComponent<SpriteRenderer>();
+        if (this == null) yield break;
 
         // 重要な修正：遅延用の画像をここで確実にセット
         sr.sprite = delaySprite;
@@ -24,6 +25,9 @@ public class ShotEffect : MonoBehaviour
 
         while (elapsed < duration)
         {
+            if (this == null) yield break;
+            if (sr == null) yield break;
+
             float t = elapsed / duration;
             transform.localScale = Vector3.one * Mathf.Lerp(startScale, targetScale, t);
             // delay.png は色付きなので、Alphaだけいじる
@@ -31,13 +35,15 @@ public class ShotEffect : MonoBehaviour
             elapsed += Time.deltaTime;
             yield return null;
         }
-        Destroy(gameObject);
+
+        if (this != null) Destroy(gameObject);
     }
 
     // 消滅エフェクト（etbreak_rss を色付けして使用）
     public IEnumerator PlayBreakAnimation(Color bulletColor, float scale)
     {
         if (sr == null) sr = GetComponent<SpriteRenderer>();
+        if (this == null) yield break;
 
         SEManager.Instance.Play(SEPath.BULLETBREAK, 0.5f);
         // 【修正】大きさを1.5倍に設定
@@ -51,6 +57,7 @@ public class ShotEffect : MonoBehaviour
         // 8枚のフレームを順番に流す
         for (int i = 0; i < breakFrames.Length; i++)
         {
+            if (this == null) yield break;
             if (sr == null) yield break;
 
             sr.sprite = breakFrames[i];
@@ -63,6 +70,6 @@ public class ShotEffect : MonoBehaviour
             yield return new WaitForSeconds(frameTime);
         }
 
-        Destroy(gameObject);
+        if (this != null) Destroy(gameObject);
     }
 }

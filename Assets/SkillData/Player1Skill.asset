@@ -14,24 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
-    patternType: 1
+    patternType: 2
     bulletData: {fileID: 11400000, guid: f273ab83a2a68f84ba3403421d5b9427, type: 2}
-    cooldown: 1
+    cooldown: 0.2
     sePath: 
-    count: 3
+    count: 12
     speed: 3
     angleOffset: 0
     wideAngle: 30
+    delay: 2
   skillX:
     skillName: "\u696D\u706B\u7070\u71FC"
-    patternType: 0
-    bulletData: {fileID: 0}
-    cooldown: 0
+    patternType: 1
+    bulletData: {fileID: 11400000, guid: 11b813697792b7044960dcd2580e17ba, type: 2}
+    cooldown: 0.5
     sePath: 
-    count: 0
-    speed: 0
+    count: 6
+    speed: 4
     angleOffset: 0
-    wideAngle: 0
+    wideAngle: 60
+    delay: 1
   skillC:
     skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
     patternType: 0
@@ -42,6 +44,7 @@ MonoBehaviour:
     speed: 0
     angleOffset: 0
     wideAngle: 0
+    delay: 0
   skillV:
     skillName: "\u72C2\u5316"
     patternType: 0
@@ -52,3 +55,4 @@ MonoBehaviour:
     speed: 0
     angleOffset: 0
     wideAngle: 0
+    delay: 0

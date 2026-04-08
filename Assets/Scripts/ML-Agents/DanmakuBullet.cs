@@ -1,4 +1,3 @@
-using System;
 using System.Collections;
 using UnityEngine;
 
@@ -7,14 +6,23 @@ public class DanmakuBullet : MonoBehaviour
     private SpriteRenderer sr;
     private CircleCollider2D col;
 
-    [NonSerialized] public GameObject owner;    // 撃った人
-    private string targetTag;    // 攻撃対象のタグ
+    public GameObject owner { get; private set; }
+    private string targetTag;
+
+    [Header("Effect Settings")]
+    public GameObject effectPrefab; // ShotEffectが付いているプレハブを指定
+    private GameObject activeDelayEffect;
 
     private BulletData currentData;
     private float speed, angle, accel, maxSpeed, angularVelocity;
     private bool isInitialized = false;
     private bool isActive = true;
     private int delayFrames = 0;
+    private int totalDelay = 0;
+
+    // 収束用フラグ
+    private bool isConverging = false;
+    private Vector3 initialOffset;
 
     void Awake()
     {
@@ -22,11 +30,10 @@ public class DanmakuBullet : MonoBehaviour
         col = GetComponent<CircleCollider2D>();
     }
 
-    // ★ 初期化時に targetTag を受け取るように拡張
-    public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data)
+    public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
         this.owner = shooter;
-        this.targetTag = target; // "Player" か "Enemy" を受け取る
+        this.targetTag = target;
         this.currentData = data;
         this.speed = speed;
         this.angle = angle;
@@ -34,6 +41,8 @@ public class DanmakuBullet : MonoBehaviour
         this.maxSpeed = maxSpeed;
         this.angularVelocity = angVel;
         this.delayFrames = Mathf.RoundToInt(delay);
+        this.totalDelay = this.delayFrames;
+        this.isConverging = converge;
 
         sr.sprite = data.bulletSprite;
         col.radius = data.radius;
@@ -41,9 +50,10 @@ public class DanmakuBullet : MonoBehaviour
 
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
 
-        // 遅延処理
         if (delay > 0)
         {
+            // --- 遅延エフェクト（魔法陣）の表示 ---
+            StartCoroutine(DelayEffectRoutine(delay, data));
             sr.enabled = false;
             col.enabled = false;
         }
@@ -61,43 +71,72 @@ public class DanmakuBullet : MonoBehaviour
     {
         if (!isInitialized || !isActive) return;
 
+        // --- ディレイ（待機・収束）フェーズ ---
         if (delayFrames > 0)
         {
+            if (isConverging && owner != null)
+            {
+                // 残りフレーム数に合わせて、徐々にオーナー（自機）の座標へ近づく
+                // 1フレームあたりの移動量を計算して移動
+                float t = 1f / delayFrames;
+                transform.position = Vector3.Lerp(transform.position, owner.transform.position, t);
+            }
+
             delayFrames--;
             if (delayFrames <= 0)
             {
                 sr.enabled = true;
                 col.enabled = true;
+                if (activeDelayEffect != null) Destroy(activeDelayEffect);
             }
             return;
         }
 
+        // --- 発射・移動フェーズ ---
         float dt = Time.fixedDeltaTime;
         angle += angularVelocity * dt * 60f;
         speed += accel * dt * 60f;
-        if (accel > 0 && speed > maxSpeed) speed = maxSpeed;
+        if (accel != 0 && speed > maxSpeed) speed = maxSpeed;
 
         float rad = angle * Mathf.Deg2Rad;
         transform.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * speed * dt;
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
 
         if (Mathf.Abs(transform.position.x) > 10f || Mathf.Abs(transform.position.y) > 10f)
-            Deactivate();
+            Destroy(gameObject);
+    }
+
+    private IEnumerator DelayEffectRoutine(float delay, BulletData data)
+    {
+        if (effectPrefab != null && data.delaySprite != null)
+        {
+            activeDelayEffect = Instantiate(effectPrefab, transform.position, Quaternion.identity);
+            // 魔法陣を弾に追従させる
+            activeDelayEffect.transform.SetParent(this.transform);
+
+            SpriteRenderer effSr = activeDelayEffect.GetComponent<SpriteRenderer>();
+            if (effSr != null)
+            {
+                effSr.sprite = data.delaySprite;
+                // 弾より少し手前に表示
+                effSr.sortingOrder = sr.sortingOrder + 1;
+            }
+
+            ShotEffect logic = activeDelayEffect.GetComponent<ShotEffect>();
+            if (logic != null)
+            {
+                // ShotEffect側のPlayDelayコルーチンを実行
+                StartCoroutine(logic.PlayDelay(delay / 60f, data.delaySprite, transform.localScale.x));
+            }
+        }
+        yield return null;
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        Debug.Log("Hit!!" + collision.gameObject);
         if (!isInitialized || owner == null) return;
+        if (collision.gameObject == owner || collision.transform.IsChildOf(owner.transform)) return;
 
-        // 1. 自分自身（親）や自分の子供（当たり判定用Hitbox）には絶対に当たらない
-        if (collision.gameObject == owner || collision.transform.IsChildOf(owner.transform))
-        {
-            return;
-        }
-
-        // 2. 指定されたターゲットタグに当たった場合のみ処理
-        // 1vs1で両方が "Player" タグの場合でも、上記の「owner判定」で自爆は防げます
         if (collision.CompareTag(targetTag))
         {
             collision.SendMessage("OnHit", SendMessageOptions.DontRequireReceiver);
@@ -108,7 +147,7 @@ public class DanmakuBullet : MonoBehaviour
     public void Deactivate()
     {
         isActive = false;
-        isInitialized = false;
+        if (activeDelayEffect != null) Destroy(activeDelayEffect);
         Destroy(gameObject);
     }
 }

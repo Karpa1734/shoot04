@@ -46,7 +46,7 @@ public class SkillManager : MonoBehaviour
         {
             emitter.Fire(settings);
 
-            string se = string.IsNullOrEmpty(settings.sePath) ? SEPath.SE_PLST00 : settings.sePath;
+            string se = string.IsNullOrEmpty(settings.sePath) ? SEPath.SHOT1 : settings.sePath;
             SEManager.Instance.Play(se, 0.4f);
 
             timer = settings.cooldown;

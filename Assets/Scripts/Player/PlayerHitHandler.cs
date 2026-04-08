@@ -2,6 +2,9 @@ using KanKikuchi.AudioManager;
 using System.Collections;
 using UnityEngine;
 
+/// <summary>
+/// プレイヤーの被弾、食らいボム、復活処理を管理するクラス
+/// </summary>
 public class PlayerHitHandler : MonoBehaviour
 {
     public enum PlayerState { Normal, DeathBomb, Hit, Down, Rebirth }
@@ -16,9 +19,12 @@ public class PlayerHitHandler : MonoBehaviour
     public GameObject explosionEffectPrefab;
     public PlayerAnimation playerAnim;
     public PlayerMove playerMove;
-
-    [Header("Bullet Clear")]
     public GameObject bulletClearPrefab;
+
+    // ★ 1vs1対戦対応：自分の残機を管理するマネージャーを個別に指定
+    // インスペクターで、P1にはP1用、P2にはP2用のマネージャーをセットしてください
+    [Header("Multiplayer Support")]
+    public PlayerStatusManager myStatusManager;
 
     private SpriteRenderer characterRenderer;
     private ItemEffectHandler itemHandler;
@@ -27,9 +33,10 @@ public class PlayerHitHandler : MonoBehaviour
     {
         if (playerMove == null) playerMove = GetComponentInParent<PlayerMove>();
         if (playerAnim == null) playerAnim = GetComponentInParent<PlayerAnimation>();
-        itemHandler = GetComponent<ItemEffectHandler>();
 
+        itemHandler = GetComponent<ItemEffectHandler>();
         characterRenderer = GetComponentInParent<SpriteRenderer>();
+
         if (characterRenderer == null)
         {
             characterRenderer = transform.parent.GetComponentInChildren<SpriteRenderer>();
@@ -46,39 +53,36 @@ public class PlayerHitHandler : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // 1. アイテムの取得処理
+        // 1. アイテム取得
         if (collision.CompareTag("Item"))
         {
             if (itemHandler != null) itemHandler.HandleItemCollision(collision);
             return;
         }
 
-        // 2. 弾丸または敵との接触判定
-        if (collision.CompareTag("EnemyBullet") || collision.CompareTag("Enemy") || collision.CompareTag("Laser"))
+        // 2. 被弾判定（敵弾、敵本体、レーザー、または対戦相手）
+        if (collision.CompareTag("EnemyBullet") || collision.CompareTag("Enemy") ||
+            collision.CompareTag("Laser") || collision.CompareTag("Player"))
         {
-            // ★ 自爆防止の核となる修正点：
-            // 弾に DanmakuBullet スクリプトが付いているか確認し、
-            // そのオーナーが自分（transform.root）なら、被弾処理をスキップする
+            // ★【自爆防止】弾のオーナーが「自分」ならヒットを無視する
             DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
             if (bullet != null)
             {
+                // transform.root は Player オブジェクトの最上位
                 if (bullet.owner == transform.root.gameObject)
                 {
-                    return; // 自分の弾なので無視
+                    return;
                 }
             }
 
-            // 無敵中、または既に被弾状態なら無視
+            // 無敵中や既に被弾状態なら無視
             if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
-            // 被弾確定時の処理
-            EnemyStatus boss = Object.FindFirstObjectByType<EnemyStatus>();
-            if (boss != null) boss.FailSpell();
-
+            // 被弾確定
             currentState = PlayerState.DeathBomb;
             StartCoroutine(CheckDeathBombRoutine());
 
-            // 弾を消去（DanmakuBullet側で消去処理があればそちらに任せても良い）
+            // 弾を消す（任意）
             if (bullet != null) bullet.Deactivate();
         }
     }
@@ -93,6 +97,7 @@ public class PlayerHitHandler : MonoBehaviour
             yield return null;
         }
 
+        // 食らいボム成功時は死亡を回避
         if (playerMove.IsInvincible)
         {
             currentState = PlayerState.Normal;
@@ -107,6 +112,7 @@ public class PlayerHitHandler : MonoBehaviour
         Vector3 deathPos = transform.position;
         currentState = PlayerState.Hit;
 
+        // 演出：爆発と弾消し
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, deathPos, Quaternion.identity);
         if (bulletClearPrefab != null)
         {
@@ -114,37 +120,27 @@ public class PlayerHitHandler : MonoBehaviour
             clearObj.SendMessage("StartClearing", deathPos, SendMessageOptions.DontRequireReceiver);
         }
 
+        // キャラを一旦隠す
         playerMove.enabled = false;
-        transform.parent.position = new Vector3(-2.0f, -100f, 0);
+        transform.parent.position = new Vector3(-2.0f, -100f, 0); // 画面外
         if (characterRenderer != null) characterRenderer.enabled = false;
 
-        if (PlayerStatusManager.Instance.SubtractLifeAndCheckRebirth())
+        // ★【1vs1対応】Instance ではなく紐付けられたマネージャーから残機を減らす
+        bool canRebirth = false;
+        if (myStatusManager != null)
+        {
+            canRebirth = myStatusManager.SubtractLifeAndCheckRebirth();
+        }
+
+        if (canRebirth)
         {
             yield return new WaitForSeconds(downTime);
-
-            currentState = PlayerState.Rebirth;
-            transform.parent.position = new Vector3(-2.0f, -6.0f, 0);
-            if (characterRenderer != null) characterRenderer.enabled = true;
-
-            float elapsed = 0;
-            Vector3 startPos = transform.parent.position;
-            Vector3 targetPos = new Vector3(-2.0f, -3.5f, 0);
-            while (elapsed < 0.6f)
-            {
-                transform.parent.position = Vector3.Lerp(startPos, targetPos, elapsed / 0.6f);
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-
-            playerMove.enabled = true;
-            currentState = PlayerState.Normal;
-            playerMove.SetInvincible(invincibilityTime);
+            yield return StartCoroutine(RebirthRoutine());
         }
         else
         {
             yield return new WaitForSeconds(0.5f);
-            PlayerStatusManager.Instance.TriggerGameOver();
-            yield break;
+            if (myStatusManager != null) myStatusManager.TriggerGameOver();
         }
     }
 
@@ -156,7 +152,7 @@ public class PlayerHitHandler : MonoBehaviour
     private IEnumerator RebirthRoutine()
     {
         currentState = PlayerState.Rebirth;
-        transform.parent.position = new Vector3(-2.0f, -6.0f, 0);
+        transform.parent.position = new Vector3(-2.0f, -6.0f, 0); // 登場位置
         if (characterRenderer != null) characterRenderer.enabled = true;
 
         float elapsed = 0;
@@ -166,7 +162,7 @@ public class PlayerHitHandler : MonoBehaviour
         while (elapsed < 0.6f)
         {
             transform.parent.position = Vector3.Lerp(startPos, targetPos, elapsed / 0.6f);
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += Time.deltaTime;
             yield return null;
         }
 
