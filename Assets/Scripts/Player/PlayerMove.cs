@@ -10,7 +10,9 @@ public class PlayerMove : MonoBehaviour
     // ★ エラー解消のための「後方互換性」プロパティ
     // これを復活させることで、既存の敵やアイテムのスクリプトが壊れなくなります
     public static PlayerMove Instance => (_allPlayers != null && _allPlayers.Count > 0) ? _allPlayers[0] : null;
-
+    [Header("Player Settings")]
+    public int playerId; // 1 または 2 をインスペクターで設定
+    public PlayerMove Opponent => _allPlayers.Find(p => p != this);
     [System.Serializable]
     public struct ReplayFrame
     {

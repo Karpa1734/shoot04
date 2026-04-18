@@ -17,8 +17,20 @@ public class DanmakuAgent : Agent
 
     public override void OnEpisodeBegin()
     {
-        // エピソード開始時のリセット処理（位置を戻すなど）
-        // 1vs1の場合は勝敗が決まった時に呼ばれる
+        // --- 追加: 対戦相手を自動割り当て ---
+        if (opponent == null)
+        {
+            var pMove = GetComponent<PlayerMove>();
+            // PlayerMoveの静的リストから自分じゃない方を探す
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p != pMove)
+                {
+                    opponent = p.transform;
+                    break;
+                }
+            }
+        }
     }
 
     public override void CollectObservations(VectorSensor sensor)

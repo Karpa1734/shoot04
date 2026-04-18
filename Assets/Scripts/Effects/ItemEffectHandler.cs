@@ -12,74 +12,63 @@ public class ItemEffectHandler : MonoBehaviour
 
     [Header("UI Reference")]
     [SerializeField] private GameObject floatingScorePrefab; // スコアを表示する3Dテキストプレハブ
+    private PlayerStatusManager _status;
 
+    void Awake()
+    {
+        _status = GetComponent<PlayerStatusManager>();
+    }
     public void HandleItemCollision(Collider2D collision)
     {
-        Debug.Log($"[ItemCheck] 衝突を検知: {collision.name}"); // ←追加1
-
         ItemController item = collision.GetComponent<ItemController>();
-        if (item == null)
-        {
-            Debug.LogWarning("[ItemCheck] ItemControllerが見つかりません"); // ←追加2
-            return;
-        }
+        if (item == null) return;
 
-        if (PlayerStatusManager.Instance == null)
-        {
-            Debug.LogWarning("[ItemCheck] PlayerStatusManager.Instance が null です"); // ←追加3
-            return;
-        }
+        // Instance ではなく Awake で取得した _status を使用
+        if (_status == null) return;
 
         ItemController.ITEM_TYPE type = item.GetItemType();
-        Debug.Log($"[ItemCheck] アイテム取得: {type}"); // ←追加4
         float itemY = collision.transform.position.y;
         long finalScore = 0;
 
         switch (type)
         {
             case ItemController.ITEM_TYPE.SCORE_UP:
-                // ★高さに応じてスコアを計算
                 finalScore = CalculateScore(itemY, item.CollectLineY);
                 AddScore(finalScore);
                 ShowFloatingScore(finalScore, collision.transform.position);
                 SEManager.Instance.Play(SEPath.SE_SCORE, 0.5f);
                 break;
-            case ItemController.ITEM_TYPE.SCORE00:
-                AddScore(100);
-                SEManager.Instance.Play(SEPath.SE_SCORE, 0.5f);
-                break;
+                /*
             case ItemController.ITEM_TYPE.POWER01:
-                if (!PlayerStatusManager.Instance.AddPower(1)) //
+                // Instance ではなく _status を使用
+                if (!_status.AddPower(1))
                 {
                     finalScore = powerToScoreValue;
                     AddScore(finalScore);
                     ShowFloatingScore(finalScore, collision.transform.position);
                 }
                 break;
-            // --- ★追加：残機エクステンド ---
+                */
             case ItemController.ITEM_TYPE.LIFE_UP01:
-            //case ItemController.ITEM_TYPE.LIFE_UP02:
-                PlayerStatusManager.Instance.AddLife(1);
-                SEManager.Instance.Play(SEPath.SE_EXTEND2); // エクステンド音
+                _status.AddLife(1); // 修正
+                SEManager.Instance.Play(SEPath.SE_EXTEND2);
                 break;
 
-            // --- ★追加：ボムアップ ---
             case ItemController.ITEM_TYPE.BOMB_UP01:
-            //case ItemController.ITEM_TYPE.BOMB_UP02:
-                PlayerStatusManager.Instance.AddBomb(1);
+                _status.AddBomb(1); // 修正
                 SEManager.Instance.Play(SEPath.GETSPELLCARD);
                 break;
-            // ... 他のリソース系は以前のコードと同様
-            case ItemController.ITEM_TYPE.LIFE_UP02: // 残機のかけら
-                PlayerStatusManager.Instance.AddLifePiece(1);
+
+            case ItemController.ITEM_TYPE.LIFE_UP02:
+                _status.AddLifePiece(1); // 修正
                 break;
 
-            case ItemController.ITEM_TYPE.BOMB_UP02: // ボムのかけら
-                PlayerStatusManager.Instance.AddBombPiece(1);
+            case ItemController.ITEM_TYPE.BOMB_UP02:
+                _status.AddBombPiece(1); // 修正
                 break;
         }
 
-        Destroy(collision.gameObject); // ハンドラー側で確実に消す
+        Destroy(collision.gameObject);
     }
 
     private long CalculateScore(float y, float lineY)

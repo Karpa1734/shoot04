@@ -135,11 +135,14 @@ public class DanmakuBullet : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (!isInitialized || owner == null) return;
+
+        // 自分の本体、およびその子供（HitBox等）なら無視する
         if (collision.gameObject == owner || collision.transform.IsChildOf(owner.transform)) return;
 
         if (collision.CompareTag(targetTag))
         {
-            collision.SendMessage("OnHit", SendMessageOptions.DontRequireReceiver);
+            // 引数に owner（発射者）を渡すことで、相手側で「誰に当てられたか」を判別可能にする
+            collision.SendMessage("OnHit", owner, SendMessageOptions.DontRequireReceiver);
             Deactivate();
         }
     }

@@ -3,7 +3,7 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// プレイヤーの被弾、食らいボム、復活処理を管理するクラス
+/// プレイヤーの被弾、食らいボム、復活処理を管理するクラス（横STG対戦用）
 /// </summary>
 public class PlayerHitHandler : MonoBehaviour
 {
@@ -21,8 +21,6 @@ public class PlayerHitHandler : MonoBehaviour
     public PlayerMove playerMove;
     public GameObject bulletClearPrefab;
 
-    // ★ 1vs1対戦対応：自分の残機を管理するマネージャーを個別に指定
-    // インスペクターで、P1にはP1用、P2にはP2用のマネージャーをセットしてください
     [Header("Multiplayer Support")]
     public PlayerStatusManager myStatusManager;
 
@@ -53,36 +51,26 @@ public class PlayerHitHandler : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // 1. アイテム取得
         if (collision.CompareTag("Item"))
         {
             if (itemHandler != null) itemHandler.HandleItemCollision(collision);
             return;
         }
 
-        // 2. 被弾判定（敵弾、敵本体、レーザー、または対戦相手）
         if (collision.CompareTag("EnemyBullet") || collision.CompareTag("Enemy") ||
             collision.CompareTag("Laser") || collision.CompareTag("Player"))
         {
-            // ★【自爆防止】弾のオーナーが「自分」ならヒットを無視する
             DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
             if (bullet != null)
             {
-                // transform.root は Player オブジェクトの最上位
-                if (bullet.owner == transform.root.gameObject)
-                {
-                    return;
-                }
+                if (bullet.owner == transform.root.gameObject) return;
             }
 
-            // 無敵中や既に被弾状態なら無視
             if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
-            // 被弾確定
             currentState = PlayerState.DeathBomb;
             StartCoroutine(CheckDeathBombRoutine());
 
-            // 弾を消す（任意）
             if (bullet != null) bullet.Deactivate();
         }
     }
@@ -97,7 +85,6 @@ public class PlayerHitHandler : MonoBehaviour
             yield return null;
         }
 
-        // 食らいボム成功時は死亡を回避
         if (playerMove.IsInvincible)
         {
             currentState = PlayerState.Normal;
@@ -112,7 +99,6 @@ public class PlayerHitHandler : MonoBehaviour
         Vector3 deathPos = transform.position;
         currentState = PlayerState.Hit;
 
-        // 演出：爆発と弾消し
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, deathPos, Quaternion.identity);
         if (bulletClearPrefab != null)
         {
@@ -120,12 +106,11 @@ public class PlayerHitHandler : MonoBehaviour
             clearObj.SendMessage("StartClearing", deathPos, SendMessageOptions.DontRequireReceiver);
         }
 
-        // キャラを一旦隠す
+        // キャラを一旦隠す（画面外 Y-100へ）
         playerMove.enabled = false;
-        transform.parent.position = new Vector3(-2.0f, -100f, 0); // 画面外
+        transform.parent.position = new Vector3(0, -100f, 0);
         if (characterRenderer != null) characterRenderer.enabled = false;
 
-        // ★【1vs1対応】Instance ではなく紐付けられたマネージャーから残機を減らす
         bool canRebirth = false;
         if (myStatusManager != null)
         {
@@ -140,6 +125,7 @@ public class PlayerHitHandler : MonoBehaviour
         else
         {
             yield return new WaitForSeconds(0.5f);
+            // エラー解消：myStatusManagerから直接呼ぶ
             if (myStatusManager != null) myStatusManager.TriggerGameOver();
         }
     }
@@ -152,13 +138,27 @@ public class PlayerHitHandler : MonoBehaviour
     private IEnumerator RebirthRoutine()
     {
         currentState = PlayerState.Rebirth;
-        transform.parent.position = new Vector3(-2.0f, -6.0f, 0); // 登場位置
+
+        // --- 横STG・1vs1用の登場座標計算 ---
+        float spawnX = -8.0f; // デフォルト：画面左外
+        float targetX = -3.5f; // デフォルト：画面左側の待機位置
+        float spawnY = 0f;     // Y座標は0固定
+
+        // IDが2なら画面右から登場させる
+        if (myStatusManager != null && myStatusManager.playerId == 2)
+        {
+            spawnX = 8.0f;  // 画面右外
+            targetX = 3.5f; // 画面右側の待機位置
+        }
+
+        transform.parent.position = new Vector3(spawnX, spawnY, 0);
         if (characterRenderer != null) characterRenderer.enabled = true;
 
         float elapsed = 0;
         Vector3 startPos = transform.parent.position;
-        Vector3 targetPos = new Vector3(-2.0f, -3.5f, 0);
+        Vector3 targetPos = new Vector3(targetX, spawnY, 0);
 
+        // 0.6秒かけて滑らかに画面内にスライド移動
         while (elapsed < 0.6f)
         {
             transform.parent.position = Vector3.Lerp(startPos, targetPos, elapsed / 0.6f);

@@ -146,9 +146,17 @@ public class PauseManager : MonoBehaviour
     {
         switch (selectedIndex)
         {
-            case 0: // 再開（一時停止を解除 / コンティニュー）
+            case 0: // 再開 / コンティニュー
                 SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
-                if (isGameOverMode) PlayerStatusManager.Instance.PerformContinue();
+                if (isGameOverMode)
+                {
+                    // ★修正：全プレイヤーをコンティニューさせる
+                    foreach (var player in PlayerMove.AllPlayers)
+                    {
+                        var status = player.GetComponent<PlayerStatusManager>();
+                        if (status != null) status.PerformContinue();
+                    }
+                }
                 isGameOverMode = false;
                 ResumeGame();
                 break;
@@ -207,24 +215,19 @@ public class PauseManager : MonoBehaviour
     {
         SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
 
-        // --- 追加：現在のハイスコアを保存 ---
-        // ScoreManager に実装した SaveHighScore メソッドを呼び出します
-        if (ScoreManager.Instance != null)
+        if (ScoreManager.Instance != null) ScoreManager.Instance.SaveHighScore();
+
+        // ★修正：全プレイヤーのコンティニューカウントをリセット
+        foreach (var player in PlayerMove.AllPlayers)
         {
-            ScoreManager.Instance.SaveHighScore();
+            var status = player.GetComponent<PlayerStatusManager>();
+            if (status != null) status.ResetContinueCount();
         }
 
-        PlayerStatusManager.Instance.ResetContinueCount();
         Time.timeScale = 1f;
 
-        if (currentState == PauseState.ConfirmExit)
-        {
-            SceneManager.LoadScene("Title");
-        }
-        else if (currentState == PauseState.ConfirmRestart)
-        {
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
+        if (currentState == PauseState.ConfirmExit) SceneManager.LoadScene("Title");
+        else if (currentState == PauseState.ConfirmRestart) SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     void UpdateConfirmVisuals()

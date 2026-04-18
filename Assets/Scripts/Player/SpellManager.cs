@@ -22,15 +22,26 @@ public class SpellManager : MonoBehaviour
     private bool isOnSpell = false;
 
     // --- SpellManager.cs ---
+    private PlayerStatusManager _status;
+    private PlayerMove _move;
+
+    void Awake()
+    {
+        // 自身と同じ、あるいは親オブジェクトからコンポーネントを取得
+        _status = GetComponentInParent<PlayerStatusManager>();
+        _move = GetComponentInParent<PlayerMove>();
+    }
 
     void Update()
     {
         if (Time.timeScale <= 0) return;
         if (Input.GetKeyDown(KeyCode.X) && !isOnSpell)
-        {// 所持している場合のみ発動
-            if (PlayerStatusManager.Instance.UseSpell())
+        {
+            // Instance ではなく取得した _status を使用
+            if (_status != null && _status.UseSpell())
             {
-                PlayerHitHandler hitHandler = PlayerMove.Instance.GetComponentInChildren<PlayerHitHandler>();
+                // PlayerMove.Instance ではなく _move を使用
+                PlayerHitHandler hitHandler = _move.GetComponentInChildren<PlayerHitHandler>();
 
                 if (hitHandler != null)
                 {
@@ -38,11 +49,7 @@ public class SpellManager : MonoBehaviour
                         hitHandler.currentState == PlayerHitHandler.PlayerState.DeathBomb)
                     {
                         EnemyStatus boss = Object.FindFirstObjectByType<EnemyStatus>();
-                        if (boss != null)
-                        {
-                            boss.FailSpell();
-                        }
-
+                        if (boss != null) boss.FailSpell();
 
                         StartCoroutine(ExecuteFantasySeal());
                     }
@@ -50,7 +57,6 @@ public class SpellManager : MonoBehaviour
             }
         }
     }
-
     IEnumerator ExecuteFantasySeal()
     {
         isOnSpell = true;
@@ -68,7 +74,7 @@ public class SpellManager : MonoBehaviour
         if (darkOverlay != null) darkOverlay.SetActive(true);
 
         // 無敵時間を設定（285フレーム相当） [cite: 7]
-        PlayerMove.Instance.SetInvincible(360f / 60f);
+        if (_move != null) _move.SetInvincible(360f / 60f);
         /*
         if (shockwavePrefab != null)
         {
