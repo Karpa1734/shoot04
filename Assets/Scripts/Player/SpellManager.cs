@@ -35,6 +35,7 @@ public class SpellManager : MonoBehaviour
     void Update()
     {
         if (Time.timeScale <= 0) return;
+        if (!PlayerMove.CanInput) return;
         if (Input.GetKeyDown(KeyCode.X) && !isOnSpell)
         {
             // Instance ‚Å‚Í‚È‚­Žæ“¾‚µ‚½ _status ‚ðŽg—p

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// --- ƒƒWƒbƒN’S“–ƒNƒ‰ƒXF•¨—‰‰Z‚âˆÚ“®‚ÌÀs‚ğ‚±‚¿‚ç‚ÉˆÚ÷ ---
+// --- ï¿½ï¿½ï¿½Wï¿½bï¿½Nï¿½Sï¿½ï¿½ï¿½Nï¿½ï¿½ï¿½Xï¿½Fï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Zï¿½ï¿½Ú“ï¿½ï¿½Ìï¿½ï¿½sï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÉˆÚï¿½ ---
 public class DanmakuController : MonoBehaviour
 {
     [SerializeField] private float highSpeed = 4.5f;
@@ -15,28 +15,42 @@ public class DanmakuController : MonoBehaviour
 
     private Rigidbody2D rb;
     private PlayerMove shell;
-
+    private PlayerHitHandler hitHandler; // ï¿½Ç‰ï¿½
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        // “¯ˆêƒIƒuƒWƒFƒNƒg“à‚ÌƒVƒFƒ‹iPlayerMovej‚ğæ“¾
-        shell = GetComponent<PlayerMove>();
+        // ï¿½ï¿½ï¿½ï¿½Iï¿½uï¿½Wï¿½Fï¿½Nï¿½gï¿½ï¿½ï¿½ÌƒVï¿½Fï¿½ï¿½ï¿½iPlayerMoveï¿½jï¿½ï¿½ï¿½æ“¾
+        shell = GetComponent<PlayerMove>(); 
+        hitHandler = GetComponentInChildren<PlayerHitHandler>();
     }
 
     void FixedUpdate()
     {
         if (shell == null) return;
+        // --- ï¿½ï¿½ ï¿½Ç‰ï¿½ï¿½Fï¿½Ú“ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Sï¿½É‹ï¿½ï¿½Û‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ---
+        // 1. ï¿½Jï¿½Eï¿½ï¿½ï¿½gï¿½_ï¿½Eï¿½ï¿½ï¿½ï¿½
+        if (!PlayerMove.CanInput)
+        {
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
 
-        // ƒVƒFƒ‹‚ÉŠi”[‚³‚ê‚Ä‚¢‚éuŒ»İ‚ÌƒtƒŒ[ƒ€‚Ì“ü—Ív‚ğ“Ç‚İæ‚é
+        // 2. ï¿½Xï¿½^ï¿½ï¿½ï¿½ï¿½ï¿½iNormalï¿½ï¿½ÔˆÈŠOï¿½j
+        if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal)
+        {
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
+        // ï¿½Vï¿½Fï¿½ï¿½ï¿½ÉŠiï¿½[ï¿½ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½uï¿½ï¿½ï¿½İ‚Ìƒtï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½Ì“ï¿½ï¿½Ívï¿½ï¿½Ç‚İï¿½ï¿½
         var input = shell.currentFrameInput;
         Vector2 inputVec = new Vector2(input.h, input.v);
         float speed = input.slow ? lowSpeed : highSpeed;
 
-        // •¨—ˆÚ“®‚ÌŒvZ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ú“ï¿½ï¿½ÌŒvï¿½Z
         Vector2 velocity = inputVec.normalized * speed;
         Vector2 nextPosition = rb.position + velocity * Time.fixedDeltaTime;
 
-        // ˆÚ“®”ÍˆÍ‚ÌƒNƒ‰ƒ“ƒv
+        // ï¿½Ú“ï¿½ï¿½ÍˆÍ‚ÌƒNï¿½ï¿½ï¿½ï¿½ï¿½v
         nextPosition.x = Mathf.Clamp(nextPosition.x, minX, maxX);
         nextPosition.y = Mathf.Clamp(nextPosition.y, minY, maxY);
         rb.MovePosition(nextPosition);

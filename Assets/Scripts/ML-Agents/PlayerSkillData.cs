@@ -1,41 +1,31 @@
+// --- PlayerSkillData.cs 修正版 ---
 using UnityEngine;
 
-/// <summary>
-/// 弾幕パターンの種類
-/// </summary>
-public enum SkillPatternType
-{
-    Standard,   // 単発
-    nWay,       // 扇状
-    Round,      // 全方位
-    Polygon,    // 多角形
-    Line,       // 直線連弾
-    Custom      // 特殊用
-}
+public enum SkillPatternType { Standard, nWay, Round, Polygon, Line, Custom }
 
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]
 public class PlayerSkillData : ScriptableObject
 {
+    [Header("Character Info")]
+    public string characterName = "キャラクター名"; // ★追加
+    public Color imageColor = Color.white;       // ★追加
+
     [System.Serializable]
     public struct SkillSettings
     {
         public string skillName;
         public SkillPatternType patternType;
-
-        [Tooltip("使用する弾の設定アセット")]
         public BulletData bulletData;
-
-        public float cooldown;               // 連射速度
-        public string sePath;                // 効果音
+        public float cooldown;
+        public string sePath;
 
         [Header("Pattern Parameters")]
-        public int count;           // 弾数 / Way数 / 頂点数
-        public float speed;         // 弾速
-        public float angleOffset;   // 角度補正（正面(上)を0度としたズレ）
-        public float wideAngle;     // 拡散範囲（Wideの時に使用）
+        public int count;
+        public float speed;
+        public float angleOffset;
+        public float wideAngle;
 
         [Header("Effect Parameters")]
-        [Tooltip("発射されるまでの待機フレーム数 (60 = 約1秒)")]
         public float delay;
     }
 

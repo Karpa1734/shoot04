@@ -16,7 +16,8 @@ public class BulletData : ScriptableObject
     [Header("弾本体の設定")]
     public Sprite bulletSprite;
     public float radius = 0.05f;
-
+    [Header("ダメージ設定")]
+    public int damage = 10; // ★ 追加：この弾のダメージ量
     [Header("エフェクト設定")]
     public Sprite delaySprite;
     public Color breakColor = Color.white;

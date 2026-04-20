@@ -135,18 +135,36 @@ public class DanmakuBullet : MonoBehaviour
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (!isInitialized || owner == null) return;
-
-        // 自分の本体、およびその子供（HitBox等）なら無視する
         if (collision.gameObject == owner || collision.transform.IsChildOf(owner.transform)) return;
 
         if (collision.CompareTag(targetTag))
         {
-            // 引数に owner（発射者）を渡すことで、相手側で「誰に当てられたか」を判別可能にする
-            collision.SendMessage("OnHit", owner, SendMessageOptions.DontRequireReceiver);
-            Deactivate();
+            // ヒット時はエフェクトを出す
+            collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
+            Deactivate(true);
         }
     }
+    // 引数 bool playBreakEffect を追加
+    public void Deactivate(bool playBreakEffect)
+    {
+        isActive = false;
+        if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
+        // ★ 消滅エフェクト（ShotEffect）の生成ロジックを追加
+        if (playBreakEffect && effectPrefab != null && currentData != null)
+        {
+            GameObject eff = Instantiate(effectPrefab, transform.position, Quaternion.identity);
+            SpriteRenderer effSr = eff.GetComponent<SpriteRenderer>();
+            if (effSr != null) effSr.sortingOrder = sr.sortingOrder + 1;
+
+            ShotEffect logic = eff.GetComponent<ShotEffect>();
+            if (logic != null)
+                // BulletData の breakColor を使用してアニメーション再生
+                logic.StartCoroutine(logic.PlayBreakAnimation(currentData.breakColor, transform.localScale.x));
+        }
+
+        Destroy(gameObject);
+    }
     public void Deactivate()
     {
         isActive = false;

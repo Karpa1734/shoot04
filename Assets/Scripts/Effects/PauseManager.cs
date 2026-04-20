@@ -50,14 +50,10 @@ public class PauseManager : MonoBehaviour
 #if UNITY_EDITOR
         if (BossPracticeManager.IsPracticeMode && !isPaused && Input.GetKeyDown(KeyCode.Backspace))
         {
-            // 決定音などを鳴らしたい場合はここに追加
-            // SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
-
             Time.timeScale = 1f;
-            // 現在のシーン（演習シーン）を即座に再読込
             UnityEngine.SceneManagement.SceneManager.LoadScene(
                 UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
-            return; // 下記のポーズ処理を行わずに終了
+            return;
         }
 #endif
 
@@ -65,13 +61,18 @@ public class PauseManager : MonoBehaviour
         {
             if (isPaused)
             {
-                // 演習リザルト中、またはゲームオーバー中は Esc で戻れないようにする
                 if (isPracticeResultMode || isGameOverMode) return;
 
                 if (currentState != PauseState.Main) CancelConfirmation();
                 else ResumeGame();
             }
-            else PauseGame();
+            else
+            {
+                // ★修正：カウントダウン中（PlayerMove.CanInput が false）はポーズを開かない
+                if (!PlayerMove.CanInput) return;
+
+                PauseGame();
+            }
         }
 
         if (isPaused)

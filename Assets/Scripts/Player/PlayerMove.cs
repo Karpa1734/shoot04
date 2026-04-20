@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
 {
-    // ★ 全プレイヤーを管理するリスト
     private static List<PlayerMove> _allPlayers = new List<PlayerMove>();
     public static IReadOnlyList<PlayerMove> AllPlayers => _allPlayers;
 
@@ -13,6 +12,10 @@ public class PlayerMove : MonoBehaviour
     [Header("Player Settings")]
     public int playerId; // 1 または 2 をインスペクターで設定
     public PlayerMove Opponent => _allPlayers.Find(p => p != this);
+
+    // ★ 追加：ゲーム全体で入力を受け付けるかどうか
+    public static bool CanInput = false;
+
     [System.Serializable]
     public struct ReplayFrame
     {
@@ -35,11 +38,12 @@ public class PlayerMove : MonoBehaviour
 
     private SpriteRenderer sr;
 
-    void Awake() => Time.timeScale = 1f;
-
-    void OnEnable() { if (!_allPlayers.Contains(this)) _allPlayers.Add(this); }
-    void OnDisable() { _allPlayers.Remove(this); }
-
+    void Awake()
+    {
+        Time.timeScale = 1f;
+        // ★ 修正：スクリプトの有効・無効に関わらず、生存している限りリストに入れる
+        if (!_allPlayers.Contains(this)) _allPlayers.Add(this);
+    }
     void Start()
     {
         sr = GetComponent<SpriteRenderer>();
@@ -55,6 +59,12 @@ public class PlayerMove : MonoBehaviour
 
     private void UpdateReplayLogic()
     {
+        // ★ 追加：入力がロックされている間は、入力を空（デフォルト値）にする
+        if (!CanInput)
+        {
+            currentFrameInput = new ReplayFrame();
+            return;
+        }
         if (currentMode == ReplayMode.Playing && currentFrame < replayData.Count)
         {
             currentFrameInput = replayData[currentFrame];
@@ -65,7 +75,11 @@ public class PlayerMove : MonoBehaviour
             replayData.Add(currentFrameInput);
         }
     }
-
+    void OnDestroy()
+    {
+        // ★ 追加：オブジェクトが完全に破棄された時だけリストから削除
+        if (_allPlayers.Contains(this)) _allPlayers.Remove(this);
+    }
     void LateUpdate()
     {
         if (IsInvincible) UpdateInvincibleVisual();

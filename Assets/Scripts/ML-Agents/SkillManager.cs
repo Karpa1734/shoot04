@@ -3,8 +3,7 @@ using KanKikuchi.AudioManager;
 
 public class SkillManager : MonoBehaviour
 {
-    [Header("Character Skill Data")]
-    public PlayerSkillData skillData;
+    PlayerSkillData skillData;
 
     private PlayerMove playerMove;
     private PlayerHitHandler hitHandler;
@@ -18,13 +17,18 @@ public class SkillManager : MonoBehaviour
         hitHandler = GetComponentInChildren<PlayerHitHandler>();
         emitter = GetComponent<PlayerDanmakuEmitter>();
 
-        if (emitter == null) emitter = gameObject.AddComponent<PlayerDanmakuEmitter>();
+        // ★ 自分で持たず、隣の PlayerStatusManager からデータを貰ってくる
+        var status = GetComponent<PlayerStatusManager>();
+        if (status != null)
+        {
+            skillData = status.characterData;
+        }
     }
-
     void FixedUpdate()
     {
         if (playerMove == null || skillData == null) return;
-
+        // ★ 修正：自分または相手が死んでいる（Normal状態でない）間は、全ての入力を無視する
+        if (IsAnyPlayerDeadOrRebirthing()) return;
         UpdateTimers();
 
         // 被弾中などは発射制限
@@ -38,7 +42,25 @@ public class SkillManager : MonoBehaviour
         HandleSkillInput(input.shotC, ref timerC, skillData.skillC);
         HandleSkillInput(input.shotV, ref timerV, skillData.skillV);
     }
+    /// <summary>
+    /// 誰か一人が撃墜・復帰中かどうかを判定するヘルパー
+    /// </summary>
+    private bool IsAnyPlayerDeadOrRebirthing()
+    {
+        // PlayerMove.AllPlayers のリストを走査
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p == null) continue;
+            PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
 
+            // 誰か一人の currentState が Normal 以外（Hit や Rebirth）なら true
+            if (hh != null && hh.currentState != PlayerHitHandler.PlayerState.Normal)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
         // 修正された bulletData 変数を参照

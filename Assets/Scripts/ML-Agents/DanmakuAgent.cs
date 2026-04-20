@@ -6,22 +6,21 @@ using UnityEngine;
 public class DanmakuAgent : Agent
 {
     private PlayerMove playerMove;
-
-    // 他のエージェント（対戦相手）の位置を知るための参照
+    private PlayerHitHandler hitHandler; // ★ 追加
     [SerializeField] private Transform opponent;
-    public int playerID = 1; // インスペクターで1または2に設定
+    public int playerID = 1;
+
     public override void Initialize()
     {
-        playerMove = GetComponent<PlayerMove>();
+        playerMove = GetComponent<PlayerMove>(); 
+        hitHandler = GetComponentInChildren<PlayerHitHandler>();
     }
 
     public override void OnEpisodeBegin()
     {
-        // --- 追加: 対戦相手を自動割り当て ---
         if (opponent == null)
         {
             var pMove = GetComponent<PlayerMove>();
-            // PlayerMoveの静的リストから自分じゃない方を探す
             foreach (var p in PlayerMove.AllPlayers)
             {
                 if (p != pMove)
@@ -35,32 +34,30 @@ public class DanmakuAgent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // AIが状況を判断するための「情報」
-
-        // 1. 自分の位置 (Vector3 = 3つの数値)
         sensor.AddObservation(transform.localPosition);
 
-        // 2. 相手の位置 (Vector3 = 3つの数値)
         if (opponent != null)
         {
             sensor.AddObservation(opponent.localPosition);
         }
         else
         {
-            // 相手がいない場合も、0を3つ送って観測値の合計を6に固定する
-            // これにより "Fewer observations than vector observation size" 警告を防ぎます
             sensor.AddObservation(Vector3.zero);
         }
-
-        // ヒント：ここに RayPerceptionSensor2D を追加した場合は、
-        // インスペクター側で「Use Child Sensors」にチェックを入れる必要があります。
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // ★ 追加：カウントダウン中（入力禁止時）は入力をゼロにする
+        // ★ カウントダウン中、またはスタン中（Normal以外）は入力をゼロにする
+        if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
+        {
+            playerMove.currentFrameInput = new PlayerMove.ReplayFrame();
+            return;
+        }
+
         var discrete = actions.DiscreteActions;
 
-        // 分割した Branch から入力を復元
         float h = 0, v = 0;
         if (discrete[0] == 1) h = -1; else if (discrete[0] == 2) h = 1;
         if (discrete[1] == 1) v = 1; else if (discrete[1] == 2) v = -1;
@@ -81,17 +78,23 @@ public class DanmakuAgent : Agent
             shotC = c,
             shotV = v_key
         };
+
+        // 学習用の微小な報酬（カウントダウン中は加算されない）
         AddReward(0.001f);
     }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
+        // ★ 追加：カウントダウン中はキー入力を受け付けない
+        if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
+        {
+            return;
+        }
         var discrete = actionsOut.DiscreteActions;
         discrete.Clear();
 
         if (playerID == 1)
         {
-            // Player 1: 矢印キー + Z / X
             if (Input.GetKey(KeyCode.LeftArrow)) discrete[0] = 1;
             else if (Input.GetKey(KeyCode.RightArrow)) discrete[0] = 2;
             if (Input.GetKey(KeyCode.UpArrow)) discrete[1] = 1;
@@ -101,7 +104,6 @@ public class DanmakuAgent : Agent
         }
         else
         {
-            // Player 2: WASD + F / G
             if (Input.GetKey(KeyCode.A)) discrete[0] = 1;
             else if (Input.GetKey(KeyCode.D)) discrete[0] = 2;
             if (Input.GetKey(KeyCode.W)) discrete[1] = 1;

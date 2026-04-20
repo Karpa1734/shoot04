@@ -14,7 +14,7 @@ public class PlayerHitHandler : MonoBehaviour
     public float deathBombWindow = 0.15f;
     public float invincibilityTime = 3.0f;
     public float downTime = 0.8f;
-
+    public float stunTime = 2.0f; // スタン時間（2秒）
     [Header("References")]
     public GameObject explosionEffectPrefab;
     public PlayerAnimation playerAnim;
@@ -56,25 +56,40 @@ public class PlayerHitHandler : MonoBehaviour
             if (itemHandler != null) itemHandler.HandleItemCollision(collision);
             return;
         }
+    }
+    public void OnHit(int damage)
+    {
+        Vector3 hitPos = transform.position;
+        // ★重要：無敵中やスタン（Hit/Down状態）中は即座にリターンして判定を無視する
+        if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
-        if (collision.CompareTag("EnemyBullet") || collision.CompareTag("Enemy") ||
-            collision.CompareTag("Laser") || collision.CompareTag("Player"))
+        bool isDown = false;
+        if (myStatusManager != null)
         {
-            DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
-            if (bullet != null)
-            {
-                if (bullet.owner == transform.root.gameObject) return;
-            }
+            // ダメージを適用し、HPが0になった（ダウンした）か確認
+            isDown = myStatusManager.ApplyDamage(damage);
+        }
 
-            if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
-
-            currentState = PlayerState.DeathBomb;
-            StartCoroutine(CheckDeathBombRoutine());
-
-            if (bullet != null) bullet.Deactivate();
+        if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
+        SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
+        if (isDown)
+        {
+            // HP 0：撃墜演出へ
+            currentState = PlayerState.Hit;
+            StartCoroutine(ExplosionAndStunRoutine());
+        }
+        else
+        {
+            // 被弾：短い無敵時間を与えて連続ヒットを防止
+            playerMove.SetInvincible(1.5f);
         }
     }
-
+    // 軽い被弾用の演出（スタンはしないが、連続ヒットを防ぐための短い無敵）
+    IEnumerator SmallHitRoutine()
+    {
+        playerMove.SetInvincible(0.5f); // 0.5秒だけ無敵に
+        yield return null;
+    }
     IEnumerator CheckDeathBombRoutine()
     {
         SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
@@ -91,45 +106,113 @@ public class PlayerHitHandler : MonoBehaviour
             yield break;
         }
 
-        StartCoroutine(ExplosionAndRebirthRoutine());
+        StartCoroutine(ExplosionAndStunRoutine());
     }
-
-    IEnumerator ExplosionAndRebirthRoutine()
+    IEnumerator ExplosionAndStunRoutine()
     {
-        Vector3 deathPos = transform.position;
-        currentState = PlayerState.Hit;
+        Vector3 hitPos = transform.position;
 
-        if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, deathPos, Quaternion.identity);
-        if (bulletClearPrefab != null)
-        {
-            GameObject clearObj = Instantiate(bulletClearPrefab);
-            clearObj.SendMessage("StartClearing", deathPos, SendMessageOptions.DontRequireReceiver);
-        }
+        // 画面内の全弾消去
+        ClearAllBullets();
 
-        // キャラを一旦隠す（画面外 Y-100へ）
-        playerMove.enabled = false;
-        transform.parent.position = new Vector3(0, -100f, 0);
-        if (characterRenderer != null) characterRenderer.enabled = false;
+        // 爆発エフェクト
+        if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
 
-        bool canRebirth = false;
+        // キャラクターを非表示にする
+        SetPlayerActiveState(false);
+
+        // ★重要：決着かどうかを「即座に」判定する（これで被弾した瞬間の演出にする）
+        bool canContinueMatch = false;
         if (myStatusManager != null)
         {
-            canRebirth = myStatusManager.SubtractLifeAndCheckRebirth();
+            // ここでストックを減らし、残機があるか確認
+            canContinueMatch = myStatusManager.SubtractLifeAndCheckRebirth();
         }
 
-        if (canRebirth)
+        if (canContinueMatch)
         {
-            yield return new WaitForSeconds(downTime);
+            // まだ戦える場合：従来の2秒スタンを待ってから復活
+            yield return new WaitForSeconds(stunTime);
             yield return StartCoroutine(RebirthRoutine());
         }
         else
         {
-            yield return new WaitForSeconds(0.5f);
-            // エラー解消：myStatusManagerから直接呼ぶ
-            if (myStatusManager != null) myStatusManager.TriggerGameOver();
+            // ★決着の場合：待機せず即座に K.O. 演出ルーチンを開始
+            yield return StartCoroutine(PerformKORoundEndRoutine());
         }
     }
+    // ★修正：指定された順序で演出を実行するコルーチン
+    IEnumerator PerformKORoundEndRoutine()
+    {
+        // 1. 【被弾した瞬間】スローモーション開始 ＆ K.O. 表示
+        Time.timeScale = 0.2f;
 
+        if (myStatusManager != null)
+        {
+            // K.O. 出現アニメーション（スケールアップなど）
+            yield return myStatusManager.StartCoroutine(myStatusManager.PlayKOAnimation());
+        }
+
+        // K.O. が表示された状態で少し待機（実時間で指定）
+        yield return new WaitForSecondsRealtime(0.8f);
+
+        // 2. 【スロー解除】 ＆ K.O. テキストを滑らかに消す
+        Time.timeScale = 1.0f;
+
+        if (myStatusManager != null && myStatusManager.koText != null)
+        {
+            // ★修正：滑らかに消去する（0.5秒かけてフェードアウト）
+            yield return myStatusManager.StartCoroutine(myStatusManager.FadeOutKOAnimation(0.5f));
+        }
+
+        yield return new WaitForSeconds(1.0f);
+        // 3. 【勝利メッセージ】「○○ Wins!」を表示
+        ShowWinMessage();
+
+        // 決着後の余韻
+        yield return new WaitForSeconds(4.0f);
+
+        // 4. ポーズメニュー（ゲームオーバー画面）を表示
+        if (myStatusManager != null) myStatusManager.TriggerGameOver();
+    }
+    /// <summary>
+    /// プレイヤー階層全体の表示・当たり判定・操作を一括で切り替える
+    /// </summary>
+    private void SetPlayerActiveState(bool active)
+    {
+        // 1. 親（Playerルート）以下の全てのRenderer（SpriteRenderer等）を切り替える
+        // これにより子オブジェクトの矢印なども一括で消えます
+        Renderer[] renderers = transform.parent.GetComponentsInChildren<Renderer>();
+        foreach (var r in renderers) r.enabled = active;
+
+        // 2. 当たり判定も一括で切り替える
+        // 消えている間にアイテムを拾ったりグレイズしたりするのを防ぎます
+        Collider2D[] colliders = transform.parent.GetComponentsInChildren<Collider2D>();
+        foreach (var c in colliders) c.enabled = active;
+
+        // 3. 移動スクリプトの有効化状態
+        playerMove.enabled = active;
+    }
+
+    /// <summary>
+    /// 画面内のすべての弾を探して消去するヘルパーメソッド
+    /// </summary>
+    private void ClearAllBullets()
+    {
+        // 1. プレイヤーの弾をエフェクト付きで消去
+        DanmakuBullet[] playerBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
+        foreach (var b in playerBullets)
+        {
+            b.Deactivate(true); // true を渡してエフェクトを発生させる
+        }
+
+        // 2. 敵の弾をエフェクト付きで消去
+        EnemyBullet[] enemyBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
+        foreach (var b in enemyBullets)
+        {
+            b.Deactivate(true); // true を渡してエフェクトを発生させる
+        }
+    }
     public void StartRebirthFromContinue()
     {
         StartCoroutine(RebirthRoutine());
@@ -139,26 +222,19 @@ public class PlayerHitHandler : MonoBehaviour
     {
         currentState = PlayerState.Rebirth;
 
-        // --- 横STG・1vs1用の登場座標計算 ---
-        float spawnX = -8.0f; // デフォルト：画面左外
-        float targetX = -3.5f; // デフォルト：画面左側の待機位置
-        float spawnY = 0f;     // Y座標は0固定
+        // 登場座標の計算
+        float spawnX = (myStatusManager != null && myStatusManager.playerId == 2) ? 8.0f : -8.0f;
+        float targetX = (myStatusManager != null && myStatusManager.playerId == 2) ? 3.5f : -3.5f;
 
-        // IDが2なら画面右から登場させる
-        if (myStatusManager != null && myStatusManager.playerId == 2)
-        {
-            spawnX = 8.0f;  // 画面右外
-            targetX = 3.5f; // 画面右側の待機位置
-        }
+        transform.parent.position = new Vector3(spawnX, 0, 0);
 
-        transform.parent.position = new Vector3(spawnX, spawnY, 0);
-        if (characterRenderer != null) characterRenderer.enabled = true;
+        // ★ 復活時に全てを表示状態に戻す
+        SetPlayerActiveState(true);
 
         float elapsed = 0;
         Vector3 startPos = transform.parent.position;
-        Vector3 targetPos = new Vector3(targetX, spawnY, 0);
+        Vector3 targetPos = new Vector3(targetX, 0, 0);
 
-        // 0.6秒かけて滑らかに画面内にスライド移動
         while (elapsed < 0.6f)
         {
             transform.parent.position = Vector3.Lerp(startPos, targetPos, elapsed / 0.6f);
@@ -166,8 +242,34 @@ public class PlayerHitHandler : MonoBehaviour
             yield return null;
         }
 
-        playerMove.enabled = true;
         currentState = PlayerState.Normal;
         playerMove.SetInvincible(invincibilityTime);
+    }
+    /// <summary>
+    /// 勝者（自分を倒した相手）の名前を取得して表示する
+    /// </summary>
+    private void ShowWinMessage()
+    {
+        // PlayerMove.cs に実装した Opponent プロパティを使用して相手を取得
+        PlayerMove winner = playerMove.Opponent;
+
+        if (winner != null && myStatusManager.winText != null)
+        {
+            // 勝者のステータスマネージャーからキャラ名を取得
+            PlayerStatusManager winnerStatus = winner.GetComponent<PlayerStatusManager>();
+            string winnerName = (winnerStatus != null && winnerStatus.characterData != null)
+                ? winnerStatus.characterData.characterName
+                : "Opponent";
+
+            // メッセージを設定して表示
+            myStatusManager.winText.text = winnerName + " Wins!";
+            myStatusManager.winText.gameObject.SetActive(true);
+
+            // 勝者のイメージカラーを文字色に反映させるとより良いです
+            if (winnerStatus != null && winnerStatus.characterData != null)
+            {
+                myStatusManager.winText.color = winnerStatus.characterData.imageColor;
+            }
+        }
     }
 }
