@@ -11,7 +11,7 @@ public class MatchTimerUI : MonoBehaviour
     [Header("Match Settings")]
     public float currentMatchTime = 99f; // 現在の残り時間
     private bool isTimerRunning = false;
-
+    private bool isTimerStopped = false; // ★ 追加：タイマー停止フラグ
     [Header("References")]
     public TextMeshProUGUI timerText;
     public CanvasGroup canvasGroup;
@@ -37,26 +37,29 @@ public class MatchTimerUI : MonoBehaviour
     {
         currentMatchTime = duration;
         isTimerRunning = false;
+        isTimerStopped = false; // ラウンド開始時にリセット
         // ★修正：初期値も UI表示（Ceil）に合わせて同期
         lastIntSecond = Mathf.CeilToInt(currentMatchTime);
         UpdateUI(currentMatchTime);
     }
-
+    // ★ 追加：外部からタイマーを止めるためのメソッド
+    public void StopTimer()
+    {
+        isTimerStopped = true;
+    }
     void Update()
     {
-        if (PlayerMove.CanInput && currentMatchTime > 0)
+        // ★ 修正：isTimerStopped が false の時だけカウントダウンする
+        if (PlayerMove.CanInput && currentMatchTime > 0 && !isTimerStopped)
         {
-            isTimerRunning = true;
             currentMatchTime -= Time.deltaTime;
 
             if (currentMatchTime <= 0)
             {
                 currentMatchTime = 0;
-                isTimerRunning = false;
                 HandleTimeUp();
             }
         }
-
         UpdateUI(currentMatchTime);
 
         // --- SEとPop演出の同期修正 ---
@@ -159,9 +162,9 @@ public class MatchTimerUI : MonoBehaviour
         PlayerHitHandler loserHandler = loserStatus.GetComponentInChildren<PlayerHitHandler>();
         if (loserHandler != null)
         {
-            // 負けた側をHit状態にし、既に作成済みの「K.O.演出ルーチン」を直接実行
+            // ★ 修正：直接ゲーム終了を呼ぶのではなく、被弾時と同じ「ストック確認ルーチン」を呼ぶ
             loserHandler.currentState = PlayerHitHandler.PlayerState.Hit;
-            loserHandler.StartCoroutine("PerformKORoundEndRoutine");
+            loserHandler.StartCoroutine("ExplosionAndStunRoutine");
         }
     }
 }

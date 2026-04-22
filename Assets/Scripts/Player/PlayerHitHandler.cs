@@ -1,5 +1,6 @@
 using KanKikuchi.AudioManager;
 using System.Collections;
+using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -60,29 +61,51 @@ public class PlayerHitHandler : MonoBehaviour
     public void OnHit(int damage)
     {
         Vector3 hitPos = transform.position;
-        // ★重要：無敵中やスタン（Hit/Down状態）中は即座にリターンして判定を無視する
+
+        // 無敵中や既にスタン中の場合は判定を無視
         if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
         bool isDown = false;
         if (myStatusManager != null)
         {
-            // ダメージを適用し、HPが0になった（ダウンした）か確認
+            // ダメージを適用
             isDown = myStatusManager.ApplyDamage(damage);
         }
 
+        // 共通の被弾演出（爆発エフェクトとSE）
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
         SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
+
         if (isDown)
         {
-            // HP 0：撃墜演出へ
+            // 【撃墜】HP 0：ストック確認やリセットを伴う重いスタンへ
             currentState = PlayerState.Hit;
             StartCoroutine(ExplosionAndStunRoutine());
         }
         else
         {
-            // 被弾：短い無敵時間を与えて連続ヒットを防止
-            playerMove.SetInvincible(1.5f);
+            // ★【追加】ダメージ：撃墜ではないが、操作不能な短いスタンを発生させる
+            StartCoroutine(DamageStunRoutine());
         }
+    }
+    // ★新しく追加：通常の被弾（HP減少）による短いスタン演出
+    IEnumerator DamageStunRoutine()
+    {
+        currentState = PlayerState.Hit;
+
+        // 移動スクリプトを一時的に無効化して動けなくする
+        if (playerMove != null) playerMove.enabled = false;
+
+        // 被弾による無敵時間の付与（1.0秒など）
+        playerMove.SetInvincible(1.0f);
+
+        // 操作不能にする時間（例：0.4秒。stunTime(2秒)より短くするのが一般的です）
+        // もし撃墜時と同じ長さが必要なら WaitForSeconds(stunTime) に書き換えてください
+        yield return new WaitForSeconds(0.4f);
+
+        // 状態をNormalに戻し、移動を許可する
+        if (playerMove != null) playerMove.enabled = true;
+        currentState = PlayerState.Normal;
     }
     // 軽い被弾用の演出（スタンはしないが、連続ヒットを防ぐための短い無敵）
     IEnumerator SmallHitRoutine()
@@ -112,34 +135,89 @@ public class PlayerHitHandler : MonoBehaviour
     {
         Vector3 hitPos = transform.position;
 
-        // 画面内の全弾消去
+        // 1. タイマー停止
+        if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
+
+        // 2. 弾幕消去
         ClearAllBullets();
 
-        // 爆発エフェクト
+        // 3. 爆発エフェクト（ここではまだ非表示にしない）
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
 
-        // キャラクターを非表示にする
-        SetPlayerActiveState(false);
-
-        // ★重要：決着かどうかを「即座に」判定する（これで被弾した瞬間の演出にする）
+        // 4. ストック確認 ＆ HP回復
         bool canContinueMatch = false;
         if (myStatusManager != null)
         {
-            // ここでストックを減らし、残機があるか確認
             canContinueMatch = myStatusManager.SubtractLifeAndCheckRebirth();
         }
 
         if (canContinueMatch)
         {
-            // まだ戦える場合：従来の2秒スタンを待ってから復活
+            // ★ ライフがある場合：その場でスタン（動けない状態にする）
+            currentState = PlayerState.Hit;
+            if (playerMove != null) playerMove.enabled = false; // 操作を受け付けないように
+
+            // スタン時間（2秒）待機
             yield return new WaitForSeconds(stunTime);
-            yield return StartCoroutine(RebirthRoutine());
+
+            // 5. そのままラウンドリセットシーケンスへ
+            yield return StartCoroutine(RoundResetSequence());
         }
         else
         {
-            // ★決着の場合：待機せず即座に K.O. 演出ルーチンを開始
+            // ★ ライフがない場合：ここで初めて非表示にして K.O. 演出へ
+            SetPlayerActiveState(false);
             yield return StartCoroutine(PerformKORoundEndRoutine());
         }
+    }
+
+    // --- PlayerHitHandler.cs 修正版 ---
+
+    IEnumerator RoundResetSequence()
+    {
+        // ★ 修正：暗転（FadeRoutine）を削除
+
+        // タイムスケールを戻す（スロー解除）
+        Time.timeScale = 1.0f;
+
+        // 2. 各プレイヤーの状態を復帰（位置リセットは行わない）
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p == null) continue;
+
+            // ★ 修正：p.transform.position の変更（位置リセット）を削除
+
+            // 状態と描画の復帰
+            PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
+            if (hh != null)
+            {
+                // 非表示になっていた場合は表示に戻し、操作を有効化する
+                hh.SetPlayerActiveState(true);
+                hh.currentState = PlayerState.Normal;
+            }
+
+            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+            if (ps != null) ps.SyncBarsImmediately();
+        }
+
+        // 3. タイマーのリセット
+        if (MatchTimerUI.Instance != null)
+        {
+            MatchTimerUI.Instance.ResetRoundTimer(99f);
+        }
+
+        // ★ 修正：画面を明るく戻すフェードを削除
+
+        // 4. カウントダウン演出を呼び出す
+        if (GameStartCountdown.Instance != null)
+        {
+            GameStartCountdown.Instance.StartCountdown();
+        }
+        else
+        {
+            PlayerMove.CanInput = true;
+        }
+        yield return null;
     }
     // ★修正：指定された順序で演出を実行するコルーチン
     IEnumerator PerformKORoundEndRoutine()

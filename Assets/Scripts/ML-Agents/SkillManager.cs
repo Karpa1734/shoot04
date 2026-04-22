@@ -27,8 +27,9 @@ public class SkillManager : MonoBehaviour
     void FixedUpdate()
     {
         if (playerMove == null || skillData == null) return;
+        // ★ 修正：ショット権限がない、または誰かが撃墜中なら処理しない
+        if (!PlayerMove.CanShoot || IsAnyPlayerDeadOrRebirthing()) return;
         // ★ 修正：自分または相手が死んでいる（Normal状態でない）間は、全ての入力を無視する
-        if (IsAnyPlayerDeadOrRebirthing()) return;
         UpdateTimers();
 
         // 被弾中などは発射制限

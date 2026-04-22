@@ -1,75 +1,113 @@
+// --- GameStartCountdown.cs 修正版 ---
 using UnityEngine;
 using TMPro;
 using System.Collections;
-using KanKikuchi.AudioManager;
 
 public class GameStartCountdown : MonoBehaviour
 {
+    public static GameStartCountdown Instance;
+
     public TextMeshProUGUI countdownText;
-    public float fontSizePulse = 1.2f; // 表示時の拡大倍率
+    public float fontSizePulse = 1.2f;
+
+    void Awake()
+    {
+        if (Instance == null) Instance = this;
+    }
 
     void Start()
     {
-        countdownText.gameObject.SetActive(false);
+        // 最初の開始（既にInstanceはあるのでそのまま呼ぶ）
+        StartCountdown();
+    }
+
+    public void StartCountdown()
+    {
+        // 動作中のコルーチンを全て止めてから開始
+        StopAllCoroutines();
         StartCoroutine(CountdownRoutine());
+        // ★ 追加：カウントダウン中、弾幕を消し続けるループを開始
+        StartCoroutine(ConstantClearRoutine());
     }
 
     IEnumerator CountdownRoutine()
     {
-        // 開始時は入力をロック
-        PlayerMove.CanInput = false;
-        yield return new WaitForSeconds(1f); // 少し待ってからカウントダウン開始  
+        PlayerMove.CanShoot = false; // ショット禁止
+        PlayerMove.CanInput = true;  // ★ 移動は許可！
+
+        // テキストをアクティブにして初期化
         countdownText.gameObject.SetActive(true);
-        // 3 -> 2 -> 1
+        countdownText.text = "";
+
+        // ★重要：アルファ値を1（不透明）に強制リセット
+        Color c = countdownText.color;
+        c.a = 1f;
+        countdownText.color = c;
+
+        // 暗転明け直後の待機（必要に応じて調整）
+        yield return new WaitForSeconds(0.5f);
+
         yield return StartCoroutine(AnimateText("3"));
         yield return StartCoroutine(AnimateText("2"));
         yield return StartCoroutine(AnimateText("1"));
 
-        // GO Shoot!! (ここから動ける)
-        PlayerMove.CanInput = true;
-        yield return StartCoroutine(AnimateText("GO Shoot!!", 1.5f));
+        PlayerMove.CanInput = true; // ここで操作解禁
+
+        PlayerMove.CanShoot = true;
+        yield return StartCoroutine(AnimateText("GO !!", 1.5f));
 
         countdownText.gameObject.SetActive(false);
     }
+    // ★ 追加：ショット禁止期間中に弾幕を掃除し続ける
+    private IEnumerator ConstantClearRoutine()
+    {
+        while (!PlayerMove.CanShoot)
+        {
+            ClearAllBulletsOnField();
+            // 0.1秒おきに画面内の弾を探して消去
+            yield return new WaitForSecondsRealtime(0.1f);
+        }
+    }
 
+    private void ClearAllBulletsOnField()
+    {
+        // プレイヤーの弾
+        var bullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
+        foreach (var b in bullets) b.Deactivate(false); // エフェクトなしで静かに消す
+
+        // 敵・AIの弾（もしあれば）
+        var eBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
+        foreach (var b in eBullets) b.Deactivate(false);
+    }
     IEnumerator AnimateText(string text, float scaleMult = 1f)
     {
-        // テキストとアルファ値の初期化
         countdownText.text = text;
-        Color initialColor = countdownText.color;
-        initialColor.a = 1f; // 完全に表示
-        countdownText.color = initialColor;
 
-        float elapsed = 0;
-        float duration = 0.8f;      // 1文字あたりの合計時間
-        float fadeStartTime = 0.5f; // フェードアウトを開始するタイミング
+        // 開始時に色を不透明に戻す
+        Color c = countdownText.color;
+        c.a = 1f;
+        countdownText.color = c;
+
         Vector3 baseScale = Vector3.one * scaleMult;
+        float elapsed = 0;
+        float duration = 0.8f;
 
         while (elapsed < duration)
         {
             float t = elapsed / duration;
-
-            // --- 演出1: スケール（パンチ演出） ---
-            // 最初は大きく、徐々に baseScale へ
+            // スケールアニメーション
             countdownText.transform.localScale = baseScale * Mathf.Lerp(fontSizePulse, 1f, t);
 
-            // --- 演出2: フェードアウト ---
-            // fadeStartTime を過ぎたら透明度を下げていく
-            if (elapsed > fadeStartTime)
+            // フェードアウト演出
+            if (elapsed > 0.5f)
             {
-                float fadeT = (elapsed - fadeStartTime) / (duration - fadeStartTime);
-                Color c = countdownText.color;
+                float fadeT = (elapsed - 0.5f) / (duration - 0.5f);
                 c.a = Mathf.Lerp(1f, 0f, fadeT);
                 countdownText.color = c;
             }
 
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += Time.unscaledDeltaTime; // スロー中でも一定速度で動かす
             yield return null;
         }
-
-        // 念のため最後は完全に透明にする
-        Color finalColor = countdownText.color;
-        finalColor.a = 0f;
-        countdownText.color = finalColor;
     }
 }

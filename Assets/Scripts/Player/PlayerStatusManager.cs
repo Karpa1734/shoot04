@@ -32,12 +32,15 @@ public class PlayerStatusManager : MonoBehaviour
 
     [Header("Statistics")]
     public int continueCount = 0; // コンティニュー回数
+    public TextMeshProUGUI countdownText; // ★追加：カウントダウン表示用のTMP
 
     [Header("UI References")]
     public PlayerStatusUI lifeUI;
     public PlayerStatusUI spellUI;
     public ExtendNotificationUI extendUI;
-
+    // --- PlayerStatusManager.cs 修正箇所 ---
+    [Header("Round Transition")]
+    public CanvasGroup screenFader; // 画面全体を覆う黒いパネル（CanvasGroup）
     [Header("Global References")]
     public PauseManager pauseManager;
 
@@ -56,14 +59,16 @@ public class PlayerStatusManager : MonoBehaviour
     {
         _playerMove = GetComponent<PlayerMove>();
 
-        // 練習モードの判定
         if (BossPracticeManager.IsPracticeMode)
         {
-            life = 0; bomb = 0;
+            stockLives = 0; life = 0; bomb = 0;
         }
         else
         {
-            life = initialLife; bomb = initialSpell;
+            // ★ 修正点：判定用の stockLives も initialLife で初期化する
+            stockLives = initialLife;
+            life = initialLife;
+            bomb = initialSpell;
         }
     }
 
@@ -106,6 +111,34 @@ public class PlayerStatusManager : MonoBehaviour
                 if (fill != null) fill.color = characterData.imageColor;
             }
   */      }
+    }
+    // ストックを減らす処理も修正
+    public bool SubtractLifeAndCheckRebirth()
+    {
+        // stockLives を見て判定
+        if (stockLives > 0)
+        {
+            stockLives--;
+            life = stockLives; // ★ 修正点：表示用の life も同期させる
+            currentHP = maxHP;
+            UpdateUI();
+            return true;
+        }
+        return false;
+    }
+    // 画面をフェードさせるコルーチン
+    public IEnumerator FadeRoutine(float targetAlpha, float duration)
+    {
+        if (screenFader == null) yield break;
+        float startAlpha = screenFader.alpha;
+        float elapsed = 0;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime; // スロー中でも動くように実時間を使用
+            screenFader.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
+            yield return null;
+        }
+        screenFader.alpha = targetAlpha;
     }
     void Update()
     {
@@ -154,18 +187,6 @@ public class PlayerStatusManager : MonoBehaviour
         return false;
     }
 
-    // ストックを減らし、次のラウンド用にHPを全回復させる
-    public bool SubtractLifeAndCheckRebirth()
-    {
-        if (stockLives > 0)
-        {
-            stockLives--;
-            currentHP = maxHP; // ★HPを全快に戻す
-            UpdateUI();
-            return true;
-        }
-        return false;
-    }
 
     public void PerformContinue()
     {
@@ -265,22 +286,17 @@ public class PlayerStatusManager : MonoBehaviour
     }
     private void UpdateUI()
     {
+        // ★UIには現在のストック数（stockLives）を表示するように統一
         if (winText != null) winText.gameObject.SetActive(false); // 初期状態は非表示
         if (koText != null) koText.gameObject.SetActive(false); // ★初期状態は非表示
         if (lifeUI != null) lifeUI.SetCount(life, lifePieces, lifePiecesRequired);
         if (spellUI != null) spellUI.SetCount(bomb, bombPieces, bombPiecesRequired);
-
         if (hpBar != null)
         {
             hpBar.maxValue = maxHP;
-            hpBar.value = currentHP; // メインのバーは即座に減らす
+            hpBar.value = currentHP;
         }
-
-        if (orangeBar != null)
-        {
-            // 最大値だけ同期（現在値は Update 内で Lerp させる）
-            orangeBar.maxValue = maxHP;
-        }
+        if (orangeBar != null) orangeBar.maxValue = maxHP;
     }
     // ★追加：K.O.演出用のコルーチン
     public IEnumerator PlayKOAnimation()

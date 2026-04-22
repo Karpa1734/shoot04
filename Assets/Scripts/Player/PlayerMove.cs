@@ -13,8 +13,8 @@ public class PlayerMove : MonoBehaviour
     public int playerId; // 1 または 2 をインスペクターで設定
     public PlayerMove Opponent => _allPlayers.Find(p => p != this);
 
-    // ★ 追加：ゲーム全体で入力を受け付けるかどうか
-    public static bool CanInput = false;
+    public static bool CanInput = true; // 移動・ポーズ等の基本操作
+    public static bool CanShoot = true; // ショット・スキルの使用許可
 
     [System.Serializable]
     public struct ReplayFrame

@@ -50,7 +50,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     public void Fire(PlayerSkillData.SkillSettings s)
     {
-        if (!PlayerMove.CanInput) return;
+        if (!PlayerMove.CanShoot || IsAnyPlayerDeadOrRebirthing()) return;
         if (IsAnyPlayerDeadOrRebirthing()) return;
 
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
