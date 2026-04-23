@@ -63,11 +63,21 @@ public class PlayerStatusManager : MonoBehaviour
         {
             stockLives = 0; life = 0; bomb = 0;
         }
+        // ★ ストーリーモード：3機（初期ストック2）
+        else if (GameModeManager.IsStoryMode)
+        {
+            initialLife = 2;
+            stockLives = 2;
+            life = 2;
+            bomb = initialSpell;
+        }
+        // ★ 対戦モード：1ストック（初期ライフ1）
+        // ※ 2マッチ先取（2回負けたら終わり）を想定した設定
         else
         {
-            // ★ 修正点：判定用の stockLives も initialLife で初期化する
-            stockLives = initialLife;
-            life = initialLife;
+            initialLife = 1;
+            stockLives = 1;
+            life = 1;
             bomb = initialSpell;
         }
     }
@@ -77,7 +87,10 @@ public class PlayerStatusManager : MonoBehaviour
         ApplyCharacterSettings();
         StartCoroutine(SetupInitialUI());
     }
-
+    /// <summary>
+    /// 指定した時間をかけてHPを最大まで回復させる
+    /// </summary>
+  
     private IEnumerator SetupInitialUI()
     {
         yield return null;
@@ -112,19 +125,37 @@ public class PlayerStatusManager : MonoBehaviour
             }
   */      }
     }
-    // ストックを減らす処理も修正
     public bool SubtractLifeAndCheckRebirth()
     {
-        // stockLives を見て判定
         if (stockLives > 0)
         {
             stockLives--;
-            life = stockLives; // ★ 修正点：表示用の life も同期させる
-            currentHP = maxHP;
+            life = stockLives;
+
+            // ★ 削除：ここにあった currentHP = maxHP; を消す。
+            // これにより、敗者はHP 0（空のバー）のままスタン時間を迎えます。
+
             UpdateUI();
             return true;
         }
         return false;
+    }
+
+    // 敗者復活時の回復演出（0から1秒かけて回復）
+    public IEnumerator GradualHealthRecovery(float duration)
+    {
+        float startHP = currentHP;
+        float elapsed = 0;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            currentHP = Mathf.Lerp(startHP, maxHP, elapsed / duration);
+            UpdateUI();
+            yield return null;
+        }
+        currentHP = maxHP;
+        UpdateUI();
     }
     // 画面をフェードさせるコルーチン
     public IEnumerator FadeRoutine(float targetAlpha, float duration)

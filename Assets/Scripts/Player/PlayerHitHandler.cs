@@ -131,46 +131,106 @@ public class PlayerHitHandler : MonoBehaviour
 
         StartCoroutine(ExplosionAndStunRoutine());
     }
+    // --- PlayerHitHandler.cs 修正版 ---
+
+    // --- PlayerHitHandler.cs 修正版 ---
+
     IEnumerator ExplosionAndStunRoutine()
     {
         Vector3 hitPos = transform.position;
 
-        // 1. タイマー停止
+        // 1. 【演出開始】タイマー停止 ＆ 全体のショットだけ禁止する
         if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
+        Time.timeScale = 0.3f;
 
-        // 2. 弾幕消去
-        ClearAllBullets();
+        // ★ 修正：CanInput は true のままにする（勝者は動けるように）
+        PlayerMove.CanInput = true;
+        PlayerMove.CanShoot = false; // ショットは全員禁止
 
-        // 3. 爆発エフェクト（ここではまだ非表示にしない）
-        if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
-
-        // 4. ストック確認 ＆ HP回復
-        bool canContinueMatch = false;
+        // 自分（やられた側）のHPを0にする演出
         if (myStatusManager != null)
         {
-            canContinueMatch = myStatusManager.SubtractLifeAndCheckRebirth();
+            myStatusManager.currentHP = 0;
+            myStatusManager.SendMessage("UpdateUI", SendMessageOptions.DontRequireReceiver);
         }
+
+        ClearAllBullets();
+        if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
+
+        yield return null;
+
+        bool canContinueMatch = myStatusManager != null && myStatusManager.SubtractLifeAndCheckRebirth();
 
         if (canContinueMatch)
         {
-            // ★ ライフがある場合：その場でスタン（動けない状態にする）
+            // ★ 重要：やられた自分だけを操作不能にする
             currentState = PlayerState.Hit;
-            if (playerMove != null) playerMove.enabled = false; // 操作を受け付けないように
+            if (playerMove != null) playerMove.enabled = false;
 
-            // スタン時間（2秒）待機
-            yield return new WaitForSeconds(stunTime);
+            bool isHumanPlayer = (myStatusManager != null && myStatusManager.playerId == 1);
 
-            // 5. そのままラウンドリセットシーケンスへ
-            yield return StartCoroutine(RoundResetSequence());
+            if (GameModeManager.IsStoryMode && isHumanPlayer)
+            {
+                // --- ストーリーモード：シームレス復帰 ---
+                yield return new WaitForSecondsRealtime(2.0f);
+                Time.timeScale = 1.0f;
+                yield return new WaitForSeconds(0.2f);
+
+                if (myStatusManager != null) yield return StartCoroutine(myStatusManager.GradualHealthRecovery(1.0f));
+
+                // 自分の状態を戻し、個別の移動を許可する
+                currentState = PlayerState.Normal;
+                if (playerMove != null) playerMove.enabled = true; // 自分が動けるようになる
+
+                playerMove.SetInvincible(invincibilityTime);
+                yield return new WaitForSeconds(invincibilityTime);
+
+                PlayerMove.CanShoot = true; // 無敵終了でショット解禁
+                if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+            }
+            else
+            {
+                // --- CPU戦 / VSモード：カウントダウン仕切り直し ---
+                yield return new WaitForSecondsRealtime(2.0f);
+                Time.timeScale = 1.0f;
+                yield return new WaitForSeconds(1.0f);
+
+                if (myStatusManager != null) yield return StartCoroutine(myStatusManager.GradualHealthRecovery(1.0f));
+
+                yield return StartCoroutine(RoundResetSequence());
+            }
         }
         else
         {
-            // ★ ライフがない場合：ここで初めて非表示にして K.O. 演出へ
+            // 決着時
             SetPlayerActiveState(false);
             yield return StartCoroutine(PerformKORoundEndRoutine());
         }
     }
 
+    // ★ 追加：引き分け時の演出とリセット
+    public IEnumerator TriggerDrawSequence()
+    {
+        // 1. "DRAW" と表示する
+        if (myStatusManager != null && myStatusManager.countdownText != null)
+        {
+            myStatusManager.countdownText.text = "DRAW";
+            myStatusManager.countdownText.color = Color.white;
+            myStatusManager.countdownText.gameObject.SetActive(true);
+        }
+
+        // 2秒ほど「DRAW」を見せる
+        yield return new WaitForSeconds(2.0f);
+
+        if (myStatusManager != null && myStatusManager.countdownText != null)
+        {
+            myStatusManager.countdownText.gameObject.SetActive(false);
+        }
+
+        // 2. ライフを減らさずにリセットシーケンスを呼ぶ
+        // RoundResetSequenceは内部でHP回復、タイマーリセット、カウントダウン開始を行う
+        yield return StartCoroutine(RoundResetSequence());
+    }
     // --- PlayerHitHandler.cs 修正版 ---
 
     IEnumerator RoundResetSequence()
@@ -197,7 +257,25 @@ public class PlayerHitHandler : MonoBehaviour
             }
 
             PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-            if (ps != null) ps.SyncBarsImmediately();
+            if (ps != null)
+            {
+                // ★ モードによる最終同期の分岐
+                if (GameModeManager.IsStoryMode)
+                {
+                    // ストーリーモード：
+                    // HPが満タン（敗者として回復済み）またはHPが0（敗者）のみ同期。
+                    // 中途半端にHPが残っている勝者は SyncBarsImmediately を呼ばず、値を維持する。
+                    if (ps.currentHP >= ps.maxHP || ps.currentHP <= 0)
+                    {
+                        ps.SyncBarsImmediately();
+                    }
+                }
+                else
+                {
+                    // VSモード：全員全快させて同期
+                    ps.SyncBarsImmediately();
+                }
+            }
         }
 
         // 3. タイマーのリセット
@@ -326,28 +404,54 @@ public class PlayerHitHandler : MonoBehaviour
     /// <summary>
     /// 勝者（自分を倒した相手）の名前を取得して表示する
     /// </summary>
+    // --- PlayerHitHandler.cs 修正版 ---
+
+    /// <summary>
+    /// 勝者（自分を倒した相手）の名前を取得して表示する
+    /// </summary>
     private void ShowWinMessage()
     {
-        // PlayerMove.cs に実装した Opponent プロパティを使用して相手を取得
+        // 1. まずは設定済みの対戦相手（Opponent）を勝者候補にする
         PlayerMove winner = playerMove.Opponent;
 
+        // ★修正：もしOpponentが未設定なら、全プレイヤーリストから自分以外の相手を検索する
+        // これは、ストーリーモードのCPUなどで参照設定を忘れた際の「フェールセーフ」になります
+        if (winner == null)
+        {
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p != null && p != playerMove)
+                {
+                    winner = p;
+                    break;
+                }
+            }
+        }
+
+        // 2. 勝者が見つかり、かつUIの参照がある場合のみテキストを更新する
         if (winner != null && myStatusManager.winText != null)
         {
-            // 勝者のステータスマネージャーからキャラ名を取得
             PlayerStatusManager winnerStatus = winner.GetComponent<PlayerStatusManager>();
+
+            // 勝者の名前を取得（未設定なら「Player」とする）
             string winnerName = (winnerStatus != null && winnerStatus.characterData != null)
                 ? winnerStatus.characterData.characterName
-                : "Opponent";
+                : "Player";
 
-            // メッセージを設定して表示
+            // メッセージを「名前 + Wins!」の形に更新
             myStatusManager.winText.text = winnerName + " Wins!";
             myStatusManager.winText.gameObject.SetActive(true);
 
-            // 勝者のイメージカラーを文字色に反映させるとより良いです
+            // 勝者のイメージカラーを文字色に反映
             if (winnerStatus != null && winnerStatus.characterData != null)
             {
                 myStatusManager.winText.color = winnerStatus.characterData.imageColor;
             }
+        }
+        else
+        {
+            // もし万が一、勝者が特定できなかった場合のデバッグ用
+            Debug.LogWarning("Winner could not be identified.");
         }
     }
 }

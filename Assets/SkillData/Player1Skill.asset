@@ -24,7 +24,7 @@ MonoBehaviour:
     speed: 3
     angleOffset: 0
     wideAngle: 30
-    delay: 2
+    delay: 5
   skillX:
     skillName: "\u696D\u706B\u7070\u71FC"
     patternType: 1
@@ -35,7 +35,7 @@ MonoBehaviour:
     speed: 4
     angleOffset: 0
     wideAngle: 60
-    delay: 1
+    delay: 5
   skillC:
     skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
     patternType: 0

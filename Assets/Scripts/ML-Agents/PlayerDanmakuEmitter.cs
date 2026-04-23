@@ -50,9 +50,17 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     public void Fire(PlayerSkillData.SkillSettings s)
     {
-        if (!PlayerMove.CanShoot || IsAnyPlayerDeadOrRebirthing()) return;
-        if (IsAnyPlayerDeadOrRebirthing()) return;
+        // 1. 自分自身の状態（スタン中かどうか）をチェックする
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
 
+        // 2. 全体的な射撃禁止（ラウンド開始前など）をチェック
+        if (!PlayerMove.CanShoot) return;
+
+        // 3. ★修正：自分自身が Normal 状態でない（自分がスタン中など）時だけ、射撃を中止する
+        // これにより、相手がスタンしていても自分は撃ち続けることができます
+        if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
+
+        // --- 以降のコード（s.bulletData のチェックや switch文）はそのまま ---
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
 
         // ★ 修正：ベースの角度を「相手の方向」にする
@@ -88,25 +96,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 break;
         }
     }
-    /// <summary>
-    /// 試合に参加しているプレイヤーの中に、撃墜中または復帰中の者がいるか確認する
-    /// </summary>
-    private bool IsAnyPlayerDeadOrRebirthing()
-    {
-        // PlayerMove.cs を修正したことで、ここには常に2人分のプレイヤーが入るようになります
-        foreach (var p in PlayerMove.AllPlayers)
-        {
-            if (p == null) continue;
-            PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
 
-            // どちらか一方が Normal 以外の状態（Hit = 撃墜中, Rebirth = 復帰中）なら射撃不可
-            if (hh != null && hh.currentState != PlayerHitHandler.PlayerState.Normal)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
     private void ExecuteNWay(PlayerSkillData.SkillSettings s, Vector3 pos, float baseAngle)
     {
         int count = Mathf.Max(1, s.count);

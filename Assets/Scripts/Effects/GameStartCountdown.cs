@@ -32,28 +32,28 @@ public class GameStartCountdown : MonoBehaviour
 
     IEnumerator CountdownRoutine()
     {
-        PlayerMove.CanShoot = false; // ショット禁止
-        PlayerMove.CanInput = true;  // ★ 移動は許可！
+        // ★ 修正：開始時から移動は許可し、ショットのみ制限する
+        PlayerMove.CanInput = true;
+        PlayerMove.CanShoot = false;
 
-        // テキストをアクティブにして初期化
+        countdownText.gameObject.SetActive(true);
         countdownText.gameObject.SetActive(true);
         countdownText.text = "";
 
-        // ★重要：アルファ値を1（不透明）に強制リセット
         Color c = countdownText.color;
         c.a = 1f;
         countdownText.color = c;
 
-        // 暗転明け直後の待機（必要に応じて調整）
         yield return new WaitForSeconds(0.5f);
 
         yield return StartCoroutine(AnimateText("3"));
         yield return StartCoroutine(AnimateText("2"));
         yield return StartCoroutine(AnimateText("1"));
 
-        PlayerMove.CanInput = true; // ここで操作解禁
-
+        // ★ 修正：ここで解禁。移動とショットの両方を許可する
+        PlayerMove.CanInput = true;
         PlayerMove.CanShoot = true;
+
         yield return StartCoroutine(AnimateText("GO !!", 1.5f));
 
         countdownText.gameObject.SetActive(false);

@@ -85,31 +85,46 @@ public class DanmakuAgent : Agent
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        // ★ 追加：カウントダウン中はキー入力を受け付けない
+        // カウントダウン中やスタン中は入力を受け付けない
         if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
         {
             return;
         }
+
         var discrete = actionsOut.DiscreteActions;
         discrete.Clear();
 
         if (playerID == 1)
         {
+            // 移動
             if (Input.GetKey(KeyCode.LeftArrow)) discrete[0] = 1;
             else if (Input.GetKey(KeyCode.RightArrow)) discrete[0] = 2;
             if (Input.GetKey(KeyCode.UpArrow)) discrete[1] = 1;
             else if (Input.GetKey(KeyCode.DownArrow)) discrete[1] = 2;
+
+            // スキル
             if (Input.GetKey(KeyCode.Z)) discrete[2] = 1;
             else if (Input.GetKey(KeyCode.X)) discrete[2] = 2;
+            else if (Input.GetKey(KeyCode.C)) discrete[2] = 3;
+            else if (Input.GetKey(KeyCode.V)) discrete[2] = 4;
+
+            // ★ 追加：低速移動 (LeftShift)
+            if (Input.GetKey(KeyCode.LeftShift)) discrete[3] = 1;
         }
         else
         {
+            // P2 (A,D,W,S)
             if (Input.GetKey(KeyCode.A)) discrete[0] = 1;
             else if (Input.GetKey(KeyCode.D)) discrete[0] = 2;
             if (Input.GetKey(KeyCode.W)) discrete[1] = 1;
             else if (Input.GetKey(KeyCode.S)) discrete[1] = 2;
+
+            // P2 スキル (F,G,H,Jなど)
             if (Input.GetKey(KeyCode.F)) discrete[2] = 1;
             else if (Input.GetKey(KeyCode.G)) discrete[2] = 2;
+
+            // ★ 追加：P2 低速移動 (RightShift)
+            if (Input.GetKey(KeyCode.RightShift)) discrete[3] = 1;
         }
     }
 }

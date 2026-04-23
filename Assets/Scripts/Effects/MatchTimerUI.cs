@@ -12,6 +12,10 @@ public class MatchTimerUI : MonoBehaviour
     public float currentMatchTime = 99f; // 現在の残り時間
     private bool isTimerRunning = false;
     private bool isTimerStopped = false; // ★ 追加：タイマー停止フラグ
+    // ★追加：無限タイマーフラグ
+    public bool isInfiniteTimer = false;
+    // ★追加：二重実行を確実に防ぐフラグ
+    private bool isTimeUpHandled = false;
     [Header("References")]
     public TextMeshProUGUI timerText;
     public CanvasGroup canvasGroup;
@@ -37,8 +41,8 @@ public class MatchTimerUI : MonoBehaviour
     {
         currentMatchTime = duration;
         isTimerRunning = false;
-        isTimerStopped = false; // ラウンド開始時にリセット
-        // ★修正：初期値も UI表示（Ceil）に合わせて同期
+        isTimerStopped = false;
+        isTimeUpHandled = false; // ★ラウンド開始時にフラグをリセット
         lastIntSecond = Mathf.CeilToInt(currentMatchTime);
         UpdateUI(currentMatchTime);
     }
@@ -46,37 +50,57 @@ public class MatchTimerUI : MonoBehaviour
     public void StopTimer()
     {
         isTimerStopped = true;
+    }// タイマーを途中で再開させる（ストーリーモードの復帰用）
+    public void ResumeTimer()
+    {
+        isTimerStopped = false;
     }
     void Update()
     {
         // ★ 修正：isTimerStopped が false の時だけカウントダウンする
-        if (PlayerMove.CanInput && currentMatchTime > 0 && !isTimerStopped)
+        // ★修正：!isInfiniteTimer かつ !isTimerStopped の時だけカウントを減らす
+        if (PlayerMove.CanShoot && currentMatchTime > 0 && !isTimerStopped && !isInfiniteTimer)
         {
+            isTimerRunning = true;
             currentMatchTime -= Time.deltaTime;
 
             if (currentMatchTime <= 0)
             {
                 currentMatchTime = 0;
-                HandleTimeUp();
+                isTimerRunning = false;
+                if (!isTimeUpHandled)
+                {
+                    isTimeUpHandled = true;
+                    HandleTimeUp();
+                }
             }
         }
         UpdateUI(currentMatchTime);
 
-        // --- SEとPop演出の同期修正 ---
-        // UIが表示する「整数」を取得（例: 10.1秒なら表示は11）
-        int displaySec = Mathf.CeilToInt(currentMatchTime);
-
-        // 表示されている数字が変わった瞬間、かつ10秒以下の時に実行
-        if (displaySec <= 10 && displaySec != lastIntSecond && currentMatchTime > 0)
+        // ★修正：無限タイマー時はSEやPop演出を行わないようにする
+        if (!isInfiniteTimer)
         {
-            StartCoroutine(PopRoutine());
-            PlayCountSE(displaySec);
-            lastIntSecond = displaySec;
+            int displaySec = Mathf.CeilToInt(currentMatchTime);
+            if (displaySec <= 10 && displaySec != lastIntSecond && currentMatchTime > 0)
+            {
+                StartCoroutine(PopRoutine());
+                PlayCountSE(displaySec);
+                lastIntSecond = displaySec;
+            }
         }
+
     }
 
     void UpdateUI(float time)
     {
+        // ★追加：無限タイマー時の表示切り替え
+        if (isInfiniteTimer)
+        {
+            timerText.text = "∞";
+            timerText.color = normalColor;
+            return;
+        }
+
         int displaySec = Mathf.CeilToInt(time);
         timerText.text = displaySec.ToString();
 
@@ -84,7 +108,12 @@ public class MatchTimerUI : MonoBehaviour
         else if (time < 10f) timerText.color = warningColor;
         else timerText.color = normalColor;
     }
-
+    // ★追加：ストーリーモード開始時などに外部から呼ぶためのメソッド
+    public void SetInfiniteMode(bool infinite)
+    {
+        isInfiniteTimer = infinite;
+        UpdateUI(currentMatchTime);
+    }
     void PlayCountSE(int sec)
     {
         // 4秒以下で音が緊迫したものに変わる
@@ -108,12 +137,15 @@ public class MatchTimerUI : MonoBehaviour
 
     private void HandleTimeUp()
     {
-        // 1. 全ての入力を即座に停止
         PlayerMove.CanInput = false;
-
-        // 2. ★追加：画面上のすべての弾幕をエフェクト付きで消去
         ClearAllBulletsOnField();
 
+        // ストーリーモードの場合
+        if (GameModeManager.IsStoryMode)
+        {
+            HandleStoryTimeUp();
+            return;
+        }
         PlayerStatusManager p1 = null;
         PlayerStatusManager p2 = null;
 
@@ -129,22 +161,65 @@ public class MatchTimerUI : MonoBehaviour
 
         if (p1 != null && p2 != null)
         {
-            // HP比較による勝敗判定
             if (p1.currentHP > p2.currentHP)
             {
-                TriggerTimeUpWin(p2); // P2の負け演出（P1 Wins!が表示される）
+                TriggerTimeUpWin(p2);
             }
             else if (p2.currentHP > p1.currentHP)
             {
-                TriggerTimeUpWin(p1); // P1の負け演出（P2 Wins!が表示される）
+                TriggerTimeUpWin(p1);
             }
             else
             {
-                // ドロー（引き分け）の場合は両者をHit状態にする等の処理が必要ならここへ
+                // ★ 追加：引き分け（HPが同じ）
+                // P1側のHitHandlerを窓口にして引き分け演出を開始する
+                PlayerHitHandler h1 = p1.GetComponentInChildren<PlayerHitHandler>();
+                if (h1 != null) h1.StartCoroutine("TriggerDrawSequence");
             }
         }
     }
+    private void HandleStoryTimeUp()
+    {
+        // 1. 全入力・射撃を即座に停止
+        PlayerMove.CanInput = false;
+        PlayerMove.CanShoot = false;
+        ClearAllBulletsOnField();
 
+        // 2. ボス（敵）の情報を取得
+        // 通常、ストーリーモードの敵は playerId = 2 または BossTimerUI のターゲットとして存在します
+        EnemyStatus boss = BossTimerUI.Instance != null ? BossTimerUI.Instance.targetStatus : null;
+
+        if (boss != null)
+        {
+            // ★ 修正：HPの多寡に関わらず、タイムアップ時はボスの負けとする
+            PlayerHitHandler bossHandler = boss.GetComponentInChildren<PlayerHitHandler>();
+            if (bossHandler != null)
+            {
+                // ボスの撃墜ルーチンを開始（これによりボスの残機が減り、次のスペルへ移行する）
+                bossHandler.currentState = PlayerHitHandler.PlayerState.Hit;
+                bossHandler.StartCoroutine("ExplosionAndStunRoutine");
+            }
+        }
+        else
+        {
+            // ボスが見つからない場合の保険：全プレイヤーから playerId 2 を探す
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                if (ps != null && ps.playerId == 2)
+                {
+                    PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
+                    if (hh != null)
+                    {
+                        hh.currentState = PlayerHitHandler.PlayerState.Hit;
+                        hh.StartCoroutine("ExplosionAndStunRoutine");
+                    }
+                    break;
+                }
+            }
+        }
+    }
     /// <summary>
     /// 画面内の全弾丸を一括消去する
     /// </summary>
@@ -162,7 +237,7 @@ public class MatchTimerUI : MonoBehaviour
         PlayerHitHandler loserHandler = loserStatus.GetComponentInChildren<PlayerHitHandler>();
         if (loserHandler != null)
         {
-            // ★ 修正：直接ゲーム終了を呼ぶのではなく、被弾時と同じ「ストック確認ルーチン」を呼ぶ
+            // 状態をHitにして爆発ルーチン開始
             loserHandler.currentState = PlayerHitHandler.PlayerState.Hit;
             loserHandler.StartCoroutine("ExplosionAndStunRoutine");
         }

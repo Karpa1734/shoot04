@@ -1,5 +1,7 @@
-using UnityEngine;
 using KanKikuchi.AudioManager;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.Rendering;
 
 public class SkillManager : MonoBehaviour
 {
@@ -8,6 +10,11 @@ public class SkillManager : MonoBehaviour
     private PlayerMove playerMove;
     private PlayerHitHandler hitHandler;
     private PlayerDanmakuEmitter emitter;
+    [Header("UI Slots")]
+    public SkillCooldownUI uiZ;
+    public SkillCooldownUI uiX;
+    public SkillCooldownUI uiC;
+    public SkillCooldownUI uiV;
 
     private float timerZ, timerX, timerC, timerV;
 
@@ -17,21 +24,35 @@ public class SkillManager : MonoBehaviour
         hitHandler = GetComponentInChildren<PlayerHitHandler>();
         emitter = GetComponent<PlayerDanmakuEmitter>();
 
-        // ★ 自分で持たず、隣の PlayerStatusManager からデータを貰ってくる
-        var status = GetComponent<PlayerStatusManager>();
-        if (status != null)
-        {
-            skillData = status.characterData;
-        }
+        // PlayerStatusManager から自身のキャラデータを取得
+        var status = GetComponentInParent<PlayerStatusManager>();
+        if (status != null) skillData = status.characterData;
     }
     void FixedUpdate()
     {
         if (playerMove == null || skillData == null) return;
-        // ★ 修正：ショット権限がない、または誰かが撃墜中なら処理しない
-        if (!PlayerMove.CanShoot || IsAnyPlayerDeadOrRebirthing()) return;
-        // ★ 修正：自分または相手が死んでいる（Normal状態でない）間は、全ての入力を無視する
-        UpdateTimers();
 
+        // ★ 追加：ショット禁止状態（ラウンド間、スタン中、カウントダウン中）なら
+        // 全てのクールタイムを強制的に 0（使用可能状態）にする
+        if (!PlayerMove.CanShoot)
+        {
+            timerZ = 0;
+            timerX = 0;
+            timerC = 0;
+            timerV = 0;
+        }
+        else
+        {
+            // ショット可能な時だけ、通常通りクールタイムを減少させる
+            UpdateTimers();
+        }
+
+        // ★ 重要：タイマーを 0 にしたことを UI に即座に反映させるため
+        // CanShoot の状態に関わらず、毎回 UI 更新を呼び出す
+        UpdateAllCooldownUI();
+
+        // これ以降の「ボタン入力によるスキル発動」は、ショット可能な時のみ実行する
+        if (!PlayerMove.CanShoot) return;
         // 被弾中などは発射制限
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
@@ -42,6 +63,24 @@ public class SkillManager : MonoBehaviour
         HandleSkillInput(input.shotX, ref timerX, skillData.skillX);
         HandleSkillInput(input.shotC, ref timerC, skillData.skillC);
         HandleSkillInput(input.shotV, ref timerV, skillData.skillV);
+        // UIを更新する（現在のタイマー値と最大クールタイムを渡す）
+        if (skillData != null)
+        {
+            if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
+            if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
+            if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
+            if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
+        }
+    }
+    private void UpdateAllCooldownUI()
+    {
+        if (skillData == null) return;
+
+        // 前回の回答で作成した SkillCooldownUI.UpdateCooldown を呼び出す
+        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
+        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
+        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
+        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
     }
     /// <summary>
     /// 誰か一人が撃墜・復帰中かどうかを判定するヘルパー
