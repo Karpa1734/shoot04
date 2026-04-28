@@ -5,9 +5,18 @@ using TMPro;
 public class SkillCooldownUI : MonoBehaviour
 {
     [Header("UI References")]
-    public Image fillImage;        // Fill MethodをRadialに設定したImage
-    public TextMeshProUGUI timerText; // カウントダウン用のTMP
+    public Image iconImage;        // ★追加：スキルアイコンを表示するImage
+    public Image fillImage;        // クールタイム用の塗りつぶしImage
+    public TextMeshProUGUI timerText;
 
+    // ★追加：アイコンをセットするメソッド
+    public void SetSkillIcon(Sprite sprite)
+    {
+        if (iconImage != null)
+        {
+            iconImage.sprite = sprite;
+        }
+    }
     public void UpdateCooldown(float currentTimer, float maxCooldown)
     {
         if (currentTimer > 0)

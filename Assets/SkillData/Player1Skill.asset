@@ -16,28 +16,35 @@ MonoBehaviour:
   imageColor: {r: 1, g: 1, b: 1, a: 1}
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
-    patternType: 2
-    bulletData: {fileID: 11400000, guid: f273ab83a2a68f84ba3403421d5b9427, type: 2}
-    cooldown: 0.2
+    skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
+    patternType: 6
+    bulletData: {fileID: 11400000, guid: 2ae8f6b4a5bbf584abf0fef22b490722, type: 2}
+    cooldown: 3
     sePath: 
-    count: 12
-    speed: 3
+    count: 5
+    speed: 4.5
     angleOffset: 0
-    wideAngle: 30
+    wideAngle: 45
     delay: 5
+    maxBurstCount: 4
+    burstInterval: 0.5
   skillX:
-    skillName: "\u696D\u706B\u7070\u71FC"
-    patternType: 1
-    bulletData: {fileID: 11400000, guid: 11b813697792b7044960dcd2580e17ba, type: 2}
-    cooldown: 0.5
+    skillName: "\u72C2\u6C17\u306E\u7344\u708E"
+    skillIcon: {fileID: 21300000, guid: 8db3062216b350c45a0c092149ca2990, type: 3}
+    patternType: 7
+    bulletData: {fileID: 11400000, guid: 893a83124dd3cd544b869d72239b9e95, type: 2}
+    cooldown: 3
     sePath: 
     count: 7
-    speed: 4
+    speed: 3.5
     angleOffset: 0
     wideAngle: 60
     delay: 5
+    maxBurstCount: 0
+    burstInterval: 0
   skillC:
     skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
+    skillIcon: {fileID: 21300000, guid: bccbbc091fc5dc548b545377b615a4e0, type: 3}
     patternType: 0
     bulletData: {fileID: 0}
     cooldown: 0
@@ -47,8 +54,11 @@ MonoBehaviour:
     angleOffset: 0
     wideAngle: 0
     delay: 0
+    maxBurstCount: 0
+    burstInterval: 0
   skillV:
-    skillName: "\u72C2\u5316"
+    skillName: "\u795E\u79D8\u7070\u71FC"
+    skillIcon: {fileID: 21300000, guid: 9287746461df5a4459f4eca634e87312, type: 3}
     patternType: 0
     bulletData: {fileID: 0}
     cooldown: 0
@@ -58,3 +68,5 @@ MonoBehaviour:
     angleOffset: 0
     wideAngle: 0
     delay: 0
+    maxBurstCount: 0
+    burstInterval: 0

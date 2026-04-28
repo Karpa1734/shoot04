@@ -1,30 +1,33 @@
+ï»¿using KanKikuchi.AudioManager;
+using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// ƒvƒŒƒCƒ„[‚ÌƒXƒLƒ‹İ’è‚ÉŠî‚Ã‚«AÀÛ‚É’e–‹‚ğ¶¬EËo‚·‚éƒNƒ‰ƒX
-/// 1vs1‘Îí‘Î‰FŠï”’e‚Í©‹@‘_‚¢A‹ô”’e‚Í©‹@ŠO‚µ‚ğ©“®ŒvZ
+/// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ã‚¹ã‚­ãƒ«è¨­å®šã«åŸºã¥ãã€å®Ÿéš›ã«å¼¾å¹•ã‚’ç”Ÿæˆãƒ»å°„å‡ºã™ã‚‹ã‚¯ãƒ©ã‚¹
+/// 1vs1å¯¾æˆ¦å¯¾å¿œï¼šå¥‡æ•°å¼¾ã¯è‡ªæ©Ÿç‹™ã„ã€å¶æ•°å¼¾ã¯è‡ªæ©Ÿå¤–ã—ã‚’è‡ªå‹•è¨ˆç®—
 /// </summary>
 public class PlayerDanmakuEmitter : MonoBehaviour
 {
     [Header("Target Settings")]
-    [Tooltip("UŒ‚‘ÎÛi‘Šèj‚Ìƒ^ƒO")]
+    [Tooltip("æ”»æ’ƒå¯¾è±¡ï¼ˆç›¸æ‰‹ï¼‰ã®ã‚¿ã‚°")]
     public string targetTag = "Player";
 
     private GameObject _rootOwner;
-
+    // â˜… è¿½åŠ ï¼šå°„æ’ƒæ–¹å‘ã‚’äº¤äº’ã«åˆ‡ã‚Šæ›¿ãˆã‚‹ãŸã‚ã®ãƒ•ãƒ©ã‚°
+    private bool _isArcReversed = false;
     private void Awake()
     {
         _rootOwner = transform.root.gameObject;
     }
 
     /// <summary>
-    /// ‘ŠèƒvƒŒƒCƒ„[‚Ö‚ÌŠp“x‚ğæ“¾‚·‚éB‘Šè‚ª‚¢‚È‚¢ê‡‚Í³–Ê(90“x)‚ğ•Ô‚·B
+    /// ç›¸æ‰‹ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¸ã®è§’åº¦ã‚’å–å¾—ã™ã‚‹ã€‚ç›¸æ‰‹ãŒã„ãªã„å ´åˆã¯æ­£é¢(90åº¦)ã‚’è¿”ã™ã€‚
     /// </summary>
     private float GetAngleToTarget()
     {
         Transform target = null;
 
-        // PlayerMove‚ÌƒŠƒXƒg‚ğ‘–¸iAwake/OnDestroyŠÇ—‚É‚È‚Á‚½‚Ì‚ÅAƒXƒ^ƒ“’†‚Ì“G‚àŠÜ‚Ü‚ê‚éj
+        // PlayerMoveã®ãƒªã‚¹ãƒˆã‚’èµ°æŸ»ï¼ˆAwake/OnDestroyç®¡ç†ã«ãªã£ãŸã®ã§ã€ã‚¹ã‚¿ãƒ³ä¸­ã®æ•µã‚‚å«ã¾ã‚Œã‚‹ï¼‰
         foreach (var p in PlayerMove.AllPlayers)
         {
             if (p != null && p.gameObject != _rootOwner)
@@ -36,34 +39,58 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         if (target != null)
         {
-            // ‘Šè‚ªƒXƒ^ƒ“’†‚Å‰æ–ÊŠOi‹Œd—lj‚É‚¢‚Ä‚àAŒ»İ‚ÌÀ•W‚ÅŒvZ‚·‚é
+            // ç›¸æ‰‹ãŒã‚¹ã‚¿ãƒ³ä¸­ã§ç”»é¢å¤–ï¼ˆæ—§ä»•æ§˜ï¼‰ã«ã„ã¦ã‚‚ã€ç¾åœ¨ã®åº§æ¨™ã§è¨ˆç®—ã™ã‚‹
             Vector3 dir = target.position - transform.position;
             return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         }
 
-        // ƒ^[ƒQƒbƒg‚ªŒ©‚Â‚©‚ç‚È‚¢ê‡A1vs1‚È‚çu©•ª‚Ì”½‘Î‘¤v‚ğŒü‚­‚æ‚¤‚É‚·‚é‚Æ©‘R‚Å‚·
-        // —á: P1(¶)‚È‚ç‰E(0“x)AP2(‰E)‚È‚ç¶(180“x)
+        // ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãŒè¦‹ã¤ã‹ã‚‰ãªã„å ´åˆã€1vs1ãªã‚‰ã€Œè‡ªåˆ†ã®åå¯¾å´ã€ã‚’å‘ãã‚ˆã†ã«ã™ã‚‹ã¨è‡ªç„¶ã§ã™
+        // ä¾‹: P1(å·¦)ãªã‚‰å³(0åº¦)ã€P2(å³)ãªã‚‰å·¦(180åº¦)
         var myStatus = GetComponentInParent<PlayerStatusManager>();
         if (myStatus != null && myStatus.playerId == 2) return 180f;
         return 0f;
     }
+    /// <summary>
+    /// æŒ‡å®šã—ãŸåº§æ¨™ï¼ˆfromPosï¼‰ã‹ã‚‰ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã¸ã®è§’åº¦ã‚’å–å¾—ã™ã‚‹
+    /// </summary>
+    private float GetAngleToTarget(Vector3 fromPos) // â˜… å¼•æ•°ã‚’è¿½åŠ 
+    {
+        Transform target = null;
 
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p != null && p.gameObject != _rootOwner)
+            {
+                target = p.transform;
+                break;
+            }
+        }
+
+        if (target != null)
+        {
+            // â˜… ä¿®æ­£ï¼šè‡ªæ©Ÿã®ä½ç½®ã§ã¯ãªãã€å¼•æ•°ã® fromPos ã‹ã‚‰ã®ãƒ™ã‚¯ãƒˆãƒ«ã‚’è¨ˆç®—ã™ã‚‹
+            Vector3 dir = target.position - fromPos;
+            return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        }
+
+        // ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãŒã„ãªã„å ´åˆã®ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ
+        var myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus != null && myStatus.playerId == 2) return 180f;
+        return 0f;
+    }
     public void Fire(PlayerSkillData.SkillSettings s)
     {
-        // 1. ©•ª©g‚Ìó‘ÔiƒXƒ^ƒ“’†‚©‚Ç‚¤‚©j‚ğƒ`ƒFƒbƒN‚·‚é
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-
-        // 2. ‘S‘Ì“I‚ÈËŒ‚‹Ö~iƒ‰ƒEƒ“ƒhŠJn‘O‚È‚Çj‚ğƒ`ƒFƒbƒN
         if (!PlayerMove.CanShoot) return;
-
-        // 3. šC³F©•ª©g‚ª Normal ó‘Ô‚Å‚È‚¢i©•ª‚ªƒXƒ^ƒ“’†‚È‚Çj‚¾‚¯AËŒ‚‚ğ’†~‚·‚é
-        // ‚±‚ê‚É‚æ‚èA‘Šè‚ªƒXƒ^ƒ“‚µ‚Ä‚¢‚Ä‚à©•ª‚ÍŒ‚‚¿‘±‚¯‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·
         if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
-
-        // --- ˆÈ~‚ÌƒR[ƒhis.bulletData ‚Ìƒ`ƒFƒbƒN‚â switch•¶j‚Í‚»‚Ì‚Ü‚Ü ---
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
 
-        // š C³Fƒx[ƒX‚ÌŠp“x‚ğu‘Šè‚Ì•ûŒüv‚É‚·‚é
+        // â˜… è¿½åŠ ï¼šã‚³ãƒ«ãƒ¼ãƒãƒ³ã‚’ä½¿ã‚ãªã„å³æ™‚ç™ºå°„ãƒ‘ã‚¿ãƒ¼ãƒ³ã®å ´åˆã¯ã“ã“ã§SEã‚’é³´ã‚‰ã™
+        if (s.patternType != SkillPatternType.MovingArc && s.patternType != SkillPatternType.RandomRound)
+        {
+            PlaySkillSE(s.sePath);
+        }
+
         float targetAngle = GetAngleToTarget();
         float baseAngle = targetAngle + s.angleOffset;
         Vector3 pos = transform.position;
@@ -73,30 +100,123 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             case SkillPatternType.Standard:
                 CreateShot(s.bulletData, pos, s.speed, baseAngle, s.delay);
                 break;
-
             case SkillPatternType.nWay:
                 ExecuteNWay(s, pos, baseAngle);
                 break;
-
             case SkillPatternType.Round:
                 ExecuteRound(s, pos, baseAngle);
                 break;
-
             case SkillPatternType.Polygon:
                 ExecutePolygon(s, pos, baseAngle);
                 break;
-
             case SkillPatternType.Line:
                 for (int i = 0; i < s.count; i++)
                     CreateShot(s.bulletData, pos, s.speed + (i * 0.4f), baseAngle, s.delay);
                 break;
-
             case SkillPatternType.Custom:
                 ExecuteConvergePattern(s, pos, baseAngle);
                 break;
+            case SkillPatternType.MovingArc:
+                StartCoroutine(MovingArcRoutine(s));
+                break;
+            case SkillPatternType.RandomRound:
+                StartCoroutine(ExecuteRandomRoundRoutine(s));
+                break;
         }
     }
+    /// <summary>
+    /// å¼¾æºã‚’å††å¼§ä¸Šã§å‹•ã‹ã—ãªãŒã‚‰é€£å°„ã™ã‚‹ï¼ˆå®Ÿè¡Œã”ã¨ã«æ–¹å‘ãŒåè»¢ï¼‰
+    /// </summary>
+    private IEnumerator MovingArcRoutine(PlayerSkillData.SkillSettings s)
+    {
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
 
+        // â˜… ä¿®æ­£ï¼šåŠå¾„ã‚’ Xï¼ˆæ¨ªï¼‰ã¨ Yï¼ˆç¸¦ï¼‰ã§å€‹åˆ¥ã«å®šç¾©ã™ã‚‹
+        // æ¨ªé•·ã«ã™ã‚‹ãŸã‚ã« radiusX > radiusY ã«è¨­å®šã—ã¾ã™
+        float radiusX = 1.5f; // æ¨ªã®åºƒãŒã‚Š
+        float radiusY = 0.4f; // ç¸¦ã®åšã¿
+        int wayCount = 5;
+
+        bool currentDirectionReversed = _isArcReversed;
+        _isArcReversed = !_isArcReversed;
+
+        float startOffset = currentDirectionReversed ? 90f : -90f;
+        float endOffset = currentDirectionReversed ? -90f : 90f;
+        float step = currentDirectionReversed ? -20f : 20f;
+
+        float centerTargetAngle = GetAngleToTarget(transform.position);
+
+        for (float offset = startOffset;
+             (step > 0 ? offset <= endOffset : offset >= endOffset);
+             offset += step)
+        {
+            // è‡ªåˆ†ãŒã‚¹ã‚¿ãƒ³ã—ãŸã‚Šå°„æ’ƒç¦æ­¢ã«ãªã£ãŸã‚‰ä¸­æ–­
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
+
+            float spawnAngleRad = (centerTargetAngle + offset) * Mathf.Deg2Rad;
+
+            // â˜… ä¿®æ­£ï¼šXæˆåˆ†ã« radiusXã€Yæˆåˆ†ã« radiusY ã‚’å€‹åˆ¥ã«æ›ã‘ã¦æ¥•å††åº§æ¨™ã‚’ç®—å‡º
+            Vector3 ellipseOffset = new Vector3(
+                Mathf.Cos(spawnAngleRad) * radiusX,
+                Mathf.Sin(spawnAngleRad) * radiusY,
+                0
+            );
+            Vector3 spawnPos = transform.position + ellipseOffset;
+
+            // å¼¾æºï¼ˆspawnPosï¼‰ã‹ã‚‰æ•µã¸ã®è§’åº¦ã‚’å†è¨ˆç®—
+            float realAimAngle = GetAngleToTarget(spawnPos) + s.angleOffset;
+
+            float currentWideAngle = 70f;
+            float startAngle = realAimAngle - (currentWideAngle / 2f);
+            float stepAngle = (wayCount > 1) ? currentWideAngle / (wayCount - 1) : 0;
+            PlaySkillSE(s.sePath);
+            for (int i = 0; i < wayCount; i++)
+            {
+                CreateShot(s.bulletData, spawnPos, s.speed, startAngle + (stepAngle * i), s.delay);
+            }
+
+            // 2ãƒ•ãƒ¬ãƒ¼ãƒ å¾…æ©Ÿ
+            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate();
+        }
+    }
+    /// <summary>
+    /// è‡ªæ©Ÿå‘¨è¾ºã®ãƒ©ãƒ³ãƒ€ãƒ ãªåº§æ¨™ã‹ã‚‰18-wayå…¨æ–¹ä½å¼¾ã‚’7å›é€£å°„ã™ã‚‹
+    /// </summary>
+    private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
+    {
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        int burstCount = 10; // 7ç™ºï¼ˆ7ã‚»ãƒƒãƒˆï¼‰
+        int wayCount = 18;  // 18-wayï¼ˆå¶æ•°ï¼‰
+
+        for (int j = 0; j < burstCount; j++)
+        {
+            // 1. ä¸­æ–­ãƒã‚§ãƒƒã‚¯ï¼ˆã‚¹ã‚¿ãƒ³ã‚„å°„æ’ƒç¦æ­¢ï¼‰
+            if (!PlayerMove.CanShoot) yield break;
+            if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) yield break;
+
+            // 2. å¼¾æºã®åº§æ¨™ã‚’ãƒ©ãƒ³ãƒ€ãƒ ã«æ±ºå®š (X, Y ãã‚Œãã‚Œ -1.0 ï½ 1.0 ã®ç¯„å›²)
+            Vector3 randomOffset = new Vector3(Random.Range(-1f, 1f), Random.Range(-1.5f, 1.5f), 0);
+            Vector3 spawnPos = transform.position + randomOffset;
+
+            // 3. å¼¾æºã‹ã‚‰è¦‹ãŸæ•µã¸ã®è§’åº¦ã‚’å–å¾—
+            float targetAngle = GetAngleToTarget(spawnPos);
+            float baseAngle = targetAngle + s.angleOffset;
+            float speed = s.speed + (j * 0.3f); // é€£å°„ã”ã¨ã«å°‘ã—ãšã¤é€Ÿãã™ã‚‹
+            // 4. 18-way å…¨æ–¹ä½å¼¾ï¼ˆè‡ªæ©Ÿå¤–ã—ï¼‰ã®è¨ˆç®—
+            float step = 360f / wayCount;
+            // 18ã¯å¶æ•°ãªã®ã§ã€çœŸæ­£é¢ï¼ˆbaseAngleï¼‰ã‚’é¿ã‘ã‚‹ãŸã‚ã« step/2 ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆã‚’å…¥ã‚Œã‚‹
+            float rotationOffset = step / 2f;
+            PlaySkillSE(s.sePath);
+            for (int i = 0; i < wayCount; i++)
+            {
+                float finalAngle = baseAngle + rotationOffset + (step * i);
+                CreateShot(s.bulletData, spawnPos, speed, finalAngle, s.delay);
+            }
+
+            // 5. 2ãƒ•ãƒ¬ãƒ¼ãƒ å¾…æ©Ÿï¼ˆFixedUpdateåŸºæº–ï¼‰
+            for (int f = 0; f < 3; f++) yield return new WaitForFixedUpdate();
+        }
+    }
     private void ExecuteNWay(PlayerSkillData.SkillSettings s, Vector3 pos, float baseAngle)
     {
         int count = Mathf.Max(1, s.count);
@@ -109,16 +229,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float wayAngle;
         float startAngle;
 
-        // š ‹ô”’e‚È‚ç’†‰›‚ğ‹ó‚¯‚éi©‹@ŠO‚µjAŠï”’e‚È‚ç’†‰›‚É”ò‚Î‚·i©‹@‘_‚¢j
+        // â˜… å¶æ•°å¼¾ãªã‚‰ä¸­å¤®ã‚’ç©ºã‘ã‚‹ï¼ˆè‡ªæ©Ÿå¤–ã—ï¼‰ã€å¥‡æ•°å¼¾ãªã‚‰ä¸­å¤®ã«é£›ã°ã™ï¼ˆè‡ªæ©Ÿç‹™ã„ï¼‰
         if (count % 2 == 0)
         {
-            // Even: ’†‰›‚ÌŠp“xibaseAnglej‚ğ‹²‚ñ‚Å¶‰E‚É’e‚ğ”z’u
+            // Even: ä¸­å¤®ã®è§’åº¦ï¼ˆbaseAngleï¼‰ã‚’æŒŸã‚“ã§å·¦å³ã«å¼¾ã‚’é…ç½®
             wayAngle = s.wideAngle / count;
             startAngle = baseAngle - (s.wideAngle / 2f) + (wayAngle / 2f);
         }
         else
         {
-            // Odd: ’†‰›‚ÌŠp“xibaseAnglej‚É•K‚¸1”­”ò‚Ô
+            // Odd: ä¸­å¤®ã®è§’åº¦ï¼ˆbaseAngleï¼‰ã«å¿…ãš1ç™ºé£›ã¶
             wayAngle = s.wideAngle / (count - 1);
             startAngle = baseAngle - (s.wideAngle / 2f);
         }
@@ -132,7 +252,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         int count = Mathf.Max(1, s.count);
         float step = 360f / count;
 
-        // š ‘S•ûˆÊ‚Å‚à‹ô”‚È‚ç³–ÊibaseAngle•ûŒüj‚ğ”ğ‚¯‚é
+        // â˜… å…¨æ–¹ä½ã§ã‚‚å¶æ•°ãªã‚‰æ­£é¢ï¼ˆbaseAngleæ–¹å‘ï¼‰ã‚’é¿ã‘ã‚‹
         float rotationOffset = (count % 2 == 0) ? (step / 2f) : 0f;
 
         for (int i = 0; i < count; i++)
@@ -145,7 +265,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float step = 360f / count;
         float spawnDistance = 2.5f;
 
-        // û‘©ƒpƒ^[ƒ“‚Å‚à‹ô”‚È‚ç³–Ê‚ğ”ğ‚¯‚éƒIƒtƒZƒbƒg‚ğ“K—p
+        // åæŸãƒ‘ã‚¿ãƒ¼ãƒ³ã§ã‚‚å¶æ•°ãªã‚‰æ­£é¢ã‚’é¿ã‘ã‚‹ã‚ªãƒ•ã‚»ãƒƒãƒˆã‚’é©ç”¨
         float rotationOffset = (count % 2 == 0) ? (step / 2f) : 0f;
 
         for (int i = 0; i < count; i++)
@@ -175,7 +295,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         int bulletCount = 32;
         float segmentAngle = 360f / edges;
 
-        // ‘½ŠpŒ`‚à’¸“_‚ª‹ô”‚È‚ç³–Ê‚ğ”ğ‚¯‚é‚æ‚¤‚É‰ñ“]
+        // å¤šè§’å½¢ã‚‚é ‚ç‚¹ãŒå¶æ•°ãªã‚‰æ­£é¢ã‚’é¿ã‘ã‚‹ã‚ˆã†ã«å›è»¢
         float rotationOffset = (edges % 2 == 0) ? (segmentAngle / 2f) : 0f;
         float finalStartAngle = startAngle + rotationOffset;
 
@@ -186,6 +306,15 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             float speedMult = 1f / Mathf.Cos(relativeAngle * Mathf.Deg2Rad);
 
             CreateShot(s.bulletData, pos, s.speed * speedMult, angleDeg, s.delay);
+        }
+    }
+    // â˜… SEå†ç”Ÿç”¨ã®ãƒ˜ãƒ«ãƒ‘ãƒ¼ãƒ¡ã‚½ãƒƒãƒ‰
+    private void PlaySkillSE(string path)
+    {
+        string clip = string.IsNullOrEmpty(path) ? SEPath.SHOT1 : path;
+        if (SEManager.Instance != null)
+        {
+            SEManager.Instance.Play(clip, 0.4f);
         }
     }
 }

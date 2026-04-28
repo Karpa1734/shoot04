@@ -13,7 +13,7 @@ public class PlayerHitHandler : MonoBehaviour
 
     [Header("Settings")]
     public float deathBombWindow = 0.15f;
-    public float invincibilityTime = 3.0f;
+    public float invincibilityTime = 2.0f;
     public float downTime = 0.8f;
     public float stunTime = 2.0f; // スタン時間（2秒）
     [Header("References")]
@@ -154,12 +154,17 @@ public class PlayerHitHandler : MonoBehaviour
             myStatusManager.SendMessage("UpdateUI", SendMessageOptions.DontRequireReceiver);
         }
 
+        bool canContinueMatch = myStatusManager != null && myStatusManager.SubtractLifeAndCheckRebirth();
         ClearAllBullets();
+        if (!canContinueMatch)
+        {
+            SEManager.Instance.Play(SEPath.BOSS_END_END, 0.3f);
+        }
+
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
 
         yield return null;
 
-        bool canContinueMatch = myStatusManager != null && myStatusManager.SubtractLifeAndCheckRebirth();
 
         if (canContinueMatch)
         {

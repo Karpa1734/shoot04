@@ -15,103 +15,95 @@ public class SkillManager : MonoBehaviour
     public SkillCooldownUI uiX;
     public SkillCooldownUI uiC;
     public SkillCooldownUI uiV;
+    // ★追加：各スキルの現在の連射数をカウントする
+    private int burstCountZ, burstCountX, burstCountC, burstCountV;
+    // ★ 追加：連射カウントを保持する猶予時間タイマー
+    private float burstResetTimerZ, burstResetTimerX, burstResetTimerC, burstResetTimerV;
 
+    // 猶予時間の設定（例：0.5秒間入力がなければ連射カウントをリセットする）
+    private const float BURST_RESET_DELAY = 0.5f;
     private float timerZ, timerX, timerC, timerV;
 
     void Start()
     {
-        playerMove = GetComponent<PlayerMove>();
-        hitHandler = GetComponentInChildren<PlayerHitHandler>();
-        emitter = GetComponent<PlayerDanmakuEmitter>();
+        // 1. 必要なコンポーネントを自身の親や子から取得する（これが抜けていました）
+        playerMove = GetComponentInParent<PlayerMove>();
+        hitHandler = GetComponentInParent<PlayerHitHandler>();
+        emitter = GetComponentInParent<PlayerDanmakuEmitter>();
 
-        // PlayerStatusManager から自身のキャラデータを取得
+        // 2. 自分のキャラクターデータを取得
         var status = GetComponentInParent<PlayerStatusManager>();
-        if (status != null) skillData = status.characterData;
+        if (status != null)
+        {
+            skillData = status.characterData;
+        }
+
+        // 3. アイコンをUIにセットする
+        if (skillData != null)
+        {
+            if (uiZ != null) uiZ.SetSkillIcon(skillData.skillZ.skillIcon);
+            if (uiX != null) uiX.SetSkillIcon(skillData.skillX.skillIcon);
+            if (uiC != null) uiC.SetSkillIcon(skillData.skillC.skillIcon);
+            if (uiV != null) uiV.SetSkillIcon(skillData.skillV.skillIcon);
+        }
+        else
+        {
+            Debug.LogWarning("SkillManager: characterData が見つかりません。");
+        }
     }
     void FixedUpdate()
     {
         if (playerMove == null || skillData == null) return;
 
-        // ★ 追加：ショット禁止状態（ラウンド間、スタン中、カウントダウン中）なら
-        // 全てのクールタイムを強制的に 0（使用可能状態）にする
         if (!PlayerMove.CanShoot)
         {
-            timerZ = 0;
-            timerX = 0;
-            timerC = 0;
-            timerV = 0;
+            ResetAllTimers();
         }
         else
         {
-            // ショット可能な時だけ、通常通りクールタイムを減少させる
             UpdateTimers();
         }
 
-        // ★ 重要：タイマーを 0 にしたことを UI に即座に反映させるため
-        // CanShoot の状態に関わらず、毎回 UI 更新を呼び出す
         UpdateAllCooldownUI();
 
-        // これ以降の「ボタン入力によるスキル発動」は、ショット可能な時のみ実行する
         if (!PlayerMove.CanShoot) return;
-        // 被弾中などは発射制限
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
         var input = playerMove.currentFrameInput;
 
-        // 各ボタンのスキル判定
-        HandleSkillInput(input.shotZ, ref timerZ, skillData.skillZ);
-        HandleSkillInput(input.shotX, ref timerX, skillData.skillX);
-        HandleSkillInput(input.shotC, ref timerC, skillData.skillC);
-        HandleSkillInput(input.shotV, ref timerV, skillData.skillV);
-        // UIを更新する（現在のタイマー値と最大クールタイムを渡す）
-        if (skillData != null)
-        {
-            if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
-            if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
-            if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
-            if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
-        }
+        // ★ 引数に burstResetTimer を追加
+        HandleSkillInput(input.shotZ, ref timerZ, ref burstCountZ, ref burstResetTimerZ, skillData.skillZ);
+        HandleSkillInput(input.shotX, ref timerX, ref burstCountX, ref burstResetTimerX, skillData.skillX);
+        HandleSkillInput(input.shotC, ref timerC, ref burstCountC, ref burstResetTimerC, skillData.skillC);
+        HandleSkillInput(input.shotV, ref timerV, ref burstCountV, ref burstResetTimerV, skillData.skillV);
     }
-    private void UpdateAllCooldownUI()
-    {
-        if (skillData == null) return;
 
-        // 前回の回答で作成した SkillCooldownUI.UpdateCooldown を呼び出す
-        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
-        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
-        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
-        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
-    }
-    /// <summary>
-    /// 誰か一人が撃墜・復帰中かどうかを判定するヘルパー
-    /// </summary>
-    private bool IsAnyPlayerDeadOrRebirthing()
+    private void HandleSkillInput(bool isPressed, ref float timer, ref int currentBurst, ref float resetTimer, PlayerSkillData.SkillSettings settings)
     {
-        // PlayerMove.AllPlayers のリストを走査
-        foreach (var p in PlayerMove.AllPlayers)
+        if (isPressed && timer <= 0)
         {
-            if (p == null) continue;
-            PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
-
-            // 誰か一人の currentState が Normal 以外（Hit や Rebirth）なら true
-            if (hh != null && hh.currentState != PlayerHitHandler.PlayerState.Normal)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
-    {
-        // 修正された bulletData 変数を参照
-        if (isPressed && timer <= 0 && settings.bulletData != null)
-        {
+            // SE再生は Emitter 側で行うため、ここでは Fire を呼ぶだけにする
             emitter.Fire(settings);
 
-            string se = string.IsNullOrEmpty(settings.sePath) ? SEPath.SHOT1 : settings.sePath;
-            SEManager.Instance.Play(se, 0.4f);
+            currentBurst++;
+            resetTimer = BURST_RESET_DELAY;
 
-            timer = settings.cooldown;
+            if (settings.maxBurstCount <= 1 || currentBurst >= settings.maxBurstCount)
+            {
+                timer = settings.cooldown;
+                currentBurst = 0;
+                resetTimer = 0;
+            }
+            else
+            {
+                timer = (settings.burstInterval > 0) ? settings.burstInterval : 0.1f;
+            }
+        }
+
+        if (!isPressed && timer <= 0 && currentBurst > 0)
+        {
+            resetTimer -= Time.fixedDeltaTime;
+            if (resetTimer <= 0) currentBurst = 0;
         }
     }
 
@@ -123,4 +115,23 @@ public class SkillManager : MonoBehaviour
         if (timerC > 0) timerC -= dt;
         if (timerV > 0) timerV -= dt;
     }
+
+    private void ResetAllTimers()
+    {
+        timerZ = timerX = timerC = timerV = 0;
+        burstCountZ = burstCountX = burstCountC = burstCountV = 0;
+        burstResetTimerZ = burstResetTimerX = burstResetTimerC = burstResetTimerV = 0;
+    }
+    private void UpdateAllCooldownUI()
+    {
+        if (skillData == null) return;
+
+        // 前回の回答で作成した SkillCooldownUI.UpdateCooldown を呼び出す
+        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
+        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
+        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
+        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
+    }
+   
+
 }

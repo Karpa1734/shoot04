@@ -66,9 +66,9 @@ public class PlayerStatusManager : MonoBehaviour
         // ★ ストーリーモード：3機（初期ストック2）
         else if (GameModeManager.IsStoryMode)
         {
-            initialLife = 2;
-            stockLives = 2;
-            life = 2;
+            initialLife = 3;
+            stockLives = 3;
+            life = 3;
             bomb = initialSpell;
         }
         // ★ 対戦モード：1ストック（初期ライフ1）

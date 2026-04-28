@@ -19,7 +19,10 @@ public class DanmakuBullet : MonoBehaviour
     private bool isActive = true;
     private int delayFrames = 0;
     private int totalDelay = 0;
-
+    // ★ アニメーション用変数
+    private int currentAnimFrame = 0;
+    private float animTimer = 0f;
+    private bool isAnimated = false;
     // 収束用フラグ
     private bool isConverging = false;
     private Vector3 initialOffset;
@@ -49,7 +52,24 @@ public class DanmakuBullet : MonoBehaviour
         if (data.material != null) sr.material = data.material;
 
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
-
+        // ★ アニメーションの有無を確認
+        if (data.animationSprites != null && data.animationSprites.Length > 1)
+        {
+            isAnimated = true;
+            sr.sprite = data.animationSprites[0];
+        }
+        else
+        {
+            isAnimated = false;
+            sr.sprite = data.bulletSprite;
+        }
+        // 当たり判定の設定
+        if (col != null)
+        {
+            col.radius = data.radius;
+            // ★ 追加：データのオフセット値をコライダーに反映
+            col.offset = data.colliderOffset;
+        }
         if (delay > 0)
         {
             // --- 遅延エフェクト（魔法陣）の表示 ---
@@ -70,7 +90,11 @@ public class DanmakuBullet : MonoBehaviour
     void FixedUpdate()
     {
         if (!isInitialized || !isActive) return;
-
+        // ★ アニメーション更新
+        if (isAnimated)
+        {
+            UpdateAnimation();
+        }
         // --- ディレイ（待機・収束）フェーズ ---
         if (delayFrames > 0)
         {
@@ -105,7 +129,19 @@ public class DanmakuBullet : MonoBehaviour
         if (Mathf.Abs(transform.position.x) > 10f || Mathf.Abs(transform.position.y) > 10f)
             Destroy(gameObject);
     }
+    private void UpdateAnimation()
+    {
+        // 弾が非表示（ディレイ中）でも計算自体は進めておく
+        animTimer += Time.fixedDeltaTime;
+        float frameDuration = 1f / currentData.animationFPS;
 
+        if (animTimer >= frameDuration)
+        {
+            animTimer = 0f;
+            currentAnimFrame = (currentAnimFrame + 1) % currentData.animationSprites.Length;
+            sr.sprite = currentData.animationSprites[currentAnimFrame];
+        }
+    }
     private IEnumerator DelayEffectRoutine(float delay, BulletData data)
     {
         if (effectPrefab != null && data.delaySprite != null)
