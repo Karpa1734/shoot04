@@ -122,6 +122,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             case SkillPatternType.RandomRound:
                 StartCoroutine(ExecuteRandomRoundRoutine(s));
                 break;
+            case SkillPatternType.Boomerang:
+                ShootBoomerangBit(s);
+                break;
         }
     }
     /// <summary>
@@ -135,7 +138,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         // 横長にするために radiusX > radiusY に設定します
         float radiusX = 1.5f; // 横の広がり
         float radiusY = 0.4f; // 縦の厚み
-        int wayCount = 5;
+        int wayCount = 3;
 
         bool currentDirectionReversed = _isArcReversed;
         _isArcReversed = !_isArcReversed;
@@ -166,7 +169,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             // 弾源（spawnPos）から敵への角度を再計算
             float realAimAngle = GetAngleToTarget(spawnPos) + s.angleOffset;
 
-            float currentWideAngle = 70f;
+            float currentWideAngle = 60f;
             float startAngle = realAimAngle - (currentWideAngle / 2f);
             float stepAngle = (wayCount > 1) ? currentWideAngle / (wayCount - 1) : 0;
             PlaySkillSE(s.sePath);
@@ -185,8 +188,8 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
     {
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        int burstCount = 10; // 7発（7セット）
-        int wayCount = 18;  // 18-way（偶数）
+        int burstCount = 7; // 7発（7セット）
+        int wayCount = 12;  // 18-way（偶数）
 
         for (int j = 0; j < burstCount; j++)
         {
@@ -217,6 +220,72 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             for (int f = 0; f < 3; f++) yield return new WaitForFixedUpdate();
         }
     }
+
+    private void ShootBoomerangBit(PlayerSkillData.SkillSettings s)
+    {
+        GameObject bitObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
+
+        // 1. 持ち主の情報を取得
+        var myStatus = GetComponentInParent<PlayerStatusManager>();
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+        // 2. IDに基づいてTagとLayerを決定
+        string assignedTag;
+        string assignedLayer;
+
+        if (ownerId == 1)
+        {
+            assignedTag = "PlayerBullet"; // P1の弾
+            assignedLayer = "Player1Bullet"; // レイヤー名はUnityの設定に合わせてください
+        }
+        else
+        {
+            assignedTag = "EnemyBullet";  // P2の弾（P1から見て敵弾として扱う）
+            assignedLayer = "Player2Bullet";
+        }
+
+        // 3. オブジェクトに反映
+        bitObj.tag = assignedTag;
+        bitObj.layer = LayerMask.NameToLayer(assignedLayer);
+
+        // 子オブジェクト（エフェクト等）がある場合も考慮して、再帰的に設定するのが安全です
+        SetLayerRecursive(bitObj, LayerMask.NameToLayer(assignedLayer));
+
+        // 4. ビットの初期化
+        BoomerangObject bit = bitObj.GetComponent<BoomerangObject>();
+        if (bit == null) bit = bitObj.AddComponent<BoomerangObject>();
+
+        Transform targetTransform = null;
+        foreach (var p in PlayerMove.AllPlayers)
+            if (p != null && p.gameObject != _rootOwner) targetTransform = p.transform;
+        // ★ ここでしっかり自分（transform）を渡しているか確認
+        bit.Initialize(transform, targetTransform, s.bulletData, 4.0f, this);
+    }
+
+    // レイヤーを一括設定するヘルパー
+    private void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursive(child.gameObject, layer);
+        }
+    }
+    // 子機からの弾生成用ヘルパー
+    public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, string tag, int layer)
+    {
+        GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
+        obj.tag = tag;
+        obj.layer = layer;
+
+        DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
+        if (bullet != null)
+        {
+            // 既存の初期化処理を呼び出し
+            bullet.Initialize(_rootOwner, targetTag, speed, angle, 0, speed, 0, 0, data);
+        }
+    }
+
     private void ExecuteNWay(PlayerSkillData.SkillSettings s, Vector3 pos, float baseAngle)
     {
         int count = Mathf.Max(1, s.count);

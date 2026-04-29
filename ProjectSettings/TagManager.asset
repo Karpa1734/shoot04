@@ -9,6 +9,7 @@ TagManager:
   - CollectArea
   - Item
   - Laser
+  - PlayerBullet
   layers:
   - Default
   - TransparentFX
