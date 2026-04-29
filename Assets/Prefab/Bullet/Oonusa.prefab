@@ -172,14 +172,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _stayDuration: 1
   _scaleDuration: 0.3
-  _rotationSpeed: 1080
+  _rotationSpeed: 1199
   _enableAfterimage: 1
   _afterimageInterval: 0.05
   _afterimageFadeTime: 0.6
   _afterimageStartAlpha: 0.5
+  _subDanmakuData: {fileID: 11400000, guid: 6beef6151a4ec5640bd98caabb76ac92, type: 2}
   _muzzleTransform: {fileID: 4445963208709211703}
-  _subBulletSpeed: 5
-  _subBulletCount: 8
+  _subBulletMaxSpeed: 3
+  _subBulletAccel: 0.02
+  _subBulletCount: 1
 --- !u!50 &3065195585683477238
 Rigidbody2D:
   serializedVersion: 5

@@ -1,5 +1,6 @@
 ﻿using KanKikuchi.AudioManager;
 using System.Collections;
+using Unity.AppUI.UI;
 using UnityEngine;
 
 /// <summary>
@@ -272,17 +273,17 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         }
     }
     // 子機からの弾生成用ヘルパー
-    public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, string tag, int layer)
+    public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
     {
         GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
         obj.tag = tag;
         obj.layer = layer;
-
+        SEManager.Instance.Play(SEPath.SHOT2, 0.2f);
         DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
         if (bullet != null)
         {
-            // 既存の初期化処理を呼び出し
-            bullet.Initialize(_rootOwner, targetTag, speed, angle, 0, speed, 0, 0, data);
+            // 第3引数を 0 (初速)、第5引数を accel (加速度)、第6引数を maxSpeed (目標速度) に設定
+            bullet.Initialize(_rootOwner, targetTag, speed, angle, accel, maxSpeed, 0, 0, data);
         }
     }
 

@@ -36,6 +36,7 @@ public static class SEPath{
 	public const string SE_SCORE            = "SE/seScore";
 	public const string SE_SCORE2           = "SE/seScore2";
 	public const string SHOT1               = "SE/Shot1";
+	public const string SHOT2               = "SE/Shot2";
 	public const string SHOT9               = "SE/Shot9";
 	public const string SLASH               = "SE/Slash";
 	public const string SPELL_OFF           = "SE/SpellOff";

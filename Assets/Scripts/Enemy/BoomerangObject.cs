@@ -29,10 +29,11 @@ public class BoomerangObject : MonoBehaviour
     private float _afterimageTimer = 0f;
 
     [Header("Sub Bullet Settings")]
-    [SerializeField] private Transform _muzzleTransform; // ★ 弾の発射点となる子オブジェクト
-    [SerializeField] private float _subBulletSpeed = 5f;  // ★ 弾の速さ
-    [SerializeField] private int _subBulletCount = 8;     // ★ 弾の数（全方位）
-
+    [SerializeField] private BulletData _subDanmakuData;
+    [SerializeField] private Transform _muzzleTransform;
+    [SerializeField] private float _subBulletMaxSpeed = 5f; // ★ 目標とする最高速度
+    [SerializeField] private float _subBulletAccel = 0.1f;    // ★ 1フレームあたりの加速度
+    [SerializeField] private int _subBulletCount = 8;
     /// <summary>
     /// 初期化。PlayerDanmakuEmitterから呼ばれる。
     /// </summary>
@@ -92,7 +93,7 @@ public class BoomerangObject : MonoBehaviour
             transform.position = Vector3.Lerp(startPos, _fixedTargetPos, Mathf.SmoothStep(0, 1, t));
 
             UpdateAfterimage();
-            if (Time.frameCount % 4 == 0) FireSubDanmaku();
+            if (Time.frameCount % 2 == 0) FireSubDanmaku();
             yield return null;
         }
 
@@ -105,7 +106,7 @@ public class BoomerangObject : MonoBehaviour
                 if (!PlayerMove.CanShoot) break; // ラウンド終了時はステイ中断
                 UpdateAfterimage();
                 stayElapsed += Time.deltaTime;
-                if (Time.frameCount % 4 == 0) FireSubDanmaku();
+                if (Time.frameCount % 2 == 0) FireSubDanmaku();
                 yield return null;
             }
         }
@@ -136,7 +137,7 @@ public class BoomerangObject : MonoBehaviour
                 }
 
                 UpdateAfterimage();
-                if (Time.frameCount % 4 == 0) FireSubDanmaku();
+                if (Time.frameCount % 2 == 0) FireSubDanmaku();
                 yield return null;
             }
         }
@@ -191,20 +192,25 @@ public class BoomerangObject : MonoBehaviour
 
     private void FireSubDanmaku()
     {
-        if (_ownerEmitter == null || _subBulletData == null) return;
+        BulletData dataToUse = (_subDanmakuData != null) ? _subDanmakuData : _subBulletData;
+        if (_ownerEmitter == null || dataToUse == null) return;
 
-        // ★ 射出ポイントの決定：muzzleTransform が設定されていればその位置、なければ自身の位置
         Vector3 firePos = (_muzzleTransform != null) ? _muzzleTransform.position : transform.position;
 
+        // ★ 修正：現在のビットの回転角度を取得して基準にする
+        float baseAngle = transform.eulerAngles.z;
         float angleStep = 360f / _subBulletCount;
+
         for (int i = 0; i < _subBulletCount; i++)
         {
-            // 設定した速さと数に基づいて弾を出す
+            // ★ 修正：初速を 0、加速度と最高速度を渡すように拡張メソッドを呼び出す
             _ownerEmitter.ExecuteSubShot(
-                _subBulletData,
+                dataToUse,
                 firePos,
-                _subBulletSpeed,
-                i * angleStep,
+                0f,                     // 初速は 0
+                baseAngle + (i * angleStep), // 親の角度 + 円周オフセット
+                _subBulletAccel,         // 加速度
+                _subBulletMaxSpeed,      // 最高速度
                 gameObject.tag,
                 gameObject.layer
             );
