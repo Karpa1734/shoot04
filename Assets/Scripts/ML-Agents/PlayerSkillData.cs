@@ -6,7 +6,8 @@ public enum SkillPatternType
     Standard, nWay, Round, Polygon, Line, Custom,
     MovingArc, // ★ 追加：動く弾源パターン // ★ 追加：円弧状に弾源を設置するパターン
     RandomRound, // ★ 追加：ランダム位置からの全方位弾
-    Boomerang // ★ 追加：ブーメラン型子機
+    Boomerang,
+    DefensiveField
 }
 
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]

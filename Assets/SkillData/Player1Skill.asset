@@ -47,7 +47,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: cb66565d526d507489c2a10b27a5cd6c, type: 3}
     patternType: 8
     bulletData: {fileID: 11400000, guid: 45fdd80e96a96b84e8d4c748a727f5c0, type: 2}
-    cooldown: 8
+    cooldown: 12
     sePath: 
     count: 0
     speed: 5
@@ -59,14 +59,14 @@ MonoBehaviour:
   skillV:
     skillName: "\u795E\u79D8\u7070\u71FC"
     skillIcon: {fileID: 21300000, guid: 9287746461df5a4459f4eca634e87312, type: 3}
-    patternType: 0
-    bulletData: {fileID: 0}
-    cooldown: 0
+    patternType: 9
+    bulletData: {fileID: 11400000, guid: 65a549f923218164cb7b228aa015c502, type: 2}
+    cooldown: 15
     sePath: 
     count: 0
     speed: 0
     angleOffset: 0
     wideAngle: 0
-    delay: 0
+    delay: 30
     maxBurstCount: 0
     burstInterval: 0
