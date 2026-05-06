@@ -16,7 +16,9 @@ public class PlayerSkillData : ScriptableObject
     [Header("Character Info")]
     public string characterName = "キャラクター名";
     public Color imageColor = Color.white;
-
+    [Header("Character Energy Settings")]
+    public float maxEnergy = 100f;        // 最大コスト
+    public float energyRegenRate = 15f;   // 1秒あたりの回復量（キャラごとに差をつける）
     [System.Serializable]
     public struct SkillSettings
     {
@@ -25,6 +27,7 @@ public class PlayerSkillData : ScriptableObject
         public SkillPatternType patternType;
         public BulletData bulletData;
         public float cooldown;
+        public float cost; // ★ 追加：1回あたりの消費コスト（4連射なら25など）[cite: 12]
         public string sePath;
 
         [Header("Pattern Parameters")]
@@ -33,6 +36,7 @@ public class PlayerSkillData : ScriptableObject
         public float angleOffset;
         public float wideAngle;
 
+        public float moveSpeedMultiplier; // スキル使用中の移動速度倍率
         [Header("Effect Parameters")]
         public float delay;
         [Header("Burst Settings")]

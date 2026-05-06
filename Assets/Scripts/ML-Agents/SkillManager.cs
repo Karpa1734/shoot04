@@ -19,11 +19,12 @@ public class SkillManager : MonoBehaviour
     private int burstCountZ, burstCountX, burstCountC, burstCountV;
     // ★ 追加：連射カウントを保持する猶予時間タイマー
     private float burstResetTimerZ, burstResetTimerX, burstResetTimerC, burstResetTimerV;
-
+    private float _recoveryDelayTimer = 0f; // 回復開始までの待機タイマー
     // 猶予時間の設定（例：0.5秒間入力がなければ連射カウントをリセットする）
     private const float BURST_RESET_DELAY = 0.5f;
     private float timerZ, timerX, timerC, timerV;
-
+    [Header("Energy UI")]
+    public EnergyGaugeUI energyGauge; // ★ 追加：インスペクターでセット
     void Start()
     {
         // 1. 必要なコンポーネントを自身の親や子から取得する（これが抜けていました）
@@ -37,7 +38,15 @@ public class SkillManager : MonoBehaviour
         {
             skillData = status.characterData;
         }
+        // 2. 自分のキャラクターデータから最大コストをセット[cite: 10, 12]
+        if (playerMove != null && skillData != null)
+        {
+            playerMove.maxEnergy = skillData.maxEnergy;
+            playerMove.currentEnergy = skillData.maxEnergy;
 
+            // 3. エネルギーゲージの初期化
+            if (energyGauge != null) energyGauge.Initialize(playerMove);
+        }
         // 3. アイコンをUIにセットする
         if (skillData != null)
         {
@@ -54,7 +63,27 @@ public class SkillManager : MonoBehaviour
     void FixedUpdate()
     {
         if (playerMove == null || skillData == null) return;
+        // 1. 回復判定：スキル使用中（コルーチン実行中）か、ボタン入力があったらタイマーをリセット
+        // ★ 修正：ボタン入力の有無ではなく、スキルが「実行中」かどうかだけをチェックする
+        bool isAnySkillActive = emitter.IsAnySkillActive;
 
+        if (isAnySkillActive)
+        {
+            _recoveryDelayTimer = 0f; // 使用中はタイマーが進まない
+        }
+        else
+        {
+            _recoveryDelayTimer += Time.fixedDeltaTime;
+        }
+
+        // 2. 「何もしていない状態」が1秒続いたら回復開始
+        if (PlayerMove.CanShoot && _recoveryDelayTimer >= 1.0f)
+        {
+            playerMove.currentEnergy = Mathf.Min(
+                skillData.maxEnergy,
+                playerMove.currentEnergy + skillData.energyRegenRate * Time.fixedDeltaTime
+            );
+    }
         if (!PlayerMove.CanShoot)
         {
             ResetAllTimers();
@@ -71,39 +100,26 @@ public class SkillManager : MonoBehaviour
 
         var input = playerMove.currentFrameInput;
 
-        // ★ 引数に burstResetTimer を追加
-        HandleSkillInput(input.shotZ, ref timerZ, ref burstCountZ, ref burstResetTimerZ, skillData.skillZ);
-        HandleSkillInput(input.shotX, ref timerX, ref burstCountX, ref burstResetTimerX, skillData.skillX);
-        HandleSkillInput(input.shotC, ref timerC, ref burstCountC, ref burstResetTimerC, skillData.skillC);
-        HandleSkillInput(input.shotV, ref timerV, ref burstCountV, ref burstResetTimerV, skillData.skillV);
+        // ★ 引数を変更：コストチェックを組み込む
+        HandleSkillInput(input.shotZ, ref timerZ, skillData.skillZ);
+        HandleSkillInput(input.shotX, ref timerX, skillData.skillX);
+        HandleSkillInput(input.shotC, ref timerC, skillData.skillC);
+        HandleSkillInput(input.shotV, ref timerV, skillData.skillV);
     }
 
-    private void HandleSkillInput(bool isPressed, ref float timer, ref int currentBurst, ref float resetTimer, PlayerSkillData.SkillSettings settings)
+    // ★ ロジックを「回数」から「コスト」へ刷新
+    private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
-        if (isPressed && timer <= 0)
+        if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)
         {
-            // SE再生は Emitter 側で行うため、ここでは Fire を呼ぶだけにする
+            // コストを消費[cite: 11]
+            playerMove.currentEnergy -= settings.cost;
+
+            // 弾を射出[cite: 8]
             emitter.Fire(settings);
 
-            currentBurst++;
-            resetTimer = BURST_RESET_DELAY;
-
-            if (settings.maxBurstCount <= 1 || currentBurst >= settings.maxBurstCount)
-            {
-                timer = settings.cooldown;
-                currentBurst = 0;
-                resetTimer = 0;
-            }
-            else
-            {
-                timer = (settings.burstInterval > 0) ? settings.burstInterval : 0.1f;
-            }
-        }
-
-        if (!isPressed && timer <= 0 && currentBurst > 0)
-        {
-            resetTimer -= Time.fixedDeltaTime;
-            if (resetTimer <= 0) currentBurst = 0;
+            // 次の連射までのインターバルをセット（連射中の制限）[cite: 11]
+            timer = (settings.burstInterval > 0) ? settings.burstInterval : 0.1f;
         }
     }
 

@@ -15,7 +15,9 @@ public class PlayerMove : MonoBehaviour
 
     public static bool CanInput = true; // 移動・ポーズ等の基本操作
     public static bool CanShoot = true; // ショット・スキルの使用許可
-
+    [Header("Energy State")]
+    public float currentEnergy; // 現在のコスト残量[cite: 10]
+    public float maxEnergy = 100f; // 最大値（Start時にDataから上書き）[cite: 10]
     [System.Serializable]
     public struct ReplayFrame
     {
@@ -24,13 +26,15 @@ public class PlayerMove : MonoBehaviour
         public bool shot => shotZ;
         public bool bomb => shotX;
     }
-
+    public float skillSpeedMultiplier = 1.0f; // デフォルトは等倍
     public enum ReplayMode { None, Recording, Playing }
     public ReplayMode currentMode = ReplayMode.None;
     public List<ReplayFrame> replayData = new List<ReplayFrame>();
     private int currentFrame = 0;
     public ReplayFrame currentFrameInput;
-
+    [Header("Movement Constants")]
+    public float normalSpeed = 5.0f; // 通常時の速度
+    public float focusSpeed = 2.0f;  // 低速移動時の速度
     private float invincibleTimer = 0f;
     private float deathBombTimer = 0f;
     public bool IsInvincible => invincibleTimer > 0;
@@ -43,6 +47,7 @@ public class PlayerMove : MonoBehaviour
         Time.timeScale = 1f;
         // ★ 修正：スクリプトの有効・無効に関わらず、生存している限りリストに入れる
         if (!_allPlayers.Contains(this)) _allPlayers.Add(this);
+        currentEnergy = maxEnergy; // 初期状態は満タン
     }
     void Start()
     {
@@ -84,6 +89,21 @@ public class PlayerMove : MonoBehaviour
     {
         if (IsInvincible) UpdateInvincibleVisual();
         else if (sr != null && sr.color != Color.white) ResetVisual();
+    }
+    void FixedUpdate()
+    {
+        // 1. 基本速度（低速移動[cite: 8]判定を含む）
+        float currentBaseSpeed = currentFrameInput.slow ? focusSpeed : normalSpeed;
+
+        // 2. ★ 修正：倍率を掛けて最終速度を決定
+        // ここで skillSpeedMultiplier が 0 なら、finalSpeed は確実に 0 になります[cite: 11]
+        float finalSpeed = currentBaseSpeed * skillSpeedMultiplier;
+
+        // 3. 入力方向を計算
+        Vector3 moveDir = new Vector3(currentFrameInput.h, currentFrameInput.v, 0).normalized;
+
+        // 4. 移動。finalSpeed が 0 なら transform.position は変化しません[cite: 11]
+        transform.position += moveDir * finalSpeed * Time.fixedDeltaTime;
     }
 
     public void SetInvincible(float duration) => invincibleTimer = duration;

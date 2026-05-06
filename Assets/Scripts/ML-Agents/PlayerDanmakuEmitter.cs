@@ -15,7 +15,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     private GameObject _rootOwner;
     private bool _isArcReversed = false;
+    // 現在アクティブなコルーチンの数をカウント[cite: 7]
+    private int _activeSkillCoroutines = 0;
 
+    // スキル使用中（コルーチンが1つ以上動いている）かどうかを返すプロパティ
+    public bool IsAnySkillActive => _activeSkillCoroutines > 0;
     private void Awake()
     {
         _rootOwner = transform.root.gameObject;
@@ -77,7 +81,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         {
             PlaySkillSE(s.sePath);
         }
-
+        if (s.patternType != SkillPatternType.DefensiveField &&
+        s.patternType != SkillPatternType.MovingArc &&
+        s.moveSpeedMultiplier < 1.0f)
+        {
+            StartCoroutine(TemporarySlow(s.moveSpeedMultiplier, 0.2f)); // 0.2秒間だけ減速
+        }
         float targetAngle = GetAngleToTarget();
         float baseAngle = targetAngle + s.angleOffset;
         Vector3 pos = transform.position;
@@ -118,35 +127,58 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 break;
         }
     }
-
+    private IEnumerator TemporarySlow(float multiplier, float duration)
+    {
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+        if (myMove != null) myMove.skillSpeedMultiplier = multiplier;
+    yield return new WaitForSeconds(duration);
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+}
     // --- ★ 追加：防御フィールド専用のチャージ演出ルーチン ---
     private IEnumerator ChargeAndExecuteDefensiveField(PlayerSkillData.SkillSettings s)
     {
-        float chargeTime = 0.1f; // チャージ時間
+        _activeSkillCoroutines++;
+        // ★ 修正：_rootOwner から確実に PlayerMove を取得する
+        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
 
-        if (BossEffectManager.Instance != null)
+        if (myMove != null)
         {
-            // 弾の breakColor を使ってチャージ粒子を生成
-            for (int i = 0; i < 5; i++)
-            {
-                BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, transform.position);
-            }
+            // デバッグログ：現在の設定値をコンソールに表示して確認
+            Debug.Log($"Charge Start: Multiplier set to {s.moveSpeedMultiplier}");
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+    }
+        else
+        {
+            Debug.LogError("PlayerMove could not be found on _rootOwner!");
         }
 
-        // チャージ完了を待機
-        yield return new WaitForSeconds(chargeTime+0.5f);
+        // チャージ演出
+        float chargeTime = 0.3f;
+        if (BossEffectManager.Instance != null)
+        {
+            BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, transform.position);
+    }
+        yield return new WaitForSeconds(chargeTime);
 
-        // スタンなどで射撃不可になっていないか再チェック
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
-
-        // チャージ完了後にSEを鳴らして発動
-        PlaySkillSE(s.sePath);
+        SEManager.Instance.Play(SEPath.SHOT1, 0.2f);
+        // スキル本体の生成
         ExecuteDefensiveField(s);
+
+        // スキル終了まで待機（DefensiveFieldの持続時間に合わせる）
+        yield return new WaitForSeconds(1.5f);
+
+        // 倍率を戻す
+        if (myMove != null)
+        {
+            Debug.Log("Charge End: Multiplier reset to 1.0");
+            myMove.skillSpeedMultiplier = 1.0f; 
+    }
+        _activeSkillCoroutines--;
     }
 
     private IEnumerator MovingArcRoutine(PlayerSkillData.SkillSettings s)
     {
+        _activeSkillCoroutines++;
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         float radiusX = 1.5f;
         float radiusY = 0.4f;
@@ -157,7 +189,8 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float endOffset = currentDirectionReversed ? -90f : 90f;
         float step = currentDirectionReversed ? -20f : 20f;
         float centerTargetAngle = GetAngleToTarget(transform.position);
-
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
         for (float offset = startOffset;
              (step > 0 ? offset <= endOffset : offset >= endOffset);
              offset += step)
@@ -176,15 +209,21 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 CreateShot(s.bulletData, spawnPos, s.speed, startAngle + (stepAngle * i), s.delay);
             }
             for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate();
+            
         }
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+        _activeSkillCoroutines--;
     }
 
     private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
     {
+        _activeSkillCoroutines++;
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         int burstCount = 7;
         int wayCount = 12;
 
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
         for (int j = 0; j < burstCount; j++)
         {
             if (!PlayerMove.CanShoot) yield break;
@@ -204,6 +243,8 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
             for (int f = 0; f < 3; f++) yield return new WaitForFixedUpdate();
         }
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+        _activeSkillCoroutines--;
     }
 
     private void ShootBoomerangBit(PlayerSkillData.SkillSettings s)

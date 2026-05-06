@@ -10,12 +10,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
-  m_Name: Player2Skill
+  m_Name: Syaru
   m_EditorClassIdentifier: 
-  characterName: Player2
-  imageColor: {r: 1, g: 1, b: 1, a: 1}
+  characterName: Koganeyama Syaru
+  imageColor: {r: 1, g: 1, b: 0, a: 1}
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
+    skillIcon: {fileID: 0}
     patternType: 2
     bulletData: {fileID: 11400000, guid: f273ab83a2a68f84ba3403421d5b9427, type: 2}
     cooldown: 0.2
@@ -24,9 +25,13 @@ MonoBehaviour:
     speed: 3
     angleOffset: 0
     wideAngle: 30
+    moveSpeedMultiplier: 0
     delay: 2
+    maxBurstCount: 0
+    burstInterval: 0
   skillX:
     skillName: "\u696D\u706B\u7070\u71FC"
+    skillIcon: {fileID: 0}
     patternType: 1
     bulletData: {fileID: 11400000, guid: 11b813697792b7044960dcd2580e17ba, type: 2}
     cooldown: 0.5
@@ -35,9 +40,13 @@ MonoBehaviour:
     speed: 4
     angleOffset: 0
     wideAngle: 60
+    moveSpeedMultiplier: 0
     delay: 1
+    maxBurstCount: 0
+    burstInterval: 0
   skillC:
     skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
+    skillIcon: {fileID: 0}
     patternType: 0
     bulletData: {fileID: 0}
     cooldown: 0
@@ -46,9 +55,13 @@ MonoBehaviour:
     speed: 0
     angleOffset: 0
     wideAngle: 0
+    moveSpeedMultiplier: 0
     delay: 0
+    maxBurstCount: 0
+    burstInterval: 0
   skillV:
     skillName: "\u72C2\u5316"
+    skillIcon: {fileID: 0}
     patternType: 0
     bulletData: {fileID: 0}
     cooldown: 0
@@ -57,4 +70,7 @@ MonoBehaviour:
     speed: 0
     angleOffset: 0
     wideAngle: 0
+    moveSpeedMultiplier: 0
     delay: 0
+    maxBurstCount: 0
+    burstInterval: 0

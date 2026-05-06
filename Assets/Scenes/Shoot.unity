@@ -6593,6 +6593,7 @@ GameObject:
   m_Component:
   - component: {fileID: 495702384}
   - component: {fileID: 495702385}
+  - component: {fileID: 495702386}
   m_Layer: 0
   m_Name: LifeBar (1)
   m_TagString: Untagged
@@ -6673,6 +6674,22 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &495702386
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 495702383}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31c22de924ea92148bce9b51e4ee1854, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _energySlider: {fileID: 495702385}
+  _fillImage: {fileID: 1614456383}
+  _normalColor: {r: 0, g: 1, b: 1, a: 1}
+  _shortageColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &504377856
 GameObject:
   m_ObjectHideFlags: 0
@@ -8550,6 +8567,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
+  currentEnergy: 0
+  maxEnergy: 100
+  skillSpeedMultiplier: 1
   currentMode: 0
   replayData: []
   currentFrameInput:
@@ -8560,6 +8580,8 @@ MonoBehaviour:
     shotX: 0
     shotC: 0
     shotV: 0
+  normalSpeed: 5
+  focusSpeed: 2
 --- !u!50 &695556679
 Rigidbody2D:
   serializedVersion: 5
@@ -8724,6 +8746,7 @@ MonoBehaviour:
   uiX: {fileID: 1478654862}
   uiC: {fileID: 216595095}
   uiV: {fileID: 1686379074}
+  energyGauge: {fileID: 2129134893}
 --- !u!114 &695556693
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24579,6 +24602,7 @@ MonoBehaviour:
   uiX: {fileID: 1000586605}
   uiC: {fileID: 1667510110}
   uiV: {fileID: 83275709}
+  energyGauge: {fileID: 495702386}
 --- !u!114 &1872656865
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -24713,6 +24737,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 2
+  currentEnergy: 0
+  maxEnergy: 100
+  skillSpeedMultiplier: 1
   currentMode: 0
   replayData: []
   currentFrameInput:
@@ -24723,6 +24750,8 @@ MonoBehaviour:
     shotX: 0
     shotC: 0
     shotV: 0
+  normalSpeed: 5
+  focusSpeed: 2
 --- !u!50 &1872656871
 Rigidbody2D:
   serializedVersion: 5
@@ -28260,6 +28289,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2129134891}
   - component: {fileID: 2129134892}
+  - component: {fileID: 2129134893}
   m_Layer: 0
   m_Name: LifeBar (1)
   m_TagString: Untagged
@@ -28340,6 +28370,22 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &2129134893
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2129134890}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31c22de924ea92148bce9b51e4ee1854, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _energySlider: {fileID: 2129134892}
+  _fillImage: {fileID: 1458809830}
+  _normalColor: {r: 0, g: 1, b: 1, a: 1}
+  _shortageColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &2130250629
 GameObject:
   m_ObjectHideFlags: 0
