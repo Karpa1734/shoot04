@@ -23,11 +23,10 @@ public class PlayerSkillData : ScriptableObject
     public struct SkillSettings
     {
         public string skillName;
-        public Sprite skillIcon; // ★追加：インスペクターで画像をセットする枠
+        public Sprite skillIcon;
         public SkillPatternType patternType;
         public BulletData bulletData;
-        public float cooldown;
-        public float cost; // ★ 追加：1回あたりの消費コスト（4連射なら25など）[cite: 12]
+        public float cooldown; // ★ これが「次の射撃までの待ち時間」になります
         public string sePath;
 
         [Header("Pattern Parameters")]
@@ -36,13 +35,16 @@ public class PlayerSkillData : ScriptableObject
         public float angleOffset;
         public float wideAngle;
 
-        public float moveSpeedMultiplier; // スキル使用中の移動速度倍率
+        public float moveSpeedMultiplier;
         [Header("Effect Parameters")]
         public float delay;
-        [Header("Burst Settings")]
-        public int maxBurstCount;   // ★追加：最大連射数（例：4）
-        public float burstInterval; // ★追加：連射中の間隔（例：0.1秒）
+
+        // ★ maxBurstCount と burstInterval はコスト制への移行に伴い削除
+        public float cost;
+        // --- PlayerSkillData.cs (想定) の SkillSettings 構造体内に追記 ---
+        public float ultimateGain; // このスキルを使用した時に溜まるゲージ量
     }
+
 
     [Header("Skill Definitions")]
     public SkillSettings skillZ;

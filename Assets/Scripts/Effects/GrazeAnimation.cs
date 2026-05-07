@@ -32,33 +32,28 @@ public class GrazeAnimation : MonoBehaviour
 
     private void Update()
     {
-        // Spriteが設定されていない、またはframeRateが0以下の場合は何もしない
         if (sprites == null || sprites.Length == 0 || frameRate <= 0) return;
 
         timer += Time.deltaTime;
 
-        // 次のフレームに進む時間かチェック
         if (timer >= (1f / frameRate))
         {
             timer = 0f;
             currentFrame++;
 
-            // 最後のフレームを超えた場合の処理
             if (currentFrame >= sprites.Length)
             {
                 if (loop)
                 {
-                    currentFrame = 0; // 最初に戻る（ループ）
+                    currentFrame = 0;
                 }
                 else
                 {
-                    // ループしない場合は、自分自身を非アクティブにするか、破棄する
-                    currentFrame = sprites.Length - 1; // 最後のフレームで止める
-                    // gameObject.SetActive(false); // グレイズエフェクトなら再生後に消すのが一般的
-                    // Destroy(gameObject); // 破棄する場合
+                    // ★ 修正：アニメーション再生が終わったら即座に消去する
+                    Destroy(gameObject);
+                    return;
                 }
             }
-
             UpdateSprite();
         }
     }

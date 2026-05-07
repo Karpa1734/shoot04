@@ -18,6 +18,9 @@ public class PlayerMove : MonoBehaviour
     [Header("Energy State")]
     public float currentEnergy; // 現在のコスト残量[cite: 10]
     public float maxEnergy = 100f; // 最大値（Start時にDataから上書き）[cite: 10]
+    [Header("Ultimate Energy")]
+    public float ultimateEnergy = 0f;
+    public const float MAX_ULTIMATE_ENERGY = 300f;
     [System.Serializable]
     public struct ReplayFrame
     {
@@ -61,7 +64,18 @@ public class PlayerMove : MonoBehaviour
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
         UpdateReplayLogic();
     }
+    /// <summary>
+    /// 超必殺技ゲージを指定量（パーセント単位）加算する
+    /// </summary>
+    /// <param name="amount">加算する量 (100 = 1ストック分)</param>
+    public void AddUltimateEnergy(float amount)
+    {
+        // ラウンド終了時や被弾中など、攻撃不能な状態では溜まらないようにガード
+        if (!CanShoot) return;
 
+        // 現在のエネルギーに加算し、最大値(300)でクランプする
+        ultimateEnergy = Mathf.Min(ultimateEnergy + amount, MAX_ULTIMATE_ENERGY);
+    }
     private void UpdateReplayLogic()
     {
         // ★ 追加：入力がロックされている間は、入力を空（デフォルト値）にする
@@ -91,7 +105,7 @@ public class PlayerMove : MonoBehaviour
         else if (sr != null && sr.color != Color.white) ResetVisual();
     }
     void FixedUpdate()
-    {
+    {/*
         // 1. 基本速度（低速移動[cite: 8]判定を含む）
         float currentBaseSpeed = currentFrameInput.slow ? focusSpeed : normalSpeed;
 
@@ -104,7 +118,7 @@ public class PlayerMove : MonoBehaviour
 
         // 4. 移動。finalSpeed が 0 なら transform.position は変化しません[cite: 11]
         transform.position += moveDir * finalSpeed * Time.fixedDeltaTime;
-    }
+    */}
 
     public void SetInvincible(float duration) => invincibleTimer = duration;
     public void StartDeathBombWindow(float duration) { if (!IsInvincible) deathBombTimer = duration; }

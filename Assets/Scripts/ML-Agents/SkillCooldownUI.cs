@@ -5,11 +5,14 @@ using TMPro;
 public class SkillCooldownUI : MonoBehaviour
 {
     [Header("UI References")]
-    public Image iconImage;        // ★追加：スキルアイコンを表示するImage
+    public Image iconImage;        // スキルアイコン
     public Image fillImage;        // クールタイム用の塗りつぶしImage
     public TextMeshProUGUI timerText;
 
-    // ★追加：アイコンをセットするメソッド
+    [Header("Transparency Settings")]
+    [Range(0, 1)]
+    public float cooldownFillAlpha = 0.5f; // ★ 半透明の度合い（デフォルトは50%）
+
     public void SetSkillIcon(Sprite sprite)
     {
         if (iconImage != null)
@@ -17,18 +20,24 @@ public class SkillCooldownUI : MonoBehaviour
             iconImage.sprite = sprite;
         }
     }
+
     public void UpdateCooldown(float currentTimer, float maxCooldown)
     {
         if (currentTimer > 0)
         {
-            // 残り時間の表示 (例: 1.5s)
+            // 残り時間の表示
             timerText.gameObject.SetActive(true);
             timerText.text = currentTimer.ToString("F1") + "s";
 
-            // Fill量を計算 (1.0 -> 0)
+            // Fill量を計算し、半透明を適用
             if (fillImage != null && maxCooldown > 0)
             {
                 fillImage.fillAmount = currentTimer / maxCooldown;
+
+                // ★ 修正：色のアルファ値を設定した値に更新する
+                Color c = fillImage.color;
+                c.a = cooldownFillAlpha;
+                fillImage.color = c;
             }
         }
         else

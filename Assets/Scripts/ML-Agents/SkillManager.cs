@@ -25,13 +25,18 @@ public class SkillManager : MonoBehaviour
     private float timerZ, timerX, timerC, timerV;
     [Header("Energy UI")]
     public EnergyGaugeUI energyGauge; // ★ 追加：インスペクターでセット
+    [Header("Ultimate UI")]
+    public UltimateGaugeUI ultimateGaugeUI; // インスペクターでセット
     void Start()
     {
         // 1. 必要なコンポーネントを自身の親や子から取得する（これが抜けていました）
         playerMove = GetComponentInParent<PlayerMove>();
         hitHandler = GetComponentInParent<PlayerHitHandler>();
         emitter = GetComponentInParent<PlayerDanmakuEmitter>();
-
+        if (ultimateGaugeUI != null && playerMove != null)
+        {
+            ultimateGaugeUI.Initialize(playerMove);
+        }
         // 2. 自分のキャラクターデータを取得
         var status = GetComponentInParent<PlayerStatusManager>();
         if (status != null)
@@ -63,36 +68,28 @@ public class SkillManager : MonoBehaviour
     void FixedUpdate()
     {
         if (playerMove == null || skillData == null) return;
-        // 1. 回復判定：スキル使用中（コルーチン実行中）か、ボタン入力があったらタイマーをリセット
-        // ★ 修正：ボタン入力の有無ではなく、スキルが「実行中」かどうかだけをチェックする
-        bool isAnySkillActive = emitter.IsAnySkillActive;
 
-        if (isAnySkillActive)
+        // 1. エネルギーの回復判定（実行中フラグを確認）
+        if (emitter.IsAnySkillActive)
         {
-            _recoveryDelayTimer = 0f; // 使用中はタイマーが進まない
+            _recoveryDelayTimer = 0f;
         }
         else
         {
             _recoveryDelayTimer += Time.fixedDeltaTime;
         }
 
-        // 2. 「何もしていない状態」が1秒続いたら回復開始
-        if (PlayerMove.CanShoot && _recoveryDelayTimer >= 1.0f)
+        // 2. 1秒待機後の回復
+        if (_recoveryDelayTimer >= 1.0f)
         {
             playerMove.currentEnergy = Mathf.Min(
                 skillData.maxEnergy,
                 playerMove.currentEnergy + skillData.energyRegenRate * Time.fixedDeltaTime
             );
-    }
-        if (!PlayerMove.CanShoot)
-        {
-            ResetAllTimers();
-        }
-        else
-        {
-            UpdateTimers();
         }
 
+        // 3. タイマー更新
+        UpdateTimers();
         UpdateAllCooldownUI();
 
         if (!PlayerMove.CanShoot) return;
@@ -100,26 +97,31 @@ public class SkillManager : MonoBehaviour
 
         var input = playerMove.currentFrameInput;
 
-        // ★ 引数を変更：コストチェックを組み込む
+        // 4. ★ 修正：シンプルな入力処理（コストとクールダウンのみ）
         HandleSkillInput(input.shotZ, ref timerZ, skillData.skillZ);
         HandleSkillInput(input.shotX, ref timerX, skillData.skillX);
         HandleSkillInput(input.shotC, ref timerC, skillData.skillC);
         HandleSkillInput(input.shotV, ref timerV, skillData.skillV);
     }
 
-    // ★ ロジックを「回数」から「コスト」へ刷新
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
+        // クールダウン中、またはコスト不足時は発動しない
         if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)
         {
-            // コストを消費[cite: 11]
+            // 発動成功：回復タイマーリセット
+            _recoveryDelayTimer = 0f;
+
+            // リソース消費
             playerMove.currentEnergy -= settings.cost;
 
-            // 弾を射出[cite: 8]
+            // 弾の射出
             emitter.Fire(settings);
 
-            // 次の連射までのインターバルをセット（連射中の制限）[cite: 11]
-            timer = (settings.burstInterval > 0) ? settings.burstInterval : 0.1f;
+            // ★ 修正：常に設定された cooldown をタイマーにセットする
+            // これにより、連射したいスキルはインスペクターで cooldown を短く（0.1sなど）設定し、
+            // 大技（Cスキルなど）は長く設定するだけで制御可能になります。
+            timer = settings.cooldown;
         }
     }
 

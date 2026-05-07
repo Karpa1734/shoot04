@@ -21,8 +21,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 8cc885d7fad1f0b43ac224300fc02e4a, type: 3}
     patternType: 6
     bulletData: {fileID: 11400000, guid: 2ae8f6b4a5bbf584abf0fef22b490722, type: 2}
-    cooldown: 3
-    cost: 25
+    cooldown: 0.5
     sePath: 
     count: 3
     speed: 4.5
@@ -30,31 +29,29 @@ MonoBehaviour:
     wideAngle: 45
     moveSpeedMultiplier: 0.5
     delay: 5
-    maxBurstCount: 4
-    burstInterval: 0.5
+    cost: 25
+    ultimateGain: 2
   skillX:
     skillName: "\u72C2\u6C17\u306E\u7344\u708E"
     skillIcon: {fileID: 21300000, guid: 38d9f25aa2ca0c84babea6b8b7f7427d, type: 3}
     patternType: 7
     bulletData: {fileID: 11400000, guid: 893a83124dd3cd544b869d72239b9e95, type: 2}
-    cooldown: 3
-    cost: 20
+    cooldown: 0.1
     sePath: 
     count: 7
-    speed: 3.5
+    speed: 5
     angleOffset: 0
     wideAngle: 60
     moveSpeedMultiplier: 0.5
     delay: 5
-    maxBurstCount: 0
-    burstInterval: 0
+    cost: 5
+    ultimateGain: 1
   skillC:
     skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
     skillIcon: {fileID: 21300000, guid: cb66565d526d507489c2a10b27a5cd6c, type: 3}
     patternType: 8
     bulletData: {fileID: 11400000, guid: 45fdd80e96a96b84e8d4c748a727f5c0, type: 2}
     cooldown: 12
-    cost: 60
     sePath: 
     count: 0
     speed: 5
@@ -62,15 +59,14 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0
     delay: 0
-    maxBurstCount: 0
-    burstInterval: 0
+    cost: 60
+    ultimateGain: 10
   skillV:
     skillName: "\u795E\u79D8\u7070\u71FC"
     skillIcon: {fileID: 21300000, guid: 4d4d4fa85c1834a469f0bb65f5ff9450, type: 3}
     patternType: 9
     bulletData: {fileID: 11400000, guid: 65a549f923218164cb7b228aa015c502, type: 2}
     cooldown: 15
-    cost: 80
     sePath: 
     count: 0
     speed: 0
@@ -78,5 +74,5 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0.0001
     delay: 30
-    maxBurstCount: 0
-    burstInterval: 0
+    cost: 80
+    ultimateGain: 10

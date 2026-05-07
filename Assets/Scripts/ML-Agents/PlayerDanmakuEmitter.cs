@@ -73,7 +73,13 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (!PlayerMove.CanShoot) return;
         if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
-
+        // ★ 追加：スキル使用時に超必殺技ゲージを溜める
+        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
+        if (myMove != null)
+        {
+            // インスペクターで設定した ultimateGain 分だけ加算
+            myMove.AddUltimateEnergy(s.ultimateGain);
+        }
         // ★ 修正：DefensiveField も SE再生を遅延させるため、ここでの再生対象から外す
         if (s.patternType != SkillPatternType.MovingArc &&
             s.patternType != SkillPatternType.RandomRound &&
@@ -119,7 +125,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 StartCoroutine(ExecuteRandomRoundRoutine(s));
                 break;
             case SkillPatternType.Boomerang:
-                ShootBoomerangBit(s);
+                StartCoroutine(ShootBoomerangRoutine(s));
                 break;
             case SkillPatternType.DefensiveField:
                 // ★ 修正：即時実行ではなく、チャージ演出コルーチンを開始する
@@ -217,38 +223,56 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
     {
-        _activeSkillCoroutines++;
+        _activeSkillCoroutines++; // 実行中カウントを増やす（コスト回復を止める）
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        int burstCount = 7;
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
         int wayCount = 12;
 
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-        for (int j = 0; j < burstCount; j++)
+        // 1. スキル使用中の減速を適用
+        if (myMove != null)
         {
-            if (!PlayerMove.CanShoot) yield break;
-            if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) yield break;
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        }
+
+        // --- 単発分（1セット）の弾幕生成ロジック ---
+        if (PlayerMove.CanShoot && (myHH == null || myHH.currentState == PlayerHitHandler.PlayerState.Normal))
+        {
             Vector3 randomOffset = new Vector3(Random.Range(-1f, 1f), Random.Range(-1.5f, 1.5f), 0);
             Vector3 spawnPos = transform.position + randomOffset;
+
             float targetAngle = GetAngleToTarget(spawnPos);
             float baseAngle = targetAngle + s.angleOffset;
-            float speed = s.speed + (j * 0.3f);
             float step = 360f / wayCount;
             float rotationOffset = step / 2f;
+
+            // 弾幕の速度をランダム化
+            float randomizedBulletSpeed = s.speed + Random.Range(-1.0f, 1.0f);
+            randomizedBulletSpeed = Mathf.Max(0.5f, randomizedBulletSpeed);
+
             PlaySkillSE(s.sePath);
+
             for (int i = 0; i < wayCount; i++)
             {
                 float finalAngle = baseAngle + rotationOffset + (step * i);
-                CreateShot(s.bulletData, spawnPos, speed, finalAngle, s.delay);
+                CreateShot(s.bulletData, spawnPos, randomizedBulletSpeed, finalAngle, s.delay);
             }
-            for (int f = 0; f < 3; f++) yield return new WaitForFixedUpdate();
         }
+
+        // 2. ★ 重要：次の射撃が可能になるまで（cooldown秒間）状態を維持する
+        // これにより、連射中に「速度制限」と「コスト回復停止」が継続します
+        float waitTime = Mathf.Max(0.1f, s.cooldown);
+        yield return new WaitForSeconds(waitTime);
+
+        // 3. 速度制限を解除し、実行中カウントを減らす
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
-
-    private void ShootBoomerangBit(PlayerSkillData.SkillSettings s)
+    // ★ void から IEnumerator に変更
+    private IEnumerator ShootBoomerangRoutine(PlayerSkillData.SkillSettings s)
     {
+        _activeSkillCoroutines++; // 実行カウントを増やす
+
+        // --- 既存の生成ロジック ---
         GameObject bitObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
         var myStatus = GetComponentInParent<PlayerStatusManager>();
         int ownerId = (myStatus != null) ? myStatus.playerId : 1;
@@ -257,12 +281,22 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         bitObj.tag = assignedTag;
         bitObj.layer = LayerMask.NameToLayer(assignedLayer);
         SetLayerRecursive(bitObj, LayerMask.NameToLayer(assignedLayer));
+
         BoomerangObject bit = bitObj.GetComponent<BoomerangObject>();
         if (bit == null) bit = bitObj.AddComponent<BoomerangObject>();
+
         Transform targetTransform = null;
         foreach (var p in PlayerMove.AllPlayers)
             if (p != null && p.gameObject != _rootOwner) targetTransform = p.transform;
+
+        // ビットの初期化
         bit.Initialize(transform, targetTransform, s.bulletData, 4.0f, this);
+
+        // --- ここがポイント：2秒間待機 ---
+        // この間 IsAnySkillActive が true になり、SkillManager 側の回復が止まります
+        yield return new WaitForSeconds(2.0f);
+
+        _activeSkillCoroutines--; // 2秒経ったらカウントを減らす
     }
 
     private void SetLayerRecursive(GameObject obj, int layer)
@@ -346,6 +380,20 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     private void CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay, bool isConverge = false)
     {
         GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
+
+        // ★ 追加：発射したプレイヤーに応じて弾にタグとレイヤーを設定する
+        var myStatus = GetComponentInParent<PlayerStatusManager>();
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+        // タグの設定 (P1の弾 = PlayerBullet, P2の弾 = EnemyBullet)
+        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
+        obj.tag = assignedTag;
+
+        // レイヤーの設定 (衝突判定の分離用)
+        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+        obj.layer = assignedLayer;
+        SetLayerRecursive(obj, assignedLayer);
+
         DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
         if (bullet != null)
             bullet.Initialize(_rootOwner, targetTag, speed, angle, 0, speed, 0, delay, data, isConverge);

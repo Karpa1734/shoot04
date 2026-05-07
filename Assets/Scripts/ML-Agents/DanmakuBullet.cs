@@ -26,13 +26,21 @@ public class DanmakuBullet : MonoBehaviour
     // 収束用フラグ
     private bool isConverging = false;
     private Vector3 initialOffset;
-
+    private bool isGrazeDone = false; // ★ 追加：グレイズ済みフラグ
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
         col = GetComponent<CircleCollider2D>();
     }
-
+    /// <summary>
+    /// グレイズ判定を試みる。1回目だけ true を返す。
+    /// </summary>
+    public bool TryGraze()
+    {
+        if (isGrazeDone) return false;
+        isGrazeDone = true;
+        return true;
+    }
     public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
         this.owner = shooter;
