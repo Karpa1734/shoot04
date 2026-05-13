@@ -2,54 +2,41 @@ using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
+using UnityEngine.InputSystem; // ★ 追加
 
 public class DanmakuAgent : Agent
 {
     private PlayerMove playerMove;
-    private PlayerHitHandler hitHandler; // ★ 追加
+    private PlayerHitHandler hitHandler;
     [SerializeField] private Transform opponent;
     public int playerID = 1;
 
+    [Header("Input System Actions")]
+    [SerializeField] private InputAction moveAction;
+    [SerializeField] private InputAction skillZAction;
+    [SerializeField] private InputAction skillXAction;
+    [SerializeField] private InputAction skillCAction;
+    [SerializeField] private InputAction skillVAction;
+    [SerializeField] private InputAction slowAction;
+    [SerializeField] private InputAction barrierAction;
+
     public override void Initialize()
     {
-        playerMove = GetComponent<PlayerMove>(); 
+        playerMove = GetComponent<PlayerMove>();
         hitHandler = GetComponentInChildren<PlayerHitHandler>();
-    }
 
-    public override void OnEpisodeBegin()
-    {
-        if (opponent == null)
-        {
-            var pMove = GetComponent<PlayerMove>();
-            foreach (var p in PlayerMove.AllPlayers)
-            {
-                if (p != pMove)
-                {
-                    opponent = p.transform;
-                    break;
-                }
-            }
-        }
-    }
-
-    public override void CollectObservations(VectorSensor sensor)
-    {
-        sensor.AddObservation(transform.localPosition);
-
-        if (opponent != null)
-        {
-            sensor.AddObservation(opponent.localPosition);
-        }
-        else
-        {
-            sensor.AddObservation(Vector3.zero);
-        }
+        // アクションの有効化
+        moveAction.Enable();
+        skillZAction.Enable();
+        skillXAction.Enable();
+        skillCAction.Enable();
+        skillVAction.Enable();
+        slowAction.Enable();
+        barrierAction.Enable();
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // ★ 追加：カウントダウン中（入力禁止時）は入力をゼロにする
-        // ★ カウントダウン中、またはスタン中（Normal以外）は入力をゼロにする
         if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
         {
             playerMove.currentFrameInput = new PlayerMove.ReplayFrame();
@@ -58,35 +45,53 @@ public class DanmakuAgent : Agent
 
         var discrete = actions.DiscreteActions;
 
+        // 移動の復元
         float h = 0, v = 0;
         if (discrete[0] == 1) h = -1; else if (discrete[0] == 2) h = 1;
         if (discrete[1] == 1) v = 1; else if (discrete[1] == 2) v = -1;
 
+        // スキルとアルティメットの復元
         bool z = (discrete[2] == 1);
         bool x = (discrete[2] == 2);
         bool c = (discrete[2] == 3);
         bool v_key = (discrete[2] == 4);
-        bool slow = (discrete[3] == 1);
+        bool ultimate = (discrete[2] == 5); // ★ 同時押し判定の結果
 
         playerMove.currentFrameInput = new PlayerMove.ReplayFrame
         {
             h = h,
             v = v,
-            slow = slow,
+            slow = (discrete[3] == 1),
             shotZ = z,
             shotX = x,
             shotC = c,
-            shotV = v_key
+            shotV = v_key,
+            //barrier = (discrete[4] == 1), // ★ 追加
+            //ultimate = ultimate            // ★ 追加
         };
 
-        // 学習用の微小な報酬（カウントダウン中は加算されない）
         AddReward(0.001f);
     }
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        // 1. 自分の座標 (3つのfloat: x, y, z)
+        sensor.AddObservation(transform.localPosition);
 
+        // 2. 相手の座標 (3つのfloat: x, y, z)
+        if (opponent != null)
+        {
+            sensor.AddObservation(opponent.localPosition);
+        }
+        else
+        {
+            // 相手がいない場合はゼロで埋める (サイズを維持するため)
+            sensor.AddObservation(Vector3.zero);
+        }
+    }
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-        // カウントダウン中やスタン中は入力を受け付けない
-        if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
+        if (InputManager.Instance == null || !PlayerMove.CanInput ||
+            (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
         {
             return;
         }
@@ -94,37 +99,28 @@ public class DanmakuAgent : Agent
         var discrete = actionsOut.DiscreteActions;
         discrete.Clear();
 
-        if (playerID == 1)
-        {
-            // 移動
-            if (Input.GetKey(KeyCode.LeftArrow)) discrete[0] = 1;
-            else if (Input.GetKey(KeyCode.RightArrow)) discrete[0] = 2;
-            if (Input.GetKey(KeyCode.UpArrow)) discrete[1] = 1;
-            else if (Input.GetKey(KeyCode.DownArrow)) discrete[1] = 2;
+        // ★ 自分のIDに応じて参照先を切り替える (playerIDが1なら1P用、それ以外なら2P用)
+        var inputSet = (playerID == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2;
 
-            // スキル
-            if (Input.GetKey(KeyCode.Z)) discrete[2] = 1;
-            else if (Input.GetKey(KeyCode.X)) discrete[2] = 2;
-            else if (Input.GetKey(KeyCode.C)) discrete[2] = 3;
-            else if (Input.GetKey(KeyCode.V)) discrete[2] = 4;
+        // 1. 移動 (inputSetから読み取る)
+        Vector2 m = inputSet.move.action.ReadValue<Vector2>();
+        if (m.x < -0.5f) discrete[0] = 1; else if (m.x > 0.5f) discrete[0] = 2;
+        if (m.y > 0.5f) discrete[1] = 1; else if (m.y < -0.5f) discrete[1] = 2;
 
-            // ★ 追加：低速移動 (LeftShift)
-            if (Input.GetKey(KeyCode.LeftShift)) discrete[3] = 1;
-        }
-        else
-        {
-            // P2 (A,D,W,S)
-            if (Input.GetKey(KeyCode.A)) discrete[0] = 1;
-            else if (Input.GetKey(KeyCode.D)) discrete[0] = 2;
-            if (Input.GetKey(KeyCode.W)) discrete[1] = 1;
-            else if (Input.GetKey(KeyCode.S)) discrete[1] = 2;
+        // 2. スキル判定
+        bool pZ = inputSet.skillZ.action.IsPressed();
+        bool pX = inputSet.skillX.action.IsPressed();
+        bool pC = inputSet.skillC.action.IsPressed();
+        bool pV = inputSet.skillV.action.IsPressed();
 
-            // P2 スキル (F,G,H,Jなど)
-            if (Input.GetKey(KeyCode.F)) discrete[2] = 1;
-            else if (Input.GetKey(KeyCode.G)) discrete[2] = 2;
+        if (pZ && pX) discrete[2] = 5;
+        else if (pZ) discrete[2] = 1;
+        else if (pX) discrete[2] = 2;
+        else if (pC) discrete[2] = 3;
+        else if (pV) discrete[2] = 4;
 
-            // ★ 追加：P2 低速移動 (RightShift)
-            if (Input.GetKey(KeyCode.RightShift)) discrete[3] = 1;
-        }
+        // 3. 低速移動とバリア
+        if (inputSet.slow.action.IsPressed()) discrete[3] = 1;
+        if (inputSet.barrier.action.IsPressed()) discrete[4] = 1;
     }
 }
