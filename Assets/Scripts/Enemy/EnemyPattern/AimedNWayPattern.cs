@@ -123,7 +123,7 @@ public class AimedNWayPattern : BossPatternBase
 
             for (int i = 0; i < laserCount; i++)
             {
-                CreateLaserB(i, 120.0f, 1.2f, BulletManager.LaserColor.RED, warningFrame);
+                //CreateLaserB(i, 120.0f, 1.2f, BulletManager.LaserColor.RED, warningFrame);
 
                 float currentStartAngle = baseAngle + (360f / laserCount * i);
 

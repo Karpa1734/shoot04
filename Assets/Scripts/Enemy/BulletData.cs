@@ -6,27 +6,25 @@ public enum BulletSize { Large, Medium, Small }
 [CreateAssetMenu(fileName = "NewBulletData", menuName = "Danmaku/BulletData")]
 public class BulletData : ScriptableObject
 {
+    [Header("判定・種別設定")]
+    public bool isLaser = false; // ★ レーザー判定を行うか
+    public BulletManager.LaserColor laserColor; // ★ レーザーの色
+
     [Header("生成設定")]
-    public GameObject bulletPrefab;
+    public GameObject bulletPrefab; // レーザーの場合は LaserBeamPrefab を指定
 
-    [Header("サイズ設定")]
+    [Header("サイズ・当たり判定")]
     public BulletSize sizeType;
-
-    [Header("弾本体の設定（静止画）")]
-    public Sprite bulletSprite;
-
-    [Header("アニメーション設定（複数枚ある場合）")]
-    // ★ 追加：アニメーション用のスプライト配列
-    public Sprite[] animationSprites;
-    // ★ 追加：1秒間に何枚進めるか
-    public float animationFPS = 10f;
-
-    public float radius = 0.05f;
-    // ★ 追加：コライダーのオフセット（X, Yのズレ）を設定できるようにする
+    public float radius = 0.05f; // 弾の場合の半径
     public Vector2 colliderOffset = Vector2.zero;
+
     [Header("ダメージ設定")]
     public int damage = 10;
-    [Header("エフェクト設定")]
+
+    [Header("ビジュアル")]
+    public Sprite bulletSprite;
+    public Sprite[] animationSprites;
+    public float animationFPS = 10f;
     public Sprite delaySprite;
     public Color breakColor = Color.white;
     public Material material;

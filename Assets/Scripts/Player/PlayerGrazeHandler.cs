@@ -29,32 +29,34 @@ public class PlayerGrazeHandler : MonoBehaviour
     }
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (collision.CompareTag(_targetBulletTag))
+        // 通常弾またはレーザーのタグをチェックするように修正
+        if (collision.CompareTag(_targetBulletTag) || collision.CompareTag(_targetLaserTag))
         {
-            // ★ 修正：EnemyBullet ではなく DanmakuBullet を取得する
+            // 通常弾(DanmakuBullet)の場合の1回切り判定
             DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
-
             if (bullet != null && bullet.TryGraze())
             {
                 DoGraze(collision.transform.position);
             }
+
+            // レーザーの場合は OnTriggerStay2D で多段処理を行うため、ここでは何もしない、
+            // あるいはレーザー突入時の最初の1回をここで処理しても良い。
         }
     }
 
-    // --- PlayerGrazeHandler.cs 修正版 ---
-
     private void OnTriggerStay2D(Collider2D collision)
     {
-        // タグが一致しているか確認
-        if (collision.CompareTag(_targetBulletTag))
+        // 通常弾またはレーザーのタグをチェックするように修正
+        if (collision.CompareTag(_targetBulletTag) || collision.CompareTag(_targetLaserTag))
         {
-            // ★ 修正ポイント：多段ヒットさせたいオブジェクトかどうかを判定する
-            // レーザー(Laser)や防御フィールド(DefensiveField)などが付いている場合のみ多段処理を行う
-            bool isMultiHitObject = collision.GetComponent<DefensiveField>() != null ||
-                                    collision.CompareTag(_targetLaserTag); // "Laser"タグも一応残しておく
+            // 多段グレイズを発生させる条件の判定
+            // レーザータグが付いている、または特定のコンポーネント(DefensiveField)がある場合に実行
+            bool isMultiHitObject = collision.CompareTag(_targetLaserTag) ||
+                                    collision.GetComponent<DefensiveField>() != null;
 
             if (isMultiHitObject)
             {
+                // 3フレームに1回グレイズ判定を行う（多段ヒット防止のインターバル）
                 if (!laserGrazeFrames.ContainsKey(collision) || Time.frameCount - laserGrazeFrames[collision] >= 3)
                 {
                     Vector3 closestPoint = collision.ClosestPoint(transform.position);
@@ -62,14 +64,13 @@ public class PlayerGrazeHandler : MonoBehaviour
                     laserGrazeFrames[collision] = Time.frameCount;
                 }
             }
-            // 普通の弾(DanmakuBulletのみ)の場合は、OnTriggerStayでは何もしない
-            // これにより Enter 時の 1回きりになります
         }
     }
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        if (collision.CompareTag(_targetBulletTag))
+        // 判定リストからの削除
+        if (collision.CompareTag(_targetBulletTag) || collision.CompareTag(_targetLaserTag))
         {
             laserGrazeFrames.Remove(collision);
         }

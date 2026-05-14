@@ -23,15 +23,19 @@ public class EnemyLaserBeam : MonoBehaviour
     private float targetDistAngleVel;
     private bool useSmoothStop = false;
     private float targetLaserAngleVel;
-
+    private string _targetTag; // ★追加：攻撃対象のタグ
+    private int _damage;       // ★追加：ダメージ量
+    private float _hitTimer = 0f; // 多段ヒット用タイマー
     private float lengthVel, angle, angVel, moveSpeed, moveAngle;
     private float dist, distVel, distAngle, distAngleVel, laserAngle, laserAngleVel;
-
+    private float targetAngVel; // ★追加：目標とする角速度
     private SpriteRenderer sourceEffectSr;
     private GameObject sourceEffectInstance;
     private List<LaserTransformData> transformQueue = new List<LaserTransformData>();
     private float closingStartWidth;
-
+    private Vector3 _centerPos; // ★追加：回転の中心となる固定座標
+    // ★ 追加：エラーの原因となっていた変数を宣言
+    private GameObject _rootOwner;
     [System.Serializable]
     public class LaserTransformData
     {
@@ -45,6 +49,7 @@ public class EnemyLaserBeam : MonoBehaviour
 
     void Awake()
     {
+        // 既存のAwake処理
         Transform child = transform.Find("Visual");
         if (child != null)
         {
@@ -56,26 +61,54 @@ public class EnemyLaserBeam : MonoBehaviour
             laserVisualTrans = transform;
             sr = GetComponent<SpriteRenderer>();
         }
-
         col = GetComponent<BoxCollider2D>();
         sr.enabled = false;
     }
 
-    public void SetupA(float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite)
+    // ★ 修正：SetupA
+    // ★修正：引数に targetTag と damage を追加
+    public void SetupA(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite)
     {
-        type = LaserType.A_Stationary;
+        this.type = LaserType.A_Stationary;
+        this._rootOwner = shooter;
+        this._targetTag = target;
+        this._damage = damage;
         transform.position = new Vector3(x, y, 0);
+
+        ApplyTeamSettings(shooter);
         SpawnSourceEffect(sourcePrefab, sourceSprite);
         InitializeBase(length, width, color, delay);
     }
 
-    public void SetupB(float length, float width, BulletManager.LaserColor color, int delay, Transform boss, GameObject sourcePrefab, Sprite sourceSprite)
+    // ★ 修正：SetupB (shooter引数を追加)
+    // --- EnemyLaserBeam.cs 修正箇所 ---
+
+    public void SetupB(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite)
     {
-        type = LaserType.B_FollowBoss;
-        bossTransform = boss;
-        if (bossTransform != null) transform.position = bossTransform.position;
+        this.type = LaserType.B_FollowBoss;
+        this._rootOwner = shooter;
+        this._targetTag = target;
+        this._damage = damage;
+        this.bossTransform = shooter.transform;
+
+        // ★重要：発射時の座標を中心に固定する
+        this._centerPos = new Vector3(x, y, 0);
+        transform.position = _centerPos;
+
+        ApplyTeamSettings(shooter);
         SpawnSourceEffect(sourcePrefab, sourceSprite);
         InitializeBase(length, width, color, delay);
+    }
+    // ★ 追加：チーム（P1/P2）に応じた設定を適用するヘルパー関数
+    private void ApplyTeamSettings(GameObject shooter)
+    {
+        // グレイズ判定用にタグは "Laser" 固定にする
+        gameObject.tag = "Laser";
+
+        var myStatus = shooter.GetComponentInParent<PlayerStatusManager>();
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+        int layer = LayerMask.NameToLayer(ownerId == 1 ? "Player1Bullet" : "Player2Bullet");
+        gameObject.layer = layer;
     }
 
     private void InitializeBase(float length, float width, BulletManager.LaserColor color, int delay)
@@ -144,21 +177,28 @@ public class EnemyLaserBeam : MonoBehaviour
     void FixedUpdate()
     {
         if (!isFired) return;
-
+        // ★ 追加：ラウンド終了（タイムアップ等）を検知したら即座に閉じる
+        // PlayerMove.CanShoot が false になった瞬間に ForceClose を実行します
+        if (!PlayerMove.CanShoot && !isClosing)
+        {
+            ForceClose();
+        }
         if (transformQueue.Count > 0 && elapsedFrames >= transformQueue[0].frame)
         {
             ApplyTransform(transformQueue[0]);
             transformQueue.RemoveAt(0);
         }
 
-        // 回転の補間処理
+        // 回転の補間処理（Type A の angVel も対象に含める）
         if (useSmoothStop)
         {
+            angVel = Mathf.Lerp(angVel, targetAngVel, 0.1f); // ★追加
             laserAngleVel = Mathf.Lerp(laserAngleVel, targetLaserAngleVel, 0.1f);
             distAngleVel = Mathf.Lerp(distAngleVel, targetDistAngleVel, 0.1f);
         }
         else
         {
+            angVel = targetAngVel; // ★追加
             laserAngleVel = targetLaserAngleVel;
             distAngleVel = targetDistAngleVel;
         }
@@ -217,7 +257,7 @@ public class EnemyLaserBeam : MonoBehaviour
 
     private void UpdateB()
     {
-        // ボスがいなくなったらフェードアウト開始
+        // 発射元（オーナー）がいなくなった場合の生存確認としてのみ bossTransform を使用
         if (bossTransform == null)
         {
             ForceClose();
@@ -230,8 +270,10 @@ public class EnemyLaserBeam : MonoBehaviour
 
         if (!isClosing) currentLength += lengthVel;
 
+        // ★修正：bossTransform.position ではなく、記録した _centerPos を基準にする
         Vector3 offset = new Vector3(Mathf.Cos(distAngle * Mathf.Deg2Rad), Mathf.Sin(distAngle * Mathf.Deg2Rad), 0) * dist;
-        transform.position = bossTransform.position + offset;
+        transform.position = _centerPos + offset;
+
         transform.rotation = Quaternion.Euler(0, 0, laserAngle - 90f);
     }
 
@@ -254,38 +296,59 @@ public class EnemyLaserBeam : MonoBehaviour
 
     private void UpdateVisuals(float w)
     {
-        transform.localScale = Vector3.one;
+        if (sr == null || sr.sprite == null) return;
+
+        // 1. スプライトの元のサイズ（Unityの単位：Unit）を取得
+        // これにより、PPU（Pixels Per Unit）や画像サイズの影響を打ち消します
+        float spriteOriginalHeight = sr.sprite.bounds.size.y;
+        float spriteOriginalWidth = sr.sprite.bounds.size.x;
+
+        // 2. 正規化したスケールを計算
+        // currentLength = 10.0 なら、ワールド座標で正確に10ユニット分伸びるようになります
+        float finalScaleY = currentLength / spriteOriginalHeight;
+        float finalScaleX = w / spriteOriginalWidth;
 
         if (laserVisualTrans != null)
         {
-            laserVisualTrans.localScale = new Vector3(w, currentLength, 1f);
+            laserVisualTrans.localScale = new Vector3(finalScaleX, finalScaleY, 1f);
         }
 
         if (col != null)
         {
-            float hitboxWidthScale = 0.2f;
-            col.size = new Vector2(w * hitboxWidthScale, currentLength);
+            // 3. 当たり判定の太さを調整（★ここがポイント）
+            // ビームの「光の広がり」まで判定があると理不尽に感じるため、
+            // 芯の部分（例えば60%〜80%）だけを判定にするとゲーム性が向上します。
+            float hitboxWidthMultiplier = 0.7f;
+
+            col.size = new Vector2(w * hitboxWidthMultiplier, currentLength);
+
+            // 4. PivotがBottomの場合、根本を起点に判定を配置
             col.offset = new Vector2(0, currentLength * 0.5f);
+
+            // 予告中は判定を消し、発射中のみ有効化
+            if (elapsedFrames >= delayFrames && !isClosing) col.enabled = true;
         }
 
+        // 弾源エフェクト等の回転処理（既存のまま）
         if (sourceEffectInstance != null && sourceEffectSr != null)
         {
-            float effectRatio = 1f;
-
-            if (isClosing)
-            {
-                effectRatio = Mathf.Clamp01(w / targetWidth);
-            }
-            // 予告中(elapsedFrames < delayFrames)は effectRatio = 1.0f のまま維持
-
+            float effectRatio = Mathf.Clamp01(w / targetWidth);
             float dynamicScale = 1.5f * effectRatio;
             sourceEffectInstance.transform.localScale = new Vector3(dynamicScale, dynamicScale, 1f);
-
-            Color c = sourceEffectSr.color;
-            c.a = sr.color.a * effectRatio;
-            sourceEffectSr.color = c;
-
             sourceEffectInstance.transform.Rotate(0, 0, 400f * Time.deltaTime);
+        }
+    }
+
+    // ★追加：ダメージ判定（多段ヒット）
+    private void OnTriggerStay2D(Collider2D collision)
+    {
+        if (!isFired || isClosing || elapsedFrames < delayFrames) return;
+
+        // ターゲットタグに一致するか判定
+        if (collision.CompareTag(_targetTag) && _hitTimer <= 0)
+        {
+            collision.SendMessage("OnHit", _damage, SendMessageOptions.DontRequireReceiver);
+            _hitTimer = 0.1f; // 6フレーム（約0.1秒）に1回ヒット
         }
     }
 
@@ -303,8 +366,8 @@ public class EnemyLaserBeam : MonoBehaviour
 
         if (type == LaserType.A_Stationary)
         {
-            if (t.angle != -999f) angle = t.angle;
-            if (t.angVel != -999f) angVel = t.angVel;
+            if (t.angle != -999f) angle = t.angle; 
+            if (t.angVel != -999f) targetAngVel = t.angVel; // ★修正：直接代入ではなく target に入れる
             if (t.moveSpeed != -999f) moveSpeed = t.moveSpeed;
             if (t.moveAngle != -999f) moveAngle = t.moveAngle;
             transform.rotation = Quaternion.Euler(0, 0, angle - 90f);

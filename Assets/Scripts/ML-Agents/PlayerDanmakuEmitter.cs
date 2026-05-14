@@ -1,5 +1,6 @@
 ﻿using KanKikuchi.AudioManager;
 using System.Collections;
+using System.Collections.Generic;
 using Unity.AppUI.UI;
 using UnityEngine;
 
@@ -96,11 +97,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float targetAngle = GetAngleToTarget();
         float baseAngle = targetAngle + s.angleOffset;
         Vector3 pos = transform.position;
-
         switch (s.patternType)
         {
             case SkillPatternType.Standard:
-                CreateShot(s.bulletData, pos, s.speed, baseAngle, s.delay);
+                if (s.bulletData.isLaser) StartCoroutine(LaserRoutine(s, false));
+                else CreateShot(s.bulletData, pos, s.speed, baseAngle, s.delay);
                 break;
             case SkillPatternType.nWay:
                 ExecuteNWay(s, pos, baseAngle);
@@ -131,15 +132,88 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 // ★ 修正：即時実行ではなく、チャージ演出コルーチンを開始する
                 StartCoroutine(ChargeAndExecuteDefensiveField(s));
                 break;
+            case SkillPatternType.ChainRandomAim:
+                StartCoroutine(ChainRandomAimRoutine(s));
+                break;
+            case SkillPatternType.RotatingAllWayLaser:
+                StartCoroutine(RotatingAllWayLaserRoutine(s));
+                break;
         }
+    }
+    private IEnumerator ChainRandomAimRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; // 実行中カウントを増やす（エネルギー回復停止）
+
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        // 1. スキル使用中の減速を適用
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        if (PlayerMove.CanShoot && (myHH == null || myHH.currentState == PlayerHitHandler.PlayerState.Normal))
+        {
+            // --- セット開始時の初期化 ---
+            // 自機周辺のランダムな位置を弾源に設定
+            float radius = 1.8f;
+            Vector2 randomCircle = Random.insideUnitCircle.normalized * radius;
+            Vector3 spawnPos = transform.position + new Vector3(randomCircle.x, randomCircle.y, 0);
+
+            // ★ セット内で角度を固定：弾源から敵機への基本角度を一度だけ計算
+            float targetAngle = GetAngleToTarget(spawnPos) + Random.Range(-3.0f,3.0f);
+            float baseAngle = targetAngle + s.angleOffset;
+
+            // 規定回数（6回）を連射
+            int burstCount = 6;
+            for (int i = 0; i < burstCount; i++)
+            {
+                // --- N-way（扇形）の生成ロジック ---
+                int wayCount = Mathf.Max(1, s.count); // 3way, 5wayなど
+                float spread = s.wideAngle;
+
+                if (wayCount <= 1)
+                {
+                    // 1-wayの場合は正面のみ
+                    CreateShot(s.bulletData, spawnPos, s.speed, baseAngle, s.delay);
+                }
+                else
+                {
+                    // 複数wayの場合は扇形に展開
+                    float startAngle = baseAngle - (spread / 2f);
+                    float stepAngle = spread / (wayCount - 1);
+
+                    for (int j = 0; j < wayCount; j++)
+                    {
+                        float finalAngle = startAngle + (stepAngle * j);
+                        CreateShot(s.bulletData, spawnPos, s.speed, finalAngle, s.delay);
+                    }
+                }
+
+                PlaySkillSE(s.sePath);
+
+                // 2フレーム待機 (FixedUpdate 2回分)
+                for (int j = 0; j < 7; j++)
+                {
+                    yield return new WaitForFixedUpdate();
+                }
+                // 被弾中断チェック
+                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
+            }
+        }
+
+        // 次のセットまでの待機
+        yield return new WaitForSeconds(s.cooldown);
+
+        // 状態を戻す
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+        _activeSkillCoroutines--;
     }
     private IEnumerator TemporarySlow(float multiplier, float duration)
     {
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
         if (myMove != null) myMove.skillSpeedMultiplier = multiplier;
-    yield return new WaitForSeconds(duration);
+        yield return new WaitForSeconds(duration);
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-}
+    }
     // --- ★ 追加：防御フィールド専用のチャージ演出ルーチン ---
     private IEnumerator ChargeAndExecuteDefensiveField(PlayerSkillData.SkillSettings s)
     {
@@ -377,6 +451,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 設置型または追従型の極太レーザーを実行する
+    /// </summary>
+    
+
     private void CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay, bool isConverge = false)
     {
         GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
@@ -414,7 +493,144 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             CreateShot(s.bulletData, pos, s.speed * speedMult, angleDeg, s.delay);
         }
     }
+    /// <summary>
+    /// レーザーの生成とパラメータ設定を行うコルーチン
+    /// </summary>
+    private IEnumerator LaserRoutine(PlayerSkillData.SkillSettings s, bool isFollow)
+    {
+        _activeSkillCoroutines++;
 
+        if (BulletManager.Instance == null)
+        {
+            _activeSkillCoroutines--;
+            yield break;
+        }
+
+        BulletManager.LaserColor color = s.bulletData.laserColor;
+        var laserSet = BulletManager.Instance.GetLaserSet(color);
+
+        // 生成
+        GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, transform.position, Quaternion.identity);
+        EnemyLaserBeam laser = laserObj.GetComponent<EnemyLaserBeam>();
+
+        if (laser != null)
+        {
+            // ★修正：targetTag と damage を渡す
+            if (isFollow)
+            {
+                // SetupBの実装も同様に修正が必要
+            }
+            else
+            {
+                laser.SetupA(_rootOwner, targetTag, s.bulletData.damage,
+                             transform.position.x, transform.position.y, s.count, s.wideAngle,
+                             color, (int)s.delay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite);
+            }
+
+            // 角度設定（1セット目は現在のターゲット方向）
+            float angle = GetAngleToTarget() + s.angleOffset;
+            laser.AddData(new EnemyLaserBeam.LaserTransformData { frame = 0, angle = angle });
+            laser.Fire();
+
+            // 持続時間（Cooldown）待機
+            yield return new WaitForSeconds(s.speed);
+
+            // 消滅命令
+            if (laser != null) laser.ForceClose();
+        }
+
+        _activeSkillCoroutines--;
+    }
+    // --- PlayerDanmakuEmitter.cs 修正版ルーチン ---
+
+    private IEnumerator RotatingAllWayLaserRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+        if (BulletManager.Instance == null) { _activeSkillCoroutines--; yield break; }
+
+        List<EnemyLaserBeam> spawnedLasers = new List<EnemyLaserBeam>();
+
+        // --- 設定パラメータ ---
+        int laserCount = Mathf.Max(1, 24); // 18本
+        float radius = 1.6f;             // 弾源の半径
+        int stopFrame = 40;              // 回転が止まり始めるフレーム
+        int warningFrame = stopFrame + 60; // 完全に止まってから実線化するまでの「タメ」
+
+        // ★ 回転方向をランダムに決定
+        float rotDir = (Random.value < 0.5f) ? 1.0f : -1.0f;
+        float initialRotSpeed = 5.0f * rotDir;
+
+        // ★ 追加：回転中にかける「ズレ」の総量
+        float totalDriftAngle = 30f * rotDir;
+        float driftVelocity = totalDriftAngle / stopFrame;
+
+        // ★ 修正：停止位置（目標角度）をランダムに決定
+        float targetAngle = Random.Range(0f, 360f);
+
+        // 停止位置から逆算して、開始時のベース角度を求める
+        float estimatedRotation = 245f * rotDir;
+        float baseAngle = targetAngle - estimatedRotation;
+
+        BulletManager.LaserColor color = s.bulletData.laserColor;
+        var laserSet = BulletManager.Instance.GetLaserSet(color);
+
+        for (int i = 0; i < laserCount; i++)
+        {
+            GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, transform.position, Quaternion.identity);
+            EnemyLaserBeam laser = laserObj.GetComponent<EnemyLaserBeam>();
+
+            if (laser != null)
+            {
+                spawnedLasers.Add(laser);
+
+                // ★ 発射時の自機座標を centerPos として固定する SetupB を使用
+                laser.SetupB(_rootOwner, targetTag, s.bulletData.damage,
+                             transform.position.x, transform.position.y,
+                             s.count, s.wideAngle, color, warningFrame,
+                             BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite);
+
+                float currentStartAngle = baseAngle + (360f / laserCount * i);
+
+                // 初期オフセット（150度は渦を巻くような大きな曲がり）
+                float aimOffset = 120f * rotDir;
+                float initialLaserAngle = currentStartAngle + aimOffset;
+
+                // データ1：回転開始
+                laser.AddData(new EnemyLaserBeam.LaserTransformData
+                {
+                    frame = 0,
+                    dist = radius,                // 半径分離す
+                    distAngle = currentStartAngle, // 弾源の公転角
+                    laserAngle = initialLaserAngle, // レーザー自体の向き（曲げる）
+                    distAngleVel = initialRotSpeed,
+                    laserAngleVel = initialRotSpeed + driftVelocity, // ★徐々にズレるように自転速度を微調整
+                    isSmooth = true
+                });
+
+                // データ2：停止
+                laser.AddData(new EnemyLaserBeam.LaserTransformData
+                {
+                    frame = stopFrame,
+                    distAngleVel = 0f,
+                    laserAngleVel = 0f,
+                    isSmooth = true
+                });
+
+                laser.Fire();
+            }
+        }
+
+        // 照射終了まで待機
+        yield return new WaitForSeconds((warningFrame / 60f) + s.speed);
+
+        // 全て消去
+        foreach (var laser in spawnedLasers)
+        {
+            if (laser != null) laser.ForceClose();
+        }
+
+        _activeSkillCoroutines--;
+    }
     private void PlaySkillSE(string path)
     {
         string clip = string.IsNullOrEmpty(path) ? SEPath.SHOT1 : path;

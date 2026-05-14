@@ -7,7 +7,9 @@ public enum SkillPatternType
     MovingArc, // ★ 追加：動く弾源パターン // ★ 追加：円弧状に弾源を設置するパターン
     RandomRound, // ★ 追加：ランダム位置からの全方位弾
     Boomerang,
-    DefensiveField
+    DefensiveField,
+    ChainRandomAim,
+    RotatingAllWayLaser
 }
 
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]

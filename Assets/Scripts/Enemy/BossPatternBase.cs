@@ -265,6 +265,7 @@ public abstract class BossPatternBase : MonoBehaviour
     // 引数を BulletData から BulletManager.LaserColor に変更
     // --- Laser A (設置型) ---
     // --- Laser A (設置型) ---
+    /*
     protected void CreateLaserA(int id, float x, float y, float length, float width, BulletManager.LaserColor color, int delay)
     {
         GameObject obj = Instantiate(BulletManager.Instance.laserBeamPrefab);
@@ -290,7 +291,7 @@ public abstract class BossPatternBase : MonoBehaviour
         beam.SetupB(length, width, color, delay, transform.parent, sourcePrefab, sourceSprite);
         beamDict[id] = beam;
     }
-
+    */
     // --- Laser A (設置型) ---
     // 引数の最後に bool startClosing を追加（デフォルト値 false）
     protected void SetLaserDataA(int id, int frame, float angle, float angVel, float lengthVel, float moveSpeed, float moveAngle, bool startClosing = false)

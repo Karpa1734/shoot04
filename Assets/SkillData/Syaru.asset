@@ -14,23 +14,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   characterName: Koganeyama Syaru
   imageColor: {r: 1, g: 1, b: 0, a: 1}
+  maxEnergy: 100
+  energyRegenRate: 80
   skillZ:
-    skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
-    skillIcon: {fileID: 0}
-    patternType: 2
-    bulletData: {fileID: 11400000, guid: f273ab83a2a68f84ba3403421d5b9427, type: 2}
-    cooldown: 0.2
+    skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
+    skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
+    patternType: 10
+    bulletData: {fileID: 11400000, guid: a5fd71ae477afb7489d0992c800345dc, type: 2}
+    cooldown: 0.4
     sePath: 
-    count: 12
-    speed: 3
+    count: 3
+    speed: 6
     angleOffset: 0
-    wideAngle: 30
-    moveSpeedMultiplier: 0
+    wideAngle: 60
+    moveSpeedMultiplier: 0.8
     delay: 2
-    maxBurstCount: 0
-    burstInterval: 0
+    cost: 15
+    ultimateGain: 1.5
   skillX:
-    skillName: "\u696D\u706B\u7070\u71FC"
+    skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
     skillIcon: {fileID: 0}
     patternType: 1
     bulletData: {fileID: 11400000, guid: 11b813697792b7044960dcd2580e17ba, type: 2}
@@ -42,25 +44,25 @@ MonoBehaviour:
     wideAngle: 60
     moveSpeedMultiplier: 0
     delay: 1
-    maxBurstCount: 0
-    burstInterval: 0
+    cost: 0
+    ultimateGain: 0
   skillC:
-    skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
+    skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 0}
-    patternType: 0
-    bulletData: {fileID: 0}
-    cooldown: 0
-    sePath: 
-    count: 0
-    speed: 0
+    patternType: 11
+    bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
+    cooldown: 1
+    sePath: Laser2
+    count: 60
+    speed: 1.5
     angleOffset: 0
-    wideAngle: 0
-    moveSpeedMultiplier: 0
-    delay: 0
-    maxBurstCount: 0
-    burstInterval: 0
+    wideAngle: 0.3
+    moveSpeedMultiplier: 0.3
+    delay: 20
+    cost: 60
+    ultimateGain: 5
   skillV:
-    skillName: "\u72C2\u5316"
+    skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 0}
     patternType: 0
     bulletData: {fileID: 0}
@@ -72,5 +74,5 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0
     delay: 0
-    maxBurstCount: 0
-    burstInterval: 0
+    cost: 0
+    ultimateGain: 0
