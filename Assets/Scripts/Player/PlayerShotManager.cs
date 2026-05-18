@@ -36,7 +36,7 @@ public class PlayerShotManager : MonoBehaviour
     }
 
     void FixedUpdate()
-    {
+    {/*
         // タイムスケール停止中や、被弾中などは発射しない
         if (Time.timeScale <= 0) return;
         if (hitHandler == null || hitHandler.currentState != PlayerHitHandler.PlayerState.Normal)
@@ -48,8 +48,8 @@ public class PlayerShotManager : MonoBehaviour
 
         // --- リプレイ・操作共通の入力参照 ---
         // PlayerMove.cs で記録・再現されている入力データを使用する
-        bool isShooting = PlayerMove.Instance.currentFrameInput.shot;
-        bool isSlow = PlayerMove.Instance.currentFrameInput.slow;
+        //bool isShooting = PlayerMove.Instance.currentFrameInput.shot;
+        //bool isSlow = PlayerMove.Instance.currentFrameInput.slow;
 
         if (isShooting)
         {
@@ -75,7 +75,7 @@ public class PlayerShotManager : MonoBehaviour
             // 撃っていない時はタイマーをリセット（即座に撃ち始められるように 0 にする）
             mainTimer = 0;
             subTimer = 0;
-        }
+        }*/
     }
 
     void FireMainShot()

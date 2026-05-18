@@ -138,6 +138,14 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             case SkillPatternType.RotatingAllWayLaser:
                 StartCoroutine(RotatingAllWayLaserRoutine(s));
                 break;
+            // ★ 新しく追加
+            case SkillPatternType.RotatingAccelRound:
+                StartCoroutine(RotatingAccelRoundRoutine(s));
+                break;
+            // ★ 新しく強欲スキルを追加
+            case SkillPatternType.GreedTaxPossession:
+                StartCoroutine(GreedTaxPossessionRoutine(s));
+                break;
         }
     }
     private IEnumerator ChainRandomAimRoutine(PlayerSkillData.SkillSettings s)
@@ -258,41 +266,46 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     private IEnumerator MovingArcRoutine(PlayerSkillData.SkillSettings s)
     {
-        _activeSkillCoroutines++;
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        float radiusX = 1.5f;
-        float radiusY = 0.4f;
-        int wayCount = 3;
-        bool currentDirectionReversed = _isArcReversed;
-        _isArcReversed = !_isArcReversed;
-        float startOffset = currentDirectionReversed ? 90f : -90f;
-        float endOffset = currentDirectionReversed ? -90f : 90f;
-        float step = currentDirectionReversed ? -20f : 20f;
-        float centerTargetAngle = GetAngleToTarget(transform.position);
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        _activeSkillCoroutines++; //
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); //
+        float radiusX = 1.5f; //
+        float radiusY = 0.4f; //
+        int wayCount = 3; //
+        bool currentDirectionReversed = _isArcReversed; //
+        _isArcReversed = !_isArcReversed; //
+        float startOffset = currentDirectionReversed ? 90f : -90f; //
+        float endOffset = currentDirectionReversed ? -90f : 90f; //
+        float step = currentDirectionReversed ? -20f : 20f; //
+        float centerTargetAngle = GetAngleToTarget(transform.position); //
+        PlayerMove myMove = GetComponentInParent<PlayerMove>(); //
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
+
         for (float offset = startOffset;
              (step > 0 ? offset <= endOffset : offset >= endOffset);
              offset += step)
         {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
-            float spawnAngleRad = (centerTargetAngle + offset) * Mathf.Deg2Rad;
-            Vector3 ellipseOffset = new Vector3(Mathf.Cos(spawnAngleRad) * radiusX, Mathf.Sin(spawnAngleRad) * radiusY, 0);
-            Vector3 spawnPos = transform.position + ellipseOffset;
-            float realAimAngle = GetAngleToTarget(spawnPos) + s.angleOffset;
-            float currentWideAngle = 60f;
-            float startAngle = realAimAngle - (currentWideAngle / 2f);
-            float stepAngle = (wayCount > 1) ? currentWideAngle / (wayCount - 1) : 0;
-            PlaySkillSE(s.sePath);
-            for (int i = 0; i < wayCount; i++)
+            // ★ 修正：yield break ではなく break にしてループの下（クリーンアップ処理）へ流す
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                break;
+
+            float spawnAngleRad = (centerTargetAngle + offset) * Mathf.Deg2Rad; //
+            Vector3 ellipseOffset = new Vector3(Mathf.Cos(spawnAngleRad) * radiusX, Mathf.Sin(spawnAngleRad) * radiusY, 0); //
+            Vector3 spawnPos = transform.position + ellipseOffset; //
+            float realAimAngle = GetAngleToTarget(spawnPos) + s.angleOffset; //
+            float currentWideAngle = 60f; //
+            float startAngle = realAimAngle - (currentWideAngle / 2f); //
+            float stepAngle = (wayCount > 1) ? currentWideAngle / (wayCount - 1) : 0; //
+            PlaySkillSE(s.sePath); //
+            for (int i = 0; i < wayCount; i++) //
             {
-                CreateShot(s.bulletData, spawnPos, s.speed, startAngle + (stepAngle * i), s.delay);
+                CreateShot(s.bulletData, spawnPos, s.speed, startAngle + (stepAngle * i), s.delay); //
             }
-            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate();
-            
+            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate(); //
         }
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
+
+        // これでガード句に引っかかった際も、確実にここを通ってリセットされます
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f; //
+        _activeSkillCoroutines--; //
     }
 
     private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
@@ -551,7 +564,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         List<EnemyLaserBeam> spawnedLasers = new List<EnemyLaserBeam>();
 
         // --- 設定パラメータ ---
-        int laserCount = Mathf.Max(1, 24); // 18本
+        int laserCount = Mathf.Max(1, 32); // 18本
         float radius = 1.6f;             // 弾源の半径
         int stopFrame = 40;              // 回転が止まり始めるフレーム
         int warningFrame = stopFrame + 60; // 完全に止まってから実線化するまでの「タメ」
@@ -629,6 +642,125 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             if (laser != null) laser.ForceClose();
         }
 
+        _activeSkillCoroutines--;
+    }
+    private bool _isRoundRotReversed = false; // ★ 追加：全方位弾の回転方向反転用フラグ
+    /// <summary>
+    /// 自機外し全方位弾を、射角を回転させ、段階的に弾速を上げながら連射する
+    /// 1回使うごとに回転方向が交互に反転する
+    /// </summary>
+    private IEnumerator RotatingAccelRoundRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; // 実行中カウント（MP回復停止）
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); //
+        PlayerMove myMove = GetComponentInParent<PlayerMove>(); //
+
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
+
+        Vector3 pos = transform.position; //
+
+        // 1. 1波あたりの弾数を設定（インスペクターのCountを使用）
+        int bulletCount = Mathf.Max(2, s.count); //
+        if (bulletCount % 2 != 0) bulletCount++; //
+
+        float step = 360f / bulletCount; //
+        float evenWayOffset = step / 2f; //
+
+        // 2. 連射設定と ★回転方向の交互反転ロジック
+        int waveLoops = 12; //
+        float currentSpeed = s.speed; // 初速（インスペクターのSpeed）
+
+        // ★ 現在の状態を取得し、フラグを反転させて次回に備える
+        bool currentRotReversed = _isRoundRotReversed;
+        _isRoundRotReversed = !_isRoundRotReversed;
+
+        // フラグに応じて回転方向を 1.0 または -1.0 にする
+        float rotDirection = currentRotReversed ? -1f : 1f;
+        float angleIncrement = 13f * rotDirection; // ★ 1波ごとの回転角の向きを決定
+
+        // 射撃開始時のターゲットへの基本角度を算出
+        float targetAngle = GetAngleToTarget(); //
+        float baseAngle = targetAngle + s.angleOffset + evenWayOffset; //
+
+        // 3. バースト連射ループ
+        for (int w = 0; w < waveLoops; w++)
+        {
+            // 被弾時やラウンド終了時の安全ガード
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break; //
+
+            PlaySkillSE(s.sePath); //
+
+            // 1波分（全方位）の弾を生成
+            for (int i = 0; i < bulletCount; i++)
+            {
+                // ベース角 + 全方位分割角 + wによる回転量を加算
+                float finalAngle = baseAngle + (step * i) + (angleIncrement * w); //
+                CreateShot(s.bulletData, pos, currentSpeed, finalAngle, s.delay); //
+            }
+
+            // 次の波の弾速を上げる（段階的加速）
+            currentSpeed += 0.5f; //
+
+            // 波と波の間の時間差（1フレーム待機）
+            for (int f = 0; f < 3; f++) //
+            {
+                yield return new WaitForFixedUpdate(); //
+            }
+        }
+
+        // 次のキャストまでのクールタイム待機
+        yield return new WaitForSeconds(s.cooldown); //
+
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f; //
+        _activeSkillCoroutines--; //
+    }
+    /// <summary>
+    /// 強欲：グリード・タックス＆ポゼッション
+    /// 敵弾をかき消して必殺ゲージに変え、その場に一回転するカウンターナイフを生成する防御フィールドを展開
+    /// </summary>
+    private IEnumerator GreedTaxPossessionRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+
+        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
+        if (myMove != null && s.moveSpeedMultiplier < 1.0f)
+        {
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        }
+
+        PlaySkillSE(s.sePath);
+
+        // 1. スキルデータに登録された「フィールドプレハブ」を生成
+        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
+
+        // 2. 所属チームに応じたタグとレイヤーを生成の瞬間に割り当てる
+        var myStatus = GetComponentInParent<PlayerStatusManager>();
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
+        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+
+        fieldObj.tag = assignedTag;
+        fieldObj.layer = assignedLayer;
+        SetLayerRecursive(fieldObj, assignedLayer);
+
+        // 3. プレハブにあらかじめ付いている GreedTaxPossessionField コンポーネントを取得
+        GreedTaxPossessionField fieldLogic = fieldObj.GetComponent<GreedTaxPossessionField>();
+
+        if (fieldLogic != null)
+        {
+            // ★ ブーメランビットと同様、アタッチされたコンポーネントに必要な参照を渡して初期化
+            fieldLogic.Initialize(transform, _rootOwner, targetTag, this);
+        }
+        else
+        {
+            Debug.LogError("フィールド用プレハブに GreedTaxPossessionField が付いていません！");
+        }
+
+        // 4. フィールドの有効持続時間分、Emitter側も安全に同期待機
+        yield return new WaitForSeconds(3.0f + 0.2f);
+
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
     private void PlaySkillSE(string path)

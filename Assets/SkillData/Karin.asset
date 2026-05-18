@@ -15,7 +15,7 @@ MonoBehaviour:
   characterName: Takekuma Karin
   imageColor: {r: 1, g: 0, b: 0, a: 1}
   maxEnergy: 100
-  energyRegenRate: 80
+  energyRegenRate: 90
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
     skillIcon: {fileID: 21300000, guid: 8cc885d7fad1f0b43ac224300fc02e4a, type: 3}
@@ -59,7 +59,7 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0
     delay: 0
-    cost: 60
+    cost: 50
     ultimateGain: 10
   skillV:
     skillName: "\u795E\u79D8\u7070\u71FC"
@@ -74,5 +74,5 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0.0001
     delay: 30
-    cost: 80
+    cost: 60
     ultimateGain: 10

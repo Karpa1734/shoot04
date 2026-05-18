@@ -9018,6 +9018,8 @@ MonoBehaviour:
     shotX: 0
     shotC: 0
     shotV: 0
+    barrier: 0
+    ultimate: 0
   normalSpeed: 5
   focusSpeed: 2
 --- !u!50 &695556679
@@ -9122,6 +9124,10 @@ MonoBehaviour:
   MaxStep: 0
   opponent: {fileID: 1872656873}
   playerID: 1
+  _detectionRadius: 3.5
+  _useAutoEvadeAI: 0
+  _mpReadyThreshold: 80
+  _mpSaveThreshold: 25
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -9172,15 +9178,6 @@ MonoBehaviour:
     m_Type: 0
     m_ExpectedControlType: 
     m_Id: c40de1a9-509c-404a-9ff4-6e3620a42612
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-  barrierAction:
-    m_Name: Barrier
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 4ad8e874-a8c2-42da-9f5f-865876039a38
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9275,15 +9272,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
-  characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
+  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
   life: 3
   bomb: 3
   power: 0
   maxPower: 400
   initialLife: 3
   initialSpell: 0
-  currentHP: 50
-  maxHP: 50
+  currentHP: 100
+  maxHP: 100
   stockLives: 0
   lifePieces: 0
   bombPieces: 0
@@ -10744,6 +10741,7 @@ GameObject:
   - component: {fileID: 788560149}
   - component: {fileID: 788560152}
   - component: {fileID: 788560153}
+  - component: {fileID: 788560154}
   m_Layer: 0
   m_Name: SystemManager
   m_TagString: Untagged
@@ -10821,6 +10819,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fastForwardSpeed: 10
+--- !u!114 &788560154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 788560148}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a298770e2e9437a4c865b2b0a3382454, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _editorMode: 0
 --- !u!1 &799577537
 GameObject:
   m_ObjectHideFlags: 0
@@ -25928,6 +25939,10 @@ MonoBehaviour:
   MaxStep: 0
   opponent: {fileID: 695556676}
   playerID: 2
+  _detectionRadius: 3.5
+  _useAutoEvadeAI: 1
+  _mpReadyThreshold: 80
+  _mpSaveThreshold: 25
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -25978,15 +25993,6 @@ MonoBehaviour:
     m_Type: 0
     m_ExpectedControlType: 
     m_Id: 00dd85bb-3d79-44af-8fcb-8710d5f33bc8
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings: []
-    m_Flags: 0
-  barrierAction:
-    m_Name: Barrier
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: f018b43a-9d5d-4b17-acd7-2ab29a213b8d
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -26088,6 +26094,8 @@ MonoBehaviour:
     shotX: 0
     shotC: 0
     shotV: 0
+    barrier: 0
+    ultimate: 0
   normalSpeed: 5
   focusSpeed: 2
 --- !u!50 &1872656871
@@ -26205,7 +26213,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 2
-  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
+  characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
   life: 2
   bomb: 3
   power: 0
@@ -28036,7 +28044,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 43ba385f513d9b741847572a22bf667a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentMatchTime: 20
+  currentMatchTime: 99
   isInfiniteTimer: 0
   timerText: {fileID: 2024962408}
   canvasGroup: {fileID: 2024962410}

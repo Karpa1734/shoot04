@@ -22,12 +22,19 @@ public class PlayerMove : MonoBehaviour
     public float ultimateEnergy = 0f;
     public const float MAX_ULTIMATE_ENERGY = 300f;
     [System.Serializable]
-    public struct ReplayFrame
+    public struct ReplayFrame // もし class で定義されている場合は public class ReplayFrame
     {
-        public float h, v;
-        public bool slow, shotZ, shotX, shotC, shotV;
-        public bool shot => shotZ;
-        public bool bomb => shotX;
+        public float h;
+        public float v;
+        public bool slow;
+        public bool shotZ;
+        public bool shotX;
+        public bool shotC;
+        public bool shotV;
+
+        // ★ 追加：バリアとアルティメットの入力状態を受け取るためのフィールドを定義
+        public bool barrier;
+        public bool ultimate;
     }
     public float skillSpeedMultiplier = 1.0f; // デフォルトは等倍
     public enum ReplayMode { None, Recording, Playing }

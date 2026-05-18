@@ -15,7 +15,7 @@ MonoBehaviour:
   characterName: Koganeyama Syaru
   imageColor: {r: 1, g: 1, b: 0, a: 1}
   maxEnergy: 100
-  energyRegenRate: 80
+  energyRegenRate: 90
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
@@ -24,34 +24,34 @@ MonoBehaviour:
     cooldown: 0.4
     sePath: 
     count: 3
-    speed: 6
+    speed: 7
     angleOffset: 0
     wideAngle: 60
     moveSpeedMultiplier: 0.8
     delay: 2
-    cost: 15
+    cost: 10
     ultimateGain: 1.5
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
     skillIcon: {fileID: 0}
-    patternType: 1
-    bulletData: {fileID: 11400000, guid: 11b813697792b7044960dcd2580e17ba, type: 2}
+    patternType: 12
+    bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
     cooldown: 0.5
     sePath: 
-    count: 7
-    speed: 4
+    count: 10
+    speed: 1.5
     angleOffset: 0
     wideAngle: 60
     moveSpeedMultiplier: 0
     delay: 1
-    cost: 0
+    cost: 30
     ultimateGain: 0
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 0}
     patternType: 11
     bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
-    cooldown: 1
+    cooldown: 1.5
     sePath: Laser2
     count: 60
     speed: 1.5
@@ -59,20 +59,20 @@ MonoBehaviour:
     wideAngle: 0.3
     moveSpeedMultiplier: 0.3
     delay: 20
-    cost: 60
+    cost: 45
     ultimateGain: 5
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 0}
-    patternType: 0
-    bulletData: {fileID: 0}
-    cooldown: 0
+    patternType: 13
+    bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
+    cooldown: 12
     sePath: 
     count: 0
-    speed: 0
+    speed: 4.5
     angleOffset: 0
     wideAngle: 0
     moveSpeedMultiplier: 0
     delay: 0
-    cost: 0
-    ultimateGain: 0
+    cost: 50
+    ultimateGain: 5

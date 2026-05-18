@@ -93,7 +93,7 @@ public class BoomerangObject : MonoBehaviour
             transform.position = Vector3.Lerp(startPos, _fixedTargetPos, Mathf.SmoothStep(0, 1, t));
 
             UpdateAfterimage();
-            if (Time.frameCount % 4 == 0) FireSubDanmaku();
+            if (Time.frameCount % 5 == 0) FireSubDanmaku();
             yield return null;
         }
 
@@ -106,7 +106,7 @@ public class BoomerangObject : MonoBehaviour
                 if (!PlayerMove.CanShoot) break; // ラウンド終了時はステイ中断
                 UpdateAfterimage();
                 stayElapsed += Time.deltaTime;
-                if (Time.frameCount % 4 == 0) FireSubDanmaku();
+                if (Time.frameCount % 5 == 0) FireSubDanmaku();
                 yield return null;
             }
         }
@@ -137,7 +137,7 @@ public class BoomerangObject : MonoBehaviour
                 }
 
                 UpdateAfterimage();
-                if (Time.frameCount % 4 == 0) FireSubDanmaku();
+                if (Time.frameCount % 5 == 0) FireSubDanmaku();
                 yield return null;
             }
         }

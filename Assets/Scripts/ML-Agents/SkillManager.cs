@@ -80,7 +80,7 @@ public class SkillManager : MonoBehaviour
         }
 
         // 2. 1•b‘Ò‹@Œã‚Ì‰ñ•œ
-        if (_recoveryDelayTimer >= 1.0f)
+        if (_recoveryDelayTimer >= 0.5f)
         {
             playerMove.currentEnergy = Mathf.Min(
                 skillData.maxEnergy,

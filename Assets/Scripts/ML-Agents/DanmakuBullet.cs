@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 
 public class DanmakuBullet : MonoBehaviour
@@ -10,7 +10,7 @@ public class DanmakuBullet : MonoBehaviour
     private string targetTag;
 
     [Header("Effect Settings")]
-    public GameObject effectPrefab; // ShotEffect���t���Ă���v���n�u���w��
+    public GameObject effectPrefab; // ShotEffectが付いているプレハブを指定
     private GameObject activeDelayEffect;
 
     private BulletData currentData;
@@ -19,21 +19,27 @@ public class DanmakuBullet : MonoBehaviour
     private bool isActive = true;
     private int delayFrames = 0;
     private int totalDelay = 0;
-    // �� �A�j���[�V�����p�ϐ�
+    // ★ アニメーション用変数
     private int currentAnimFrame = 0;
     private float animTimer = 0f;
     private bool isAnimated = false;
-    // �����p�t���O
+    // 収束用フラグ
     private bool isConverging = false;
     private Vector3 initialOffset;
-    private bool isGrazeDone = false; // �� �ǉ��F�O���C�Y�ς݃t���O
+    private bool isGrazeDone = false; // ★ 追加：グレイズ済みフラグ
+
+    // ★ 追加：カウンターナイフ用の特殊状態変数
+    private bool _isKnifeCounter = false;
+    private float _knifeRotateSpeed = 720f; // 1秒間に720度（0.5秒で1回転）
+    private float _knifeCurrentAngle = 0f;
+
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
         col = GetComponent<CircleCollider2D>();
     }
     /// <summary>
-    /// �O���C�Y��������݂�B1��ڂ��� true ��Ԃ��B
+    /// グレイズ判定を試みる。1回目だけ true を返す。
     /// </summary>
     public bool TryGraze()
     {
@@ -60,7 +66,7 @@ public class DanmakuBullet : MonoBehaviour
         if (data.material != null) sr.material = data.material;
 
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
-        // �� �A�j���[�V�����̗L�����m�F
+        // ★ アニメーションの有無を確認
         if (data.animationSprites != null && data.animationSprites.Length > 1)
         {
             isAnimated = true;
@@ -71,16 +77,16 @@ public class DanmakuBullet : MonoBehaviour
             isAnimated = false;
             sr.sprite = data.bulletSprite;
         }
-        // �����蔻��̐ݒ�
+        // 当たり判定の設定
         if (col != null)
         {
             col.radius = data.radius;
-            // �� �ǉ��F�f�[�^�̃I�t�Z�b�g�l���R���C�_�[�ɔ��f
+            // ★ 追加：データのオフセット値をコライダーに反映
             col.offset = data.colliderOffset;
         }
         if (delay > 0)
         {
-            // --- �x���G�t�F�N�g�i���@�w�j�̕\�� ---
+            // --- 遅延エフェクト（魔法陣）の表示 ---
             StartCoroutine(DelayEffectRoutine(delay, data));
             sr.enabled = false;
             col.enabled = false;
@@ -95,21 +101,66 @@ public class DanmakuBullet : MonoBehaviour
         isActive = true;
     }
 
+    // ★ 追加：オブジェクトプールに対応したカウンターナイフ専用の初期化メソッド
+    public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
+    {
+        this.owner = shooter;
+        this.targetTag = target;
+        this.currentData = data;
+        this.speed = shootSpeed;
+        this.accel = 0;
+        this.maxSpeed = shootSpeed;
+        this.angularVelocity = 0;
+
+        // 秒数をFixedUpdate基準のフレーム数に変換（例: 0.5秒 ➔ 30フレーム）
+        this.delayFrames = Mathf.RoundToInt(delayDuration * 60f);
+        this.totalDelay = this.delayFrames;
+
+        this.isConverging = false;
+        this._isKnifeCounter = true; // ★ 強欲カウンターモードをオン
+        this.isAnimated = false;
+
+        sr.sprite = data.bulletSprite;
+        if (data.material != null) sr.material = data.material;
+
+        // 待機中の見た目を華やかにするため初期角度をランダムに
+        _knifeCurrentAngle = Random.Range(0f, 360f);
+        transform.rotation = Quaternion.Euler(0, 0, _knifeCurrentAngle - 90f);
+
+        // ナイフは回転する姿を見せるため最初から表示するが、当たり判定は発射までオフ
+        sr.enabled = true;
+        if (col != null)
+        {
+            col.radius = data.radius;
+            col.offset = data.colliderOffset;
+            col.enabled = false;
+        }
+
+        isInitialized = true;
+        isActive = true;
+        isGrazeDone = false;
+    }
     void FixedUpdate()
     {
         if (!isInitialized || !isActive) return;
-        // �� �A�j���[�V�����X�V
+        // ★ アニメーション更新
         if (isAnimated)
         {
             UpdateAnimation();
         }
-        // --- �f�B���C�i�ҋ@�E�����j�t�F�[�Y ---
+        // --- ディレイ（待機・収束）フェーズ ---
+        // --- ディレイ（待機・収束・カウンター一回転）フェーズ ---
         if (delayFrames > 0)
         {
-            if (isConverging && owner != null)
+            // ★ カウンターナイフ特有の「その場でくるくる回転」を処理
+            if (_isKnifeCounter)
             {
-                // �c��t���[�����ɍ��킹�āA���X�ɃI�[�i�[�i���@�j�̍��W�֋߂Â�
-                // 1�t���[��������̈ړ��ʂ��v�Z���Ĉړ�
+                float dt = Time.fixedDeltaTime;
+                _knifeCurrentAngle += _knifeRotateSpeed * dt;
+                transform.rotation = Quaternion.Euler(0, 0, _knifeCurrentAngle - 90f);
+            }
+            else if (isConverging && owner != null)
+            {
                 float t = 1f / delayFrames;
                 transform.position = Vector3.Lerp(transform.position, owner.transform.position, t);
             }
@@ -118,28 +169,57 @@ public class DanmakuBullet : MonoBehaviour
             if (delayFrames <= 0)
             {
                 sr.enabled = true;
-                col.enabled = true;
+                if (col != null) col.enabled = true; // 当たり判定を有効化
                 if (activeDelayEffect != null) Destroy(activeDelayEffect);
+
+                // ★ 待機終了の瞬間、敵プレイヤーの座標へ正確に銃口を向ける（ロックオン）
+                if (_isKnifeCounter)
+                {
+                    angle = GetAngleToTarget();
+                    transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+                }
             }
             return;
         }
 
-        // --- ���ˁE�ړ��t�F�[�Y ---
-        float dt = Time.fixedDeltaTime;
-        angle += angularVelocity * dt * 60f;
-        speed += accel * dt * 60f;
+        // --- 発射・移動フェーズ（共通） ---
+        float dtMove = Time.fixedDeltaTime;
+        angle += angularVelocity * dtMove * 60f;
+        speed += accel * dtMove * 60f;
         if (accel != 0 && speed > maxSpeed) speed = maxSpeed;
 
         float rad = angle * Mathf.Deg2Rad;
-        transform.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * speed * dt;
+        transform.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * speed * dtMove;
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
 
+        // ★ 修正1：直接 Destroy せず、エフェクト無効（false）で Deactivate を呼ぶ形に統一
         if (Mathf.Abs(transform.position.x) > 10f || Mathf.Abs(transform.position.y) > 10f)
-            Destroy(gameObject);
+        {
+            Deactivate(false);
+        }
+    }
+    // ターゲットへの角度を逆算するヘルパー関数
+    private float GetAngleToTarget()
+    {
+        Transform target = null;
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p != null && p.gameObject != owner)
+            {
+                target = p.transform;
+                break;
+            }
+        }
+        if (target != null)
+        {
+            Vector3 dir = target.position - transform.position;
+            return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        }
+        return 0f;
     }
     private void UpdateAnimation()
     {
-        // �e����\���i�f�B���C���j�ł��v�Z���̂͐i�߂Ă���
+        // 弾が非表示（ディレイ中）でも計算自体は進めておく
         animTimer += Time.fixedDeltaTime;
         float frameDuration = 1f / currentData.animationFPS;
 
@@ -155,21 +235,21 @@ public class DanmakuBullet : MonoBehaviour
         if (effectPrefab != null && data.delaySprite != null)
         {
             activeDelayEffect = Instantiate(effectPrefab, transform.position, Quaternion.identity);
-            // ���@�w��e�ɒǏ]������
+            // 魔法陣を弾に追従させる
             activeDelayEffect.transform.SetParent(this.transform);
 
             SpriteRenderer effSr = activeDelayEffect.GetComponent<SpriteRenderer>();
             if (effSr != null)
             {
                 effSr.sprite = data.delaySprite;
-                // �e��菭����O�ɕ\��
+                // 弾より少し手前に表示
                 effSr.sortingOrder = sr.sortingOrder + 1;
             }
 
             ShotEffect logic = activeDelayEffect.GetComponent<ShotEffect>();
             if (logic != null)
             {
-                // ShotEffect����PlayDelay�R���[�`�������s
+                // ShotEffect側のPlayDelayコルーチンを実行
                 StartCoroutine(logic.PlayDelay(delay / 60f, data.delaySprite, transform.localScale.x));
             }
         }
@@ -183,18 +263,26 @@ public class DanmakuBullet : MonoBehaviour
 
         if (collision.CompareTag(targetTag))
         {
-            // �q�b�g���̓G�t�F�N�g���o��
+            // ヒット時はエフェクトを出す
             collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
             Deactivate(true);
         }
     }
-    // ���� bool playBreakEffect ��ǉ�
+    // 引数 bool playBreakEffect を追加
+    // 引数付きの Deactivate メソッドを修正
     public void Deactivate(bool playBreakEffect)
     {
         isActive = false;
         if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
-        // �� ���ŃG�t�F�N�g�iShotEffect�j�̐������W�b�N��ǉ�
+        // ★ 修正2：【安全弁】もし既に画面外（例: 閾値9.5f以上）にいる場合は、
+        // 衝突判定などが割り込んできて playBreakEffect が true になっていても強制的に false に上書きする
+        if (Mathf.Abs(transform.position.x) > 9.5f || Mathf.Abs(transform.position.y) > 9.5f)
+        {
+            playBreakEffect = false;
+        }
+
+        // ★ 消滅エフェクト（ShotEffect）の生成ロジック
         if (playBreakEffect && effectPrefab != null && currentData != null)
         {
             GameObject eff = Instantiate(effectPrefab, transform.position, Quaternion.identity);
@@ -203,11 +291,12 @@ public class DanmakuBullet : MonoBehaviour
 
             ShotEffect logic = eff.GetComponent<ShotEffect>();
             if (logic != null)
-                // BulletData �� breakColor ���g�p���ăA�j���[�V�����Đ�
+                // BulletData の breakColor を使用してアニメーション再生（ここでSEも鳴る想定）
                 logic.StartCoroutine(logic.PlayBreakAnimation(currentData.breakColor, transform.localScale.x));
         }
 
-        Destroy(gameObject);
+        // オブジェクトプール（マネージャー経由）を使用している場合は、ここをプール返却関数に差し替えてください
+        Destroy(gameObject); //
     }
     public void Deactivate()
     {

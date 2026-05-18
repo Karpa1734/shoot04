@@ -9,7 +9,9 @@ public enum SkillPatternType
     Boomerang,
     DefensiveField,
     ChainRandomAim,
-    RotatingAllWayLaser
+    RotatingAllWayLaser,
+    RotatingAccelRound,
+    GreedTaxPossession
 }
 
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]

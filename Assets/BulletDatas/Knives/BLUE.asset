@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21264d726d8d3e24a9f6272f291feb5d, type: 3}
-  m_Name: YELLOW
+  m_Name: BLUE
   m_EditorClassIdentifier: 
-  isLaser: 1
-  laserColor: 2
-  bulletPrefab: {fileID: 4456364604320642973, guid: a9f1e03cdf9d3b3429be1484fec91f5c, type: 3}
-  sizeType: 1
+  isLaser: 0
+  laserColor: 0
+  bulletPrefab: {fileID: 412534742802360219, guid: 77c4ce23d9179ce4fbb88e39b9867f7b, type: 3}
+  sizeType: 2
   radius: 0.06
   colliderOffset: {x: 0, y: 0}
-  damage: 20
-  bulletSprite: {fileID: 0}
+  damage: 15
+  bulletSprite: {fileID: -1931150973853878096, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
   animationSprites: []
   animationFPS: 10
-  delaySprite: {fileID: 7099077274376888169, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
-  breakColor: {r: 1, g: 1, b: 0, a: 1}
+  delaySprite: {fileID: -827259024503639357, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
+  breakColor: {r: 0, g: 0, b: 1, a: 1}
   material: {fileID: 0}

@@ -19,7 +19,15 @@ public class EnemyLaserBeam : MonoBehaviour
     private int delayFrames, elapsedFrames, closingFrames;
     private bool isFired = false;
     private bool isClosing = false;
+    /// <summary>
+    /// ★ AI連携用：現在レーザーが「予告線（プレビュー）」の状態であれば true を返す
+    /// </summary>
+    public bool IsPreviewing => elapsedFrames < delayFrames && !isClosing;
 
+    /// <summary>
+    /// ★ AI連携用：現在のレーザーのワールド座標上の長さを取得
+    /// </summary>
+    public float CurrentLength => currentLength;
     private float targetDistAngleVel;
     private bool useSmoothStop = false;
     private float targetLaserAngleVel;
