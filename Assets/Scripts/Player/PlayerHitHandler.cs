@@ -68,6 +68,15 @@ public class PlayerHitHandler : MonoBehaviour
         bool isDown = false;
         if (myStatusManager != null)
         {
+            // ★★★ 【ML-Agents 連携】被弾時のペナルティ通知をここに割り込ませる ★★★
+            // 親オブジェクト（Playerルート）に付いている DanmakuAgent を安全に取得
+            DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
+            if (agent != null)
+            {
+                // 被弾したことをAIの脳（Agent）に直接伝え、マイナス報酬を付与
+                agent.GiveHitPenalty();
+            }
+
             // ダメージを適用
             isDown = myStatusManager.ApplyDamage(damage);
         }
@@ -78,13 +87,11 @@ public class PlayerHitHandler : MonoBehaviour
 
         if (isDown)
         {
-            // 【撃墜】HP 0：ストック確認やリセットを伴う重いスタンへ
             currentState = PlayerState.Hit;
             StartCoroutine(ExplosionAndStunRoutine());
         }
         else
         {
-            // ★【追加】ダメージ：撃墜ではないが、操作不能な短いスタンを発生させる
             StartCoroutine(DamageStunRoutine());
         }
     }

@@ -33,7 +33,7 @@ MonoBehaviour:
     ultimateGain: 1.5
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 13dbdf5257202324b9450961f7d450a0, type: 3}
     patternType: 12
     bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
     cooldown: 0.5
@@ -48,7 +48,7 @@ MonoBehaviour:
     ultimateGain: 0
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
     patternType: 11
     bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
     cooldown: 1.5
@@ -63,7 +63,7 @@ MonoBehaviour:
     ultimateGain: 5
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
-    skillIcon: {fileID: 0}
+    skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
     patternType: 13
     bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
     cooldown: 12

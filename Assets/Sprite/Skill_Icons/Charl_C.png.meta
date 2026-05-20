@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 13dbdf5257202324b9450961f7d450a0
+guid: 481c0b3f8f05e1d41bfec267f36cb5a0
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 722710230537587795
-    second: Charl_X_0
+      213: 8451085981544313015
+    second: Charl_C_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Charl_X_0
+      name: Charl_C_0
       rect:
         serializedVersion: 2
-        x: 25
-        y: 25
-        width: 50
-        height: 50
+        x: 9
+        y: 9
+        width: 82
+        height: 82
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 35ccbb62025970a00800000000000000
-      internalID: 722710230537587795
+      spriteID: 7b07b38ace9484570800000000000000
+      internalID: 8451085981544313015
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Charl_X_0: 722710230537587795
+      Charl_C_0: 8451085981544313015
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -9125,9 +9125,7 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
-  _mpReadyThreshold: 80
-  _mpSaveThreshold: 25
+  _useAutoEvadeAI: 1
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -9195,7 +9193,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 6
+    VectorObservationSize: 10
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -9272,7 +9270,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
-  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
+  characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
   life: 3
   bomb: 3
   power: 0
@@ -25941,8 +25939,6 @@ MonoBehaviour:
   playerID: 2
   _detectionRadius: 3.5
   _useAutoEvadeAI: 1
-  _mpReadyThreshold: 80
-  _mpSaveThreshold: 25
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -26010,7 +26006,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 6
+    VectorObservationSize: 10
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
@@ -26213,7 +26209,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 2
-  characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
+  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
   life: 2
   bomb: 3
   power: 0
