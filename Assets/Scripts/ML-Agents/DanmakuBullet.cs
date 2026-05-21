@@ -32,7 +32,8 @@ public class DanmakuBullet : MonoBehaviour
     private bool _isKnifeCounter = false;
     private float _knifeRotateSpeed = 720f; // 1秒間に720度（0.5秒で1回転）
     private float _knifeCurrentAngle = 0f;
-
+    // 🌟 追加：EXスキルなどのホスト制御コルーチンから自動移動を完全停止させるスイッチ
+    public bool isMovementSuspended = false;
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
@@ -148,6 +149,8 @@ public class DanmakuBullet : MonoBehaviour
         {
             UpdateAnimation();
         }
+
+
         // --- ディレイ（待機・収束）フェーズ ---
         // --- ディレイ（待機・収束・カウンター一回転）フェーズ ---
         if (delayFrames > 0)
@@ -182,7 +185,8 @@ public class DanmakuBullet : MonoBehaviour
             return;
         }
 
-        // --- 発射・移動フェーズ（共通） ---
+        if (isMovementSuspended) return;
+
         float dtMove = Time.fixedDeltaTime;
         angle += angularVelocity * dtMove * 60f;
         speed += accel * dtMove * 60f;

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
@@ -6,23 +6,23 @@ public class PlayerMove : MonoBehaviour
     private static List<PlayerMove> _allPlayers = new List<PlayerMove>();
     public static IReadOnlyList<PlayerMove> AllPlayers => _allPlayers;
 
-    // š ƒGƒ‰[‰ğÁ‚Ì‚½‚ß‚ÌuŒã•ûŒİŠ·«vƒvƒƒpƒeƒB
-    // ‚±‚ê‚ğ•œŠˆ‚³‚¹‚é‚±‚Æ‚ÅAŠù‘¶‚Ì“G‚âƒAƒCƒeƒ€‚ÌƒXƒNƒŠƒvƒg‚ª‰ó‚ê‚È‚­‚È‚è‚Ü‚·
+    // â˜… ã‚¨ãƒ©ãƒ¼è§£æ¶ˆã®ãŸã‚ã®ã€Œå¾Œæ–¹äº’æ›æ€§ã€ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
+    // ã“ã‚Œã‚’å¾©æ´»ã•ã›ã‚‹ã“ã¨ã§ã€æ—¢å­˜ã®æ•µã‚„ã‚¢ã‚¤ãƒ†ãƒ ã®ã‚¹ã‚¯ãƒªãƒ—ãƒˆãŒå£Šã‚Œãªããªã‚Šã¾ã™
     public static PlayerMove Instance => (_allPlayers != null && _allPlayers.Count > 0) ? _allPlayers[0] : null;
     [Header("Player Settings")]
-    public int playerId; // 1 ‚Ü‚½‚Í 2 ‚ğƒCƒ“ƒXƒyƒNƒ^[‚Åİ’è
+    public int playerId; // 1 ã¾ãŸã¯ 2 ã‚’ã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼ã§è¨­å®š
     public PlayerMove Opponent => _allPlayers.Find(p => p != this);
 
-    public static bool CanInput = true; // ˆÚ“®Eƒ|[ƒY“™‚ÌŠî–{‘€ì
-    public static bool CanShoot = true; // ƒVƒ‡ƒbƒgEƒXƒLƒ‹‚Ìg—p‹–‰Â
+    public static bool CanInput = true; // ç§»å‹•ãƒ»ãƒãƒ¼ã‚ºç­‰ã®åŸºæœ¬æ“ä½œ
+    public static bool CanShoot = true; // ã‚·ãƒ§ãƒƒãƒˆãƒ»ã‚¹ã‚­ãƒ«ã®ä½¿ç”¨è¨±å¯
     [Header("Energy State")]
-    public float currentEnergy; // Œ»İ‚ÌƒRƒXƒgc—Ê[cite: 10]
-    public float maxEnergy = 100f; // Å‘å’liStart‚ÉData‚©‚çã‘‚«j[cite: 10]
+    public float currentEnergy; // ç¾åœ¨ã®ã‚³ã‚¹ãƒˆæ®‹é‡[cite: 10]
+    public float maxEnergy = 100f; // æœ€å¤§å€¤ï¼ˆStartæ™‚ã«Dataã‹ã‚‰ä¸Šæ›¸ãï¼‰[cite: 10]
     [Header("Ultimate Energy")]
     public float ultimateEnergy = 0f;
     public const float MAX_ULTIMATE_ENERGY = 300f;
     [System.Serializable]
-    public struct ReplayFrame // ‚à‚µ class ‚Å’è‹`‚³‚ê‚Ä‚¢‚éê‡‚Í public class ReplayFrame
+    public struct ReplayFrame // ã‚‚ã— class ã§å®šç¾©ã•ã‚Œã¦ã„ã‚‹å ´åˆã¯ public class ReplayFrame
     {
         public float h;
         public float v;
@@ -32,19 +32,19 @@ public class PlayerMove : MonoBehaviour
         public bool shotC;
         public bool shotV;
 
-        // š ’Ç‰ÁFƒoƒŠƒA‚ÆƒAƒ‹ƒeƒBƒƒbƒg‚Ì“ü—Íó‘Ô‚ğó‚¯æ‚é‚½‚ß‚ÌƒtƒB[ƒ‹ƒh‚ğ’è‹`
+        // â˜… è¿½åŠ ï¼šãƒãƒªã‚¢ã¨ã‚¢ãƒ«ãƒ†ã‚£ãƒ¡ãƒƒãƒˆã®å…¥åŠ›çŠ¶æ…‹ã‚’å—ã‘å–ã‚‹ãŸã‚ã®ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã‚’å®šç¾©
         public bool barrier;
         public bool ultimate;
     }
-    public float skillSpeedMultiplier = 1.0f; // ƒfƒtƒHƒ‹ƒg‚Í“™”{
+    public float skillSpeedMultiplier = 1.0f; // ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¯ç­‰å€
     public enum ReplayMode { None, Recording, Playing }
     public ReplayMode currentMode = ReplayMode.None;
     public List<ReplayFrame> replayData = new List<ReplayFrame>();
     private int currentFrame = 0;
     public ReplayFrame currentFrameInput;
     [Header("Movement Constants")]
-    public float normalSpeed = 5.0f; // ’Êí‚Ì‘¬“x
-    public float focusSpeed = 2.0f;  // ’á‘¬ˆÚ“®‚Ì‘¬“x
+    public float normalSpeed = 5.0f; // é€šå¸¸æ™‚ã®é€Ÿåº¦
+    public float focusSpeed = 2.0f;  // ä½é€Ÿç§»å‹•æ™‚ã®é€Ÿåº¦
     private float invincibleTimer = 0f;
     private float deathBombTimer = 0f;
     public bool IsInvincible => invincibleTimer > 0;
@@ -55,9 +55,9 @@ public class PlayerMove : MonoBehaviour
     void Awake()
     {
         Time.timeScale = 1f;
-        // š C³FƒXƒNƒŠƒvƒg‚Ì—LŒøE–³Œø‚ÉŠÖ‚í‚ç‚¸A¶‘¶‚µ‚Ä‚¢‚éŒÀ‚èƒŠƒXƒg‚É“ü‚ê‚é
+        // â˜… ä¿®æ­£ï¼šã‚¹ã‚¯ãƒªãƒ—ãƒˆã®æœ‰åŠ¹ãƒ»ç„¡åŠ¹ã«é–¢ã‚ã‚‰ãšã€ç”Ÿå­˜ã—ã¦ã„ã‚‹é™ã‚Šãƒªã‚¹ãƒˆã«å…¥ã‚Œã‚‹
         if (!_allPlayers.Contains(this)) _allPlayers.Add(this);
-        currentEnergy = maxEnergy; // ‰Šúó‘Ô‚Í–ƒ^ƒ“
+        currentEnergy = maxEnergy; // åˆæœŸçŠ¶æ…‹ã¯æº€ã‚¿ãƒ³
     }
     void Start()
     {
@@ -72,20 +72,20 @@ public class PlayerMove : MonoBehaviour
         UpdateReplayLogic();
     }
     /// <summary>
-    /// ’´•KE‹ZƒQ[ƒW‚ğw’è—Êiƒp[ƒZƒ“ƒg’PˆÊj‰ÁZ‚·‚é
+    /// è¶…å¿…æ®ºæŠ€ã‚²ãƒ¼ã‚¸ã‚’æŒ‡å®šé‡ï¼ˆãƒ‘ãƒ¼ã‚»ãƒ³ãƒˆå˜ä½ï¼‰åŠ ç®—ã™ã‚‹
     /// </summary>
-    /// <param name="amount">‰ÁZ‚·‚é—Ê (100 = 1ƒXƒgƒbƒN•ª)</param>
+    /// <param name="amount">åŠ ç®—ã™ã‚‹é‡ (100 = 1ã‚¹ãƒˆãƒƒã‚¯åˆ†)</param>
     public void AddUltimateEnergy(float amount)
     {
-        // ƒ‰ƒEƒ“ƒhI—¹‚â”í’e’†‚È‚ÇAUŒ‚•s”\‚Èó‘Ô‚Å‚Í—­‚Ü‚ç‚È‚¢‚æ‚¤‚ÉƒK[ƒh
+        // ãƒ©ã‚¦ãƒ³ãƒ‰çµ‚äº†æ™‚ã‚„è¢«å¼¾ä¸­ãªã©ã€æ”»æ’ƒä¸èƒ½ãªçŠ¶æ…‹ã§ã¯æºœã¾ã‚‰ãªã„ã‚ˆã†ã«ã‚¬ãƒ¼ãƒ‰
         if (!CanShoot) return;
 
-        // Œ»İ‚ÌƒGƒlƒ‹ƒM[‚É‰ÁZ‚µAÅ‘å’l(300)‚ÅƒNƒ‰ƒ“ƒv‚·‚é
+        // ç¾åœ¨ã®ã‚¨ãƒãƒ«ã‚®ãƒ¼ã«åŠ ç®—ã—ã€æœ€å¤§å€¤(300)ã§ã‚¯ãƒ©ãƒ³ãƒ—ã™ã‚‹
         ultimateEnergy = Mathf.Min(ultimateEnergy + amount, MAX_ULTIMATE_ENERGY);
     }
     private void UpdateReplayLogic()
     {
-        // š ’Ç‰ÁF“ü—Í‚ªƒƒbƒN‚³‚ê‚Ä‚¢‚éŠÔ‚ÍA“ü—Í‚ğ‹óiƒfƒtƒHƒ‹ƒg’lj‚É‚·‚é
+        // â˜… è¿½åŠ ï¼šå…¥åŠ›ãŒãƒ­ãƒƒã‚¯ã•ã‚Œã¦ã„ã‚‹é–“ã¯ã€å…¥åŠ›ã‚’ç©ºï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤ï¼‰ã«ã™ã‚‹
         if (!CanInput)
         {
             currentFrameInput = new ReplayFrame();
@@ -103,7 +103,7 @@ public class PlayerMove : MonoBehaviour
     }
     void OnDestroy()
     {
-        // š ’Ç‰ÁFƒIƒuƒWƒFƒNƒg‚ªŠ®‘S‚É”jŠü‚³‚ê‚½‚¾‚¯ƒŠƒXƒg‚©‚çíœ
+        // â˜… è¿½åŠ ï¼šã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆãŒå®Œå…¨ã«ç ´æ£„ã•ã‚ŒãŸæ™‚ã ã‘ãƒªã‚¹ãƒˆã‹ã‚‰å‰Šé™¤
         if (_allPlayers.Contains(this)) _allPlayers.Remove(this);
     }
     void LateUpdate()
@@ -113,17 +113,17 @@ public class PlayerMove : MonoBehaviour
     }
     void FixedUpdate()
     {/*
-        // 1. Šî–{‘¬“xi’á‘¬ˆÚ“®[cite: 8]”»’è‚ğŠÜ‚Şj
+        // 1. åŸºæœ¬é€Ÿåº¦ï¼ˆä½é€Ÿç§»å‹•[cite: 8]åˆ¤å®šã‚’å«ã‚€ï¼‰
         float currentBaseSpeed = currentFrameInput.slow ? focusSpeed : normalSpeed;
 
-        // 2. š C³F”{—¦‚ğŠ|‚¯‚ÄÅI‘¬“x‚ğŒˆ’è
-        // ‚±‚±‚Å skillSpeedMultiplier ‚ª 0 ‚È‚çAfinalSpeed ‚ÍŠmÀ‚É 0 ‚É‚È‚è‚Ü‚·[cite: 11]
+        // 2. â˜… ä¿®æ­£ï¼šå€ç‡ã‚’æ›ã‘ã¦æœ€çµ‚é€Ÿåº¦ã‚’æ±ºå®š
+        // ã“ã“ã§ skillSpeedMultiplier ãŒ 0 ãªã‚‰ã€finalSpeed ã¯ç¢ºå®Ÿã« 0 ã«ãªã‚Šã¾ã™[cite: 11]
         float finalSpeed = currentBaseSpeed * skillSpeedMultiplier;
 
-        // 3. “ü—Í•ûŒü‚ğŒvZ
+        // 3. å…¥åŠ›æ–¹å‘ã‚’è¨ˆç®—
         Vector3 moveDir = new Vector3(currentFrameInput.h, currentFrameInput.v, 0).normalized;
 
-        // 4. ˆÚ“®BfinalSpeed ‚ª 0 ‚È‚ç transform.position ‚Í•Ï‰»‚µ‚Ü‚¹‚ñ[cite: 11]
+        // 4. ç§»å‹•ã€‚finalSpeed ãŒ 0 ãªã‚‰ transform.position ã¯å¤‰åŒ–ã—ã¾ã›ã‚“[cite: 11]
         transform.position += moveDir * finalSpeed * Time.fixedDeltaTime;
     */}
 

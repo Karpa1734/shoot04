@@ -30,7 +30,7 @@ MonoBehaviour:
     moveSpeedMultiplier: 0.5
     delay: 5
     cost: 25
-    ultimateGain: 2
+    ultimateGain: 25
   skillX:
     skillName: "\u72C2\u6C17\u306E\u7344\u708E"
     skillIcon: {fileID: 21300000, guid: 38d9f25aa2ca0c84babea6b8b7f7427d, type: 3}
@@ -76,3 +76,18 @@ MonoBehaviour:
     delay: 30
     cost: 60
     ultimateGain: 10
+  skillEX:
+    skillName: "\u5922\u5E7B\u795E\u73E0"
+    skillIcon: {fileID: 0}
+    patternType: 0
+    bulletData: {fileID: 11400000, guid: da9048ab71ff6d34cb4420198b8474ab, type: 2}
+    cooldown: 5
+    sePath: 
+    count: 0
+    speed: 7
+    angleOffset: 0
+    wideAngle: 0
+    moveSpeedMultiplier: 0.2
+    delay: 0
+    cost: 0
+    ultimateGain: 0

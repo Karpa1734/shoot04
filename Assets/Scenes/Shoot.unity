@@ -232,6 +232,20 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &30769669
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Player2/Skill_EX
+  m_EditorClassIdentifier: 
+  m_Asset: {fileID: -944628639613478452, guid: 3590b91b4603b465dbb4216d601bff33, type: 3}
+  m_ActionId: 754162bc-16c9-438a-baf1-01f7ea22d312
 --- !u!1 &45011437
 GameObject:
   m_ObjectHideFlags: 0
@@ -9125,12 +9139,12 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 1
+  _useAutoEvadeAI: 0
   moveAction:
     m_Name: Move
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 304259d0-e371-4715-9ff4-a763492b3d9e
+    m_Id: 45badbfd-e239-47a7-be20-dbd937cf565a
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9139,7 +9153,7 @@ MonoBehaviour:
     m_Name: Skill Z
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 467959ed-db03-4e38-b2c1-956b928c2560
+    m_Id: 62a8f8e5-3e1d-455c-900f-36edfd2ec338
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9148,7 +9162,7 @@ MonoBehaviour:
     m_Name: Skill X
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: b3270aa8-30c7-43eb-a559-59dff7b1fc3e
+    m_Id: 4e9c41d2-ad9f-4a75-8786-eee1f5b110fa
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9157,7 +9171,7 @@ MonoBehaviour:
     m_Name: Skill C
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 7732986d-fa46-4955-9523-ad18fad64a91
+    m_Id: 697b2b86-5f9c-4a6e-9c2d-5d6f8cf1edb9
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9166,7 +9180,7 @@ MonoBehaviour:
     m_Name: Skill V
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: a0093802-34d5-48df-8510-0319847b3e7d
+    m_Id: 4d4724e3-e0f4-400e-bb5e-fb654bc86a88
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9175,7 +9189,7 @@ MonoBehaviour:
     m_Name: Slow
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: c40de1a9-509c-404a-9ff4-6e3620a42612
+    m_Id: 41d8beb4-c68e-4ec6-bfcc-fa548892fcbd
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -9197,8 +9211,8 @@ MonoBehaviour:
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
-      BranchSizes: 03000000030000000500000002000000
-    VectorActionSize: 03000000030000000500000002000000
+      BranchSizes: 03000000030000000600000002000000
+    VectorActionSize: 03000000030000000600000002000000
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
@@ -9242,6 +9256,11 @@ MonoBehaviour:
   uiX: {fileID: 1478654862}
   uiC: {fileID: 216595095}
   uiV: {fileID: 1686379074}
+  timerZ: 0
+  timerX: 0
+  timerC: 0
+  timerV: 0
+  timerEX: 0
   energyGauge: {fileID: 2129134893}
   ultimateGaugeUI: {fileID: 1391820327}
 --- !u!114 &695556693
@@ -9270,7 +9289,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
-  characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
+  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
   life: 3
   bomb: 3
   power: 0
@@ -25884,6 +25903,11 @@ MonoBehaviour:
   uiX: {fileID: 1000586605}
   uiC: {fileID: 1667510110}
   uiV: {fileID: 83275709}
+  timerZ: 0
+  timerX: 0
+  timerC: 0
+  timerV: 0
+  timerEX: 0
   energyGauge: {fileID: 495702386}
   ultimateGaugeUI: {fileID: 1263652152}
 --- !u!114 &1872656865
@@ -25943,7 +25967,7 @@ MonoBehaviour:
     m_Name: Move
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 447761bf-0034-4384-b93b-c3c670b9e9bc
+    m_Id: d735e81f-afaa-4d63-9a23-1b611d53b811
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -25952,7 +25976,7 @@ MonoBehaviour:
     m_Name: Skill Z
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 6d3ee9b0-cb17-43f6-ad90-857dcc963b38
+    m_Id: fbf96782-ac78-473b-939f-6d63b087559d
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -25961,7 +25985,7 @@ MonoBehaviour:
     m_Name: Skill X
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 5f1a8a5f-31cb-4fb0-824d-af29bda31e40
+    m_Id: 297f9cab-b0e9-41d2-9347-a20b44f334f4
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -25970,7 +25994,7 @@ MonoBehaviour:
     m_Name: Skill C
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: ec9ce976-09fb-4d3d-ada3-7bf4fca1e52e
+    m_Id: 84d9be45-06cf-4b36-818c-9159a4f3cb86
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -25979,7 +26003,7 @@ MonoBehaviour:
     m_Name: Skill V
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 1845e3e6-f9f5-4f96-9d0b-434965490dbd
+    m_Id: f07db0c0-c565-425d-bd33-b55dfc2802de
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -25988,7 +26012,7 @@ MonoBehaviour:
     m_Name: Slow
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 00dd85bb-3d79-44af-8fcb-8710d5f33bc8
+    m_Id: 61908ee2-d6c7-4d8c-877b-f604ab1710a1
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -26010,8 +26034,8 @@ MonoBehaviour:
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 0
-      BranchSizes: 03000000030000000500000002000000
-    VectorActionSize: 03000000030000000500000002000000
+      BranchSizes: 03000000030000000600000002000000
+    VectorActionSize: 03000000030000000600000002000000
     VectorActionDescriptions: []
     VectorActionSpaceType: 0
     hasUpgradedBrainParametersWithActionSpec: 1
@@ -26209,7 +26233,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 2
-  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
+  characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
   life: 2
   bomb: 3
   power: 0
@@ -27877,6 +27901,20 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2011733917}
   m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &2022744020
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc1515ab76e54f068e2f2207940fab32, type: 3}
+  m_Name: Player1/Skill_EX
+  m_EditorClassIdentifier: 
+  m_Asset: {fileID: -944628639613478452, guid: 3590b91b4603b465dbb4216d601bff33, type: 3}
+  m_ActionId: 93d03348-2707-4c10-8686-c0133544761c
 --- !u!1 &2024962406
 GameObject:
   m_ObjectHideFlags: 0
@@ -28429,6 +28467,7 @@ MonoBehaviour:
     skillX: {fileID: 1087944286}
     skillC: {fileID: 1882323001}
     skillV: {fileID: 1800480805}
+    skillEX: {fileID: 2022744020}
     slow: {fileID: 1337252848}
     barrier: {fileID: 110545384}
   player2:
@@ -28437,6 +28476,7 @@ MonoBehaviour:
     skillX: {fileID: 1583542563}
     skillC: {fileID: 757047835}
     skillV: {fileID: 822189446}
+    skillEX: {fileID: 30769669}
     slow: {fileID: 766713768}
     barrier: {fileID: 898158803}
 --- !u!4 &2041880710

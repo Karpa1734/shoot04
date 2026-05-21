@@ -1,10 +1,10 @@
-using KanKikuchi.AudioManager;
+ï»¿using KanKikuchi.AudioManager;
 using System.Collections;
 using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// ƒvƒŒƒCƒ„[‚Ì”í’eAH‚ç‚¢ƒ{ƒ€A•œŠˆˆ—‚ğŠÇ—‚·‚éƒNƒ‰ƒXi‰¡STG‘Îí—pj
+/// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è¢«å¼¾ã€é£Ÿã‚‰ã„ãƒœãƒ ã€å¾©æ´»å‡¦ç†ã‚’ç®¡ç†ã™ã‚‹ã‚¯ãƒ©ã‚¹ï¼ˆæ¨ªSTGå¯¾æˆ¦ç”¨ï¼‰
 /// </summary>
 public class PlayerHitHandler : MonoBehaviour
 {
@@ -15,7 +15,7 @@ public class PlayerHitHandler : MonoBehaviour
     public float deathBombWindow = 0.15f;
     public float invincibilityTime = 2.0f;
     public float downTime = 0.8f;
-    public float stunTime = 2.0f; // ƒXƒ^ƒ“ŠÔi2•bj
+    public float stunTime = 2.0f; // ã‚¹ã‚¿ãƒ³æ™‚é–“ï¼ˆ2ç§’ï¼‰
     [Header("References")]
     public GameObject explosionEffectPrefab;
     public PlayerAnimation playerAnim;
@@ -62,26 +62,26 @@ public class PlayerHitHandler : MonoBehaviour
     {
         Vector3 hitPos = transform.position;
 
-        // –³“G’†‚âŠù‚ÉƒXƒ^ƒ“’†‚Ìê‡‚Í”»’è‚ğ–³‹
+        // ç„¡æ•µä¸­ã‚„æ—¢ã«ã‚¹ã‚¿ãƒ³ä¸­ã®å ´åˆã¯åˆ¤å®šã‚’ç„¡è¦–
         if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
         bool isDown = false;
         if (myStatusManager != null)
         {
-            // ššš yML-Agents ˜AŒgz”í’e‚Ìƒyƒiƒ‹ƒeƒB’Ê’m‚ğ‚±‚±‚ÉŠ„‚è‚Ü‚¹‚é ššš
-            // eƒIƒuƒWƒFƒNƒgiPlayerƒ‹[ƒgj‚É•t‚¢‚Ä‚¢‚é DanmakuAgent ‚ğˆÀ‘S‚Éæ“¾
+            // â˜…â˜…â˜… ã€ML-Agents é€£æºã€‘è¢«å¼¾æ™‚ã®ãƒšãƒŠãƒ«ãƒ†ã‚£é€šçŸ¥ã‚’ã“ã“ã«å‰²ã‚Šè¾¼ã¾ã›ã‚‹ â˜…â˜…â˜…
+            // è¦ªã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆï¼ˆPlayerãƒ«ãƒ¼ãƒˆï¼‰ã«ä»˜ã„ã¦ã„ã‚‹ DanmakuAgent ã‚’å®‰å…¨ã«å–å¾—
             DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
             if (agent != null)
             {
-                // ”í’e‚µ‚½‚±‚Æ‚ğAI‚Ì”]iAgentj‚É’¼Ú“`‚¦Aƒ}ƒCƒiƒX•ñV‚ğ•t—^
+                // è¢«å¼¾ã—ãŸã“ã¨ã‚’AIã®è„³ï¼ˆAgentï¼‰ã«ç›´æ¥ä¼ãˆã€ãƒã‚¤ãƒŠã‚¹å ±é…¬ã‚’ä»˜ä¸
                 agent.GiveHitPenalty();
             }
 
-            // ƒ_ƒ[ƒW‚ğ“K—p
+            // ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’é©ç”¨
             isDown = myStatusManager.ApplyDamage(damage);
         }
 
-        // ‹¤’Ê‚Ì”í’e‰‰oi”š”­ƒGƒtƒFƒNƒg‚ÆSEj
+        // å…±é€šã®è¢«å¼¾æ¼”å‡ºï¼ˆçˆ†ç™ºã‚¨ãƒ•ã‚§ã‚¯ãƒˆã¨SEï¼‰
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
         SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
 
@@ -95,29 +95,29 @@ public class PlayerHitHandler : MonoBehaviour
             StartCoroutine(DamageStunRoutine());
         }
     }
-    // šV‚µ‚­’Ç‰ÁF’Êí‚Ì”í’eiHPŒ¸­j‚É‚æ‚é’Z‚¢ƒXƒ^ƒ“‰‰o
+    // â˜…æ–°ã—ãè¿½åŠ ï¼šé€šå¸¸ã®è¢«å¼¾ï¼ˆHPæ¸›å°‘ï¼‰ã«ã‚ˆã‚‹çŸ­ã„ã‚¹ã‚¿ãƒ³æ¼”å‡º
     IEnumerator DamageStunRoutine()
     {
         currentState = PlayerState.Hit;
 
-        // ˆÚ“®ƒXƒNƒŠƒvƒg‚ğˆê“I‚É–³Œø‰»‚µ‚Ä“®‚¯‚È‚­‚·‚é
+        // ç§»å‹•ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’ä¸€æ™‚çš„ã«ç„¡åŠ¹åŒ–ã—ã¦å‹•ã‘ãªãã™ã‚‹
         if (playerMove != null) playerMove.enabled = false;
 
-        // ”í’e‚É‚æ‚é–³“GŠÔ‚Ì•t—^i1.0•b‚È‚Çj
+        // è¢«å¼¾ã«ã‚ˆã‚‹ç„¡æ•µæ™‚é–“ã®ä»˜ä¸ï¼ˆ1.0ç§’ãªã©ï¼‰
         playerMove.SetInvincible(1.0f);
 
-        // ‘€ì•s”\‚É‚·‚éŠÔi—áF0.4•bBstunTime(2•b)‚æ‚è’Z‚­‚·‚é‚Ì‚ªˆê”Ê“I‚Å‚·j
-        // ‚à‚µŒ‚’Ä‚Æ“¯‚¶’·‚³‚ª•K—v‚È‚ç WaitForSeconds(stunTime) ‚É‘‚«Š·‚¦‚Ä‚­‚¾‚³‚¢
+        // æ“ä½œä¸èƒ½ã«ã™ã‚‹æ™‚é–“ï¼ˆä¾‹ï¼š0.4ç§’ã€‚stunTime(2ç§’)ã‚ˆã‚ŠçŸ­ãã™ã‚‹ã®ãŒä¸€èˆ¬çš„ã§ã™ï¼‰
+        // ã‚‚ã—æ’ƒå¢œæ™‚ã¨åŒã˜é•·ã•ãŒå¿…è¦ãªã‚‰ WaitForSeconds(stunTime) ã«æ›¸ãæ›ãˆã¦ãã ã•ã„
         yield return new WaitForSeconds(0.4f);
 
-        // ó‘Ô‚ğNormal‚É–ß‚µAˆÚ“®‚ğ‹–‰Â‚·‚é
+        // çŠ¶æ…‹ã‚’Normalã«æˆ»ã—ã€ç§»å‹•ã‚’è¨±å¯ã™ã‚‹
         if (playerMove != null) playerMove.enabled = true;
         currentState = PlayerState.Normal;
     }
-    // Œy‚¢”í’e—p‚Ì‰‰oiƒXƒ^ƒ“‚Í‚µ‚È‚¢‚ªA˜A‘±ƒqƒbƒg‚ğ–h‚®‚½‚ß‚Ì’Z‚¢–³“Gj
+    // è»½ã„è¢«å¼¾ç”¨ã®æ¼”å‡ºï¼ˆã‚¹ã‚¿ãƒ³ã¯ã—ãªã„ãŒã€é€£ç¶šãƒ’ãƒƒãƒˆã‚’é˜²ããŸã‚ã®çŸ­ã„ç„¡æ•µï¼‰
     IEnumerator SmallHitRoutine()
     {
-        playerMove.SetInvincible(0.5f); // 0.5•b‚¾‚¯–³“G‚É
+        playerMove.SetInvincible(0.5f); // 0.5ç§’ã ã‘ç„¡æ•µã«
         yield return null;
     }
     IEnumerator CheckDeathBombRoutine()
@@ -138,23 +138,25 @@ public class PlayerHitHandler : MonoBehaviour
 
         StartCoroutine(ExplosionAndStunRoutine());
     }
-    // --- PlayerHitHandler.cs C³”Å ---
+    // --- PlayerHitHandler.cs ä¿®æ­£ç‰ˆ ---
 
-    // --- PlayerHitHandler.cs C³”Å ---
+    // --- PlayerHitHandler.cs ä¿®æ­£å®Œå…¨ç‰ˆ ---
 
     IEnumerator ExplosionAndStunRoutine()
     {
         Vector3 hitPos = transform.position;
 
-        // 1. y‰‰oŠJnzƒ^ƒCƒ}[’â~ • ‘S‘Ì‚ÌƒVƒ‡ƒbƒg‚¾‚¯‹Ö~‚·‚é
+        // â˜… ä¿®æ­£ï¼šç„¡æ•µçŠ¶æ…‹ä¸­ã®èª¤ä½œå‹•é˜²æ­¢ç”¨ã‚¬ãƒ¼ãƒ‰å¥ã®ã¿ã«å¤‰æ›´
+        // currentState ã®ãƒã‚§ãƒƒã‚¯ã‚’å¤–ã™ã“ã¨ã§ã€OnHitã‹ã‚‰é·ç§»ã—ã¦ããŸæ­£å¸¸ãªè¢«å¼¾ã‚·ãƒ¼ã‚±ãƒ³ã‚¹ã‚’100%é€šã—ã¾ã™
+        if (playerMove.IsInvincible) yield break;
+
+        // 1. ã€æ¼”å‡ºé–‹å§‹ã€‘ã‚¿ã‚¤ãƒãƒ¼åœæ­¢ ï¼† å…¨ä½“ã®ã‚·ãƒ§ãƒƒãƒˆã‚’ç¦æ­¢
         if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
         Time.timeScale = 0.3f;
 
-        // š C³FCanInput ‚Í true ‚Ì‚Ü‚Ü‚É‚·‚éiŸÒ‚Í“®‚¯‚é‚æ‚¤‚Éj
         PlayerMove.CanInput = true;
-        PlayerMove.CanShoot = false; // ƒVƒ‡ƒbƒg‚Í‘Sˆõ‹Ö~
+        PlayerMove.CanShoot = false;
 
-        // ©•ªi‚â‚ç‚ê‚½‘¤j‚ÌHP‚ğ0‚É‚·‚é‰‰o
         if (myStatusManager != null)
         {
             myStatusManager.currentHP = 0;
@@ -163,6 +165,7 @@ public class PlayerHitHandler : MonoBehaviour
 
         bool canContinueMatch = myStatusManager != null && myStatusManager.SubtractLifeAndCheckRebirth();
         ClearAllBullets();
+
         if (!canContinueMatch)
         {
             SEManager.Instance.Play(SEPath.BOSS_END_END, 0.3f);
@@ -170,12 +173,22 @@ public class PlayerHitHandler : MonoBehaviour
 
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
 
-        yield return null;
+        // ğŸŒŸ å…¨å“¡ã®ã‚¹ã‚­ãƒ«ãƒªã‚­ãƒ£ã‚¹ãƒˆã¨æ®‹ã‚³ã‚¹ãƒˆã‚’å³åº§ã«å…¨å¿«ï¼ˆå‰å›ã®è¿½åŠ ãƒ­ã‚¸ãƒƒã‚¯ï¼‰
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p == null) continue;
+            SkillManager sm = p.GetComponentInChildren<SkillManager>();
+            if (sm != null)
+            {
+                sm.InstantFullRecovery();
+            }
+        }
 
+        yield return null;
 
         if (canContinueMatch)
         {
-            // š d—vF‚â‚ç‚ê‚½©•ª‚¾‚¯‚ğ‘€ì•s”\‚É‚·‚é
+            // è¢«å¼¾ã—ãŸè‡ªåˆ†å´ã‚’ä¸€æ™‚æ“ä½œä¸èƒ½ã«ã™ã‚‹
             currentState = PlayerState.Hit;
             if (playerMove != null) playerMove.enabled = false;
 
@@ -183,47 +196,43 @@ public class PlayerHitHandler : MonoBehaviour
 
             if (GameModeManager.IsStoryMode && isHumanPlayer)
             {
-                // --- ƒXƒg[ƒŠ[ƒ‚[ƒhFƒV[ƒ€ƒŒƒX•œ‹A ---
-                yield return new WaitForSecondsRealtime(2.0f);
-                Time.timeScale = 1.0f;
-                yield return new WaitForSeconds(0.2f);
-
-                if (myStatusManager != null) yield return StartCoroutine(myStatusManager.GradualHealthRecovery(1.0f));
-
-                // ©•ª‚Ìó‘Ô‚ğ–ß‚µAŒÂ•Ê‚ÌˆÚ“®‚ğ‹–‰Â‚·‚é
-                currentState = PlayerState.Normal;
-                if (playerMove != null) playerMove.enabled = true; // ©•ª‚ª“®‚¯‚é‚æ‚¤‚É‚È‚é
-
-                playerMove.SetInvincible(invincibilityTime);
-                yield return new WaitForSeconds(invincibilityTime);
-
-                PlayerMove.CanShoot = true; // –³“GI—¹‚ÅƒVƒ‡ƒbƒg‰ğ‹Ö
-                if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
-            }
-            else
-            {
-                // --- CPUí / VSƒ‚[ƒhFƒJƒEƒ“ƒgƒ_ƒEƒ“dØ‚è’¼‚µ ---
                 yield return new WaitForSecondsRealtime(2.0f);
                 Time.timeScale = 1.0f;
                 yield return new WaitForSeconds(1.0f);
 
                 if (myStatusManager != null) yield return StartCoroutine(myStatusManager.GradualHealthRecovery(1.0f));
 
+                currentState = PlayerState.Normal;
+                if (playerMove != null) playerMove.enabled = true;
+
+                playerMove.SetInvincible(invincibilityTime);
+                yield return new WaitForSeconds(invincibilityTime);
+
+                PlayerMove.CanShoot = true;
+                if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+            }
+            else
+            {
+                // --- CPUæˆ¦ / VSãƒ¢ãƒ¼ãƒ‰ï¼šä»•åˆ‡ã‚Šç›´ã—ã‚·ãƒ¼ã‚±ãƒ³ã‚¹ ---
+                yield return new WaitForSecondsRealtime(2.0f);
+                Time.timeScale = 1.0f;
+
+                yield return new WaitForSecondsRealtime(1.0f);
+                // 1Pãƒ»2Pä¸¦åˆ—ã§ã®æ»‘ã‚‰ã‹ãªHPãƒãƒ¼å…¨å›å¾©ã‚’å‘¼ã³å‡ºã—ã€ä»•åˆ‡ã‚Šç›´ã™
                 yield return StartCoroutine(RoundResetSequence());
             }
         }
         else
         {
-            // Œˆ’…
             SetPlayerActiveState(false);
             yield return StartCoroutine(PerformKORoundEndRoutine());
         }
     }
 
-    // š ’Ç‰ÁFˆø‚«•ª‚¯‚Ì‰‰o‚ÆƒŠƒZƒbƒg
+    // â˜… è¿½åŠ ï¼šå¼•ãåˆ†ã‘æ™‚ã®æ¼”å‡ºã¨ãƒªã‚»ãƒƒãƒˆ
     public IEnumerator TriggerDrawSequence()
     {
-        // 1. "DRAW" ‚Æ•\¦‚·‚é
+        // 1. "DRAW" ã¨è¡¨ç¤ºã™ã‚‹
         if (myStatusManager != null && myStatusManager.countdownText != null)
         {
             myStatusManager.countdownText.text = "DRAW";
@@ -231,7 +240,7 @@ public class PlayerHitHandler : MonoBehaviour
             myStatusManager.countdownText.gameObject.SetActive(true);
         }
 
-        // 2•b‚Ù‚ÇuDRAWv‚ğŒ©‚¹‚é
+        // 2ç§’ã»ã©ã€ŒDRAWã€ã‚’è¦‹ã›ã‚‹
         yield return new WaitForSeconds(2.0f);
 
         if (myStatusManager != null && myStatusManager.countdownText != null)
@@ -239,66 +248,83 @@ public class PlayerHitHandler : MonoBehaviour
             myStatusManager.countdownText.gameObject.SetActive(false);
         }
 
-        // 2. ƒ‰ƒCƒt‚ğŒ¸‚ç‚³‚¸‚ÉƒŠƒZƒbƒgƒV[ƒPƒ“ƒX‚ğŒÄ‚Ô
-        // RoundResetSequence‚Í“à•”‚ÅHP‰ñ•œAƒ^ƒCƒ}[ƒŠƒZƒbƒgAƒJƒEƒ“ƒgƒ_ƒEƒ“ŠJn‚ğs‚¤
+        // 2. ãƒ©ã‚¤ãƒ•ã‚’æ¸›ã‚‰ã•ãšã«ãƒªã‚»ãƒƒãƒˆã‚·ãƒ¼ã‚±ãƒ³ã‚¹ã‚’å‘¼ã¶
+        // RoundResetSequenceã¯å†…éƒ¨ã§HPå›å¾©ã€ã‚¿ã‚¤ãƒãƒ¼ãƒªã‚»ãƒƒãƒˆã€ã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³é–‹å§‹ã‚’è¡Œã†
         yield return StartCoroutine(RoundResetSequence());
     }
-    // --- PlayerHitHandler.cs C³”Å ---
+    // --- PlayerHitHandler.cs ä¿®æ­£ç‰ˆ ---
 
     IEnumerator RoundResetSequence()
     {
-        // š C³FˆÃ“]iFadeRoutinej‚ğíœ
-
-        // ƒ^ƒCƒ€ƒXƒP[ƒ‹‚ğ–ß‚·iƒXƒ[‰ğœj
+        // ã‚¿ã‚¤ãƒ ã‚¹ã‚±ãƒ¼ãƒ«ã‚’æˆ»ã™ï¼ˆã‚¹ãƒ­ãƒ¼è§£é™¤ï¼‰
         Time.timeScale = 1.0f;
 
-        // 2. ŠeƒvƒŒƒCƒ„[‚Ìó‘Ô‚ğ•œ‹AiˆÊ’uƒŠƒZƒbƒg‚Ís‚í‚È‚¢j
+        // 1. å„ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®çŠ¶æ…‹ã¨è¡¨ç¤ºã®å¾©å¸°
         foreach (var p in PlayerMove.AllPlayers)
         {
             if (p == null) continue;
 
-            // š C³Fp.transform.position ‚Ì•ÏXiˆÊ’uƒŠƒZƒbƒgj‚ğíœ
-
-            // ó‘Ô‚Æ•`‰æ‚Ì•œ‹A
             PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
             if (hh != null)
             {
-                // ”ñ•\¦‚É‚È‚Á‚Ä‚¢‚½ê‡‚Í•\¦‚É–ß‚µA‘€ì‚ğ—LŒø‰»‚·‚é
                 hh.SetPlayerActiveState(true);
                 hh.currentState = PlayerState.Normal;
             }
+        }
 
-            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-            if (ps != null)
+        // 2. â˜…â˜…â˜… ã€VSãƒ¢ãƒ¼ãƒ‰æ™‚ä¸€æ‹¬ã€‘ä¸¡ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®HPã‚’ä¸¦åˆ—ã§æ»‘ã‚‰ã‹ã«å›å¾©ã•ã›ã‚‹ã‚³ãƒ«ãƒ¼ãƒãƒ³æ¼”å‡ºç¾¤ â˜…â˜…â˜…
+        if (!GameModeManager.IsStoryMode)
+        {
+            // å­˜åœ¨ã™ã‚‹ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®æ•°ã‚’ã‚«ã‚¦ãƒ³ãƒˆ
+            int playerCount = 0;
+            foreach (var p in PlayerMove.AllPlayers) if (p != null) playerCount++;
+
+            Coroutine[] recoveryCoroutines = new Coroutine[playerCount];
+            int idx = 0;
+
+            // å…¨å“¡ã®å›å¾©æ¼”å‡ºï¼ˆGradualHealthRecoveryï¼‰ã‚’åŒæ™‚ã«ã‚­ãƒƒã‚¯ã™ã‚‹
+            foreach (var p in PlayerMove.AllPlayers)
             {
-                // š ƒ‚[ƒh‚É‚æ‚éÅI“¯Šú‚Ì•ªŠò
-                if (GameModeManager.IsStoryMode)
+                if (p == null) continue;
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                if (ps != null)
                 {
-                    // ƒXƒg[ƒŠ[ƒ‚[ƒhF
-                    // HP‚ª–ƒ^ƒ“i”sÒ‚Æ‚µ‚Ä‰ñ•œÏ‚İj‚Ü‚½‚ÍHP‚ª0i”sÒj‚Ì‚İ“¯ŠúB
-                    // ’†“r”¼’[‚ÉHP‚ªc‚Á‚Ä‚¢‚éŸÒ‚Í SyncBarsImmediately ‚ğŒÄ‚Î‚¸A’l‚ğˆÛ‚·‚éB
+                    // 1.0ç§’ã‹ã‘ã¦ç¾åœ¨ã®HPã‹ã‚‰æœ€å¤§HPã¾ã§ã˜ã‚ã˜ã‚å›å¾©ã™ã‚‹ã‚³ãƒ«ãƒ¼ãƒãƒ³ã‚’é…åˆ—ã«ç™»éŒ²ã—ã¦é–‹å§‹
+                    recoveryCoroutines[idx] = StartCoroutine(ps.GradualHealthRecovery(1.0f));
+                    idx++;
+                }
+            }
+
+            // èµ·å‹•ã—ãŸã™ã¹ã¦ã®å›å¾©æ¼”å‡ºãŒå®Œå…¨ã«çµ‚äº†ã™ã‚‹ã¾ã§ã€ã“ã®ãƒ•ãƒ¬ãƒ¼ãƒ ã§åŒæœŸå¾…ã¡ï¼ˆãƒ•ã‚¡ãƒ³ã‚¤ãƒ³åŒæœŸï¼‰
+            for (int i = 0; i < idx; i++)
+            {
+                if (recoveryCoroutines[i] != null) yield return recoveryCoroutines[i];
+            }
+        }
+        else
+        {
+            // ã‚¹ãƒˆãƒ¼ãƒªãƒ¼ãƒ¢ãƒ¼ãƒ‰ï¼šæ—¢å­˜ã®ãƒ«ãƒ¼ãƒ«ï¼ˆæ•—è€…ã®ã¿å…¨å¿«ã—ã¦ã„ã‚‹çŠ¶æ…‹ï¼‰ã‚’é©ç”¨
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                if (ps != null)
+                {
                     if (ps.currentHP >= ps.maxHP || ps.currentHP <= 0)
                     {
                         ps.SyncBarsImmediately();
                     }
                 }
-                else
-                {
-                    // VSƒ‚[ƒhF‘Sˆõ‘S‰õ‚³‚¹‚Ä“¯Šú
-                    ps.SyncBarsImmediately();
-                }
             }
         }
 
-        // 3. ƒ^ƒCƒ}[‚ÌƒŠƒZƒbƒg
+        // 3. ã‚¿ã‚¤ãƒãƒ¼ã®ãƒªã‚»ãƒƒãƒˆ
         if (MatchTimerUI.Instance != null)
         {
             MatchTimerUI.Instance.ResetRoundTimer(99f);
         }
 
-        // š C³F‰æ–Ê‚ğ–¾‚é‚­–ß‚·ƒtƒF[ƒh‚ğíœ
-
-        // 4. ƒJƒEƒ“ƒgƒ_ƒEƒ“‰‰o‚ğŒÄ‚Ño‚·
+        // 4. ã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³æ¼”å‡ºã‚’å‘¼ã³å‡ºã™
         if (GameStartCountdown.Instance != null)
         {
             GameStartCountdown.Instance.StartCountdown();
@@ -309,76 +335,76 @@ public class PlayerHitHandler : MonoBehaviour
         }
         yield return null;
     }
-    // šC³Fw’è‚³‚ê‚½‡˜‚Å‰‰o‚ğÀs‚·‚éƒRƒ‹[ƒ`ƒ“
+    // â˜…ä¿®æ­£ï¼šæŒ‡å®šã•ã‚ŒãŸé †åºã§æ¼”å‡ºã‚’å®Ÿè¡Œã™ã‚‹ã‚³ãƒ«ãƒ¼ãƒãƒ³
     IEnumerator PerformKORoundEndRoutine()
     {
-        // 1. y”í’e‚µ‚½uŠÔzƒXƒ[ƒ‚[ƒVƒ‡ƒ“ŠJn • K.O. •\¦
+        // 1. ã€è¢«å¼¾ã—ãŸç¬é–“ã€‘ã‚¹ãƒ­ãƒ¼ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³é–‹å§‹ ï¼† K.O. è¡¨ç¤º
         Time.timeScale = 0.2f;
 
         if (myStatusManager != null)
         {
-            // K.O. oŒ»ƒAƒjƒ[ƒVƒ‡ƒ“iƒXƒP[ƒ‹ƒAƒbƒv‚È‚Çj
+            // K.O. å‡ºç¾ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ï¼ˆã‚¹ã‚±ãƒ¼ãƒ«ã‚¢ãƒƒãƒ—ãªã©ï¼‰
             yield return myStatusManager.StartCoroutine(myStatusManager.PlayKOAnimation());
         }
 
-        // K.O. ‚ª•\¦‚³‚ê‚½ó‘Ô‚Å­‚µ‘Ò‹@iÀŠÔ‚Åw’èj
+        // K.O. ãŒè¡¨ç¤ºã•ã‚ŒãŸçŠ¶æ…‹ã§å°‘ã—å¾…æ©Ÿï¼ˆå®Ÿæ™‚é–“ã§æŒ‡å®šï¼‰
         yield return new WaitForSecondsRealtime(0.8f);
 
-        // 2. yƒXƒ[‰ğœz • K.O. ƒeƒLƒXƒg‚ğŠŠ‚ç‚©‚ÉÁ‚·
+        // 2. ã€ã‚¹ãƒ­ãƒ¼è§£é™¤ã€‘ ï¼† K.O. ãƒ†ã‚­ã‚¹ãƒˆã‚’æ»‘ã‚‰ã‹ã«æ¶ˆã™
         Time.timeScale = 1.0f;
 
         if (myStatusManager != null && myStatusManager.koText != null)
         {
-            // šC³FŠŠ‚ç‚©‚ÉÁ‹‚·‚éi0.5•b‚©‚¯‚ÄƒtƒF[ƒhƒAƒEƒgj
+            // â˜…ä¿®æ­£ï¼šæ»‘ã‚‰ã‹ã«æ¶ˆå»ã™ã‚‹ï¼ˆ0.5ç§’ã‹ã‘ã¦ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆï¼‰
             yield return myStatusManager.StartCoroutine(myStatusManager.FadeOutKOAnimation(0.5f));
         }
 
         yield return new WaitForSeconds(1.0f);
-        // 3. yŸ—˜ƒƒbƒZ[ƒWzu›› Wins!v‚ğ•\¦
+        // 3. ã€å‹åˆ©ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã€‘ã€Œâ—‹â—‹ Wins!ã€ã‚’è¡¨ç¤º
         ShowWinMessage();
 
-        // Œˆ’…Œã‚Ì—]‰C
+        // æ±ºç€å¾Œã®ä½™éŸ»
         yield return new WaitForSeconds(4.0f);
 
-        // 4. ƒ|[ƒYƒƒjƒ…[iƒQ[ƒ€ƒI[ƒo[‰æ–Êj‚ğ•\¦
+        // 4. ãƒãƒ¼ã‚ºãƒ¡ãƒ‹ãƒ¥ãƒ¼ï¼ˆã‚²ãƒ¼ãƒ ã‚ªãƒ¼ãƒãƒ¼ç”»é¢ï¼‰ã‚’è¡¨ç¤º
         if (myStatusManager != null) myStatusManager.TriggerGameOver();
     }
     /// <summary>
-    /// ƒvƒŒƒCƒ„[ŠK‘w‘S‘Ì‚Ì•\¦E“–‚½‚è”»’èE‘€ì‚ğˆêŠ‡‚ÅØ‚è‘Ö‚¦‚é
+    /// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼éšå±¤å…¨ä½“ã®è¡¨ç¤ºãƒ»å½“ãŸã‚Šåˆ¤å®šãƒ»æ“ä½œã‚’ä¸€æ‹¬ã§åˆ‡ã‚Šæ›¿ãˆã‚‹
     /// </summary>
     private void SetPlayerActiveState(bool active)
     {
-        // 1. eiPlayerƒ‹[ƒgjˆÈ‰º‚Ì‘S‚Ä‚ÌRendereriSpriteRenderer“™j‚ğØ‚è‘Ö‚¦‚é
-        // ‚±‚ê‚É‚æ‚èqƒIƒuƒWƒFƒNƒg‚Ì–îˆó‚È‚Ç‚àˆêŠ‡‚ÅÁ‚¦‚Ü‚·
+        // 1. è¦ªï¼ˆPlayerãƒ«ãƒ¼ãƒˆï¼‰ä»¥ä¸‹ã®å…¨ã¦ã®Rendererï¼ˆSpriteRendererç­‰ï¼‰ã‚’åˆ‡ã‚Šæ›¿ãˆã‚‹
+        // ã“ã‚Œã«ã‚ˆã‚Šå­ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®çŸ¢å°ãªã©ã‚‚ä¸€æ‹¬ã§æ¶ˆãˆã¾ã™
         Renderer[] renderers = transform.parent.GetComponentsInChildren<Renderer>();
         foreach (var r in renderers) r.enabled = active;
 
-        // 2. “–‚½‚è”»’è‚àˆêŠ‡‚ÅØ‚è‘Ö‚¦‚é
-        // Á‚¦‚Ä‚¢‚éŠÔ‚ÉƒAƒCƒeƒ€‚ğE‚Á‚½‚èƒOƒŒƒCƒY‚µ‚½‚è‚·‚é‚Ì‚ğ–h‚¬‚Ü‚·
+        // 2. å½“ãŸã‚Šåˆ¤å®šã‚‚ä¸€æ‹¬ã§åˆ‡ã‚Šæ›¿ãˆã‚‹
+        // æ¶ˆãˆã¦ã„ã‚‹é–“ã«ã‚¢ã‚¤ãƒ†ãƒ ã‚’æ‹¾ã£ãŸã‚Šã‚°ãƒ¬ã‚¤ã‚ºã—ãŸã‚Šã™ã‚‹ã®ã‚’é˜²ãã¾ã™
         Collider2D[] colliders = transform.parent.GetComponentsInChildren<Collider2D>();
         foreach (var c in colliders) c.enabled = active;
 
-        // 3. ˆÚ“®ƒXƒNƒŠƒvƒg‚Ì—LŒø‰»ó‘Ô
+        // 3. ç§»å‹•ã‚¹ã‚¯ãƒªãƒ—ãƒˆã®æœ‰åŠ¹åŒ–çŠ¶æ…‹
         playerMove.enabled = active;
     }
 
     /// <summary>
-    /// ‰æ–Ê“à‚Ì‚·‚×‚Ä‚Ì’e‚ğ’T‚µ‚ÄÁ‹‚·‚éƒwƒ‹ƒp[ƒƒ\ƒbƒh
+    /// ç”»é¢å†…ã®ã™ã¹ã¦ã®å¼¾ã‚’æ¢ã—ã¦æ¶ˆå»ã™ã‚‹ãƒ˜ãƒ«ãƒ‘ãƒ¼ãƒ¡ã‚½ãƒƒãƒ‰
     /// </summary>
     private void ClearAllBullets()
     {
-        // 1. ƒvƒŒƒCƒ„[‚Ì’e‚ğƒGƒtƒFƒNƒg•t‚«‚ÅÁ‹
+        // 1. ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å¼¾ã‚’ã‚¨ãƒ•ã‚§ã‚¯ãƒˆä»˜ãã§æ¶ˆå»
         DanmakuBullet[] playerBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
         foreach (var b in playerBullets)
         {
-            b.Deactivate(true); // true ‚ğ“n‚µ‚ÄƒGƒtƒFƒNƒg‚ğ”­¶‚³‚¹‚é
+            b.Deactivate(true); // true ã‚’æ¸¡ã—ã¦ã‚¨ãƒ•ã‚§ã‚¯ãƒˆã‚’ç™ºç”Ÿã•ã›ã‚‹
         }
 
-        // 2. “G‚Ì’e‚ğƒGƒtƒFƒNƒg•t‚«‚ÅÁ‹
+        // 2. æ•µã®å¼¾ã‚’ã‚¨ãƒ•ã‚§ã‚¯ãƒˆä»˜ãã§æ¶ˆå»
         EnemyBullet[] enemyBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
         foreach (var b in enemyBullets)
         {
-            b.Deactivate(true); // true ‚ğ“n‚µ‚ÄƒGƒtƒFƒNƒg‚ğ”­¶‚³‚¹‚é
+            b.Deactivate(true); // true ã‚’æ¸¡ã—ã¦ã‚¨ãƒ•ã‚§ã‚¯ãƒˆã‚’ç™ºç”Ÿã•ã›ã‚‹
         }
     }
     public void StartRebirthFromContinue()
@@ -390,13 +416,13 @@ public class PlayerHitHandler : MonoBehaviour
     {
         currentState = PlayerState.Rebirth;
 
-        // “oêÀ•W‚ÌŒvZ
+        // ç™»å ´åº§æ¨™ã®è¨ˆç®—
         float spawnX = (myStatusManager != null && myStatusManager.playerId == 2) ? 8.0f : -8.0f;
         float targetX = (myStatusManager != null && myStatusManager.playerId == 2) ? 3.5f : -3.5f;
 
         transform.parent.position = new Vector3(spawnX, 0, 0);
 
-        // š •œŠˆ‚É‘S‚Ä‚ğ•\¦ó‘Ô‚É–ß‚·
+        // â˜… å¾©æ´»æ™‚ã«å…¨ã¦ã‚’è¡¨ç¤ºçŠ¶æ…‹ã«æˆ»ã™
         SetPlayerActiveState(true);
 
         float elapsed = 0;
@@ -414,20 +440,20 @@ public class PlayerHitHandler : MonoBehaviour
         playerMove.SetInvincible(invincibilityTime);
     }
     /// <summary>
-    /// ŸÒi©•ª‚ğ“|‚µ‚½‘Šèj‚Ì–¼‘O‚ğæ“¾‚µ‚Ä•\¦‚·‚é
+    /// å‹è€…ï¼ˆè‡ªåˆ†ã‚’å€’ã—ãŸç›¸æ‰‹ï¼‰ã®åå‰ã‚’å–å¾—ã—ã¦è¡¨ç¤ºã™ã‚‹
     /// </summary>
-    // --- PlayerHitHandler.cs C³”Å ---
+    // --- PlayerHitHandler.cs ä¿®æ­£ç‰ˆ ---
 
     /// <summary>
-    /// ŸÒi©•ª‚ğ“|‚µ‚½‘Šèj‚Ì–¼‘O‚ğæ“¾‚µ‚Ä•\¦‚·‚é
+    /// å‹è€…ï¼ˆè‡ªåˆ†ã‚’å€’ã—ãŸç›¸æ‰‹ï¼‰ã®åå‰ã‚’å–å¾—ã—ã¦è¡¨ç¤ºã™ã‚‹
     /// </summary>
     private void ShowWinMessage()
     {
-        // 1. ‚Ü‚¸‚Íİ’èÏ‚İ‚Ì‘Îí‘ŠèiOpponentj‚ğŸÒŒó•â‚É‚·‚é
+        // 1. ã¾ãšã¯è¨­å®šæ¸ˆã¿ã®å¯¾æˆ¦ç›¸æ‰‹ï¼ˆOpponentï¼‰ã‚’å‹è€…å€™è£œã«ã™ã‚‹
         PlayerMove winner = playerMove.Opponent;
 
-        // šC³F‚à‚µOpponent‚ª–¢İ’è‚È‚çA‘SƒvƒŒƒCƒ„[ƒŠƒXƒg‚©‚ç©•ªˆÈŠO‚Ì‘Šè‚ğŒŸõ‚·‚é
-        // ‚±‚ê‚ÍAƒXƒg[ƒŠ[ƒ‚[ƒh‚ÌCPU‚È‚Ç‚ÅQÆİ’è‚ğ–Y‚ê‚½Û‚ÌuƒtƒF[ƒ‹ƒZ[ƒtv‚É‚È‚è‚Ü‚·
+        // â˜…ä¿®æ­£ï¼šã‚‚ã—OpponentãŒæœªè¨­å®šãªã‚‰ã€å…¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒªã‚¹ãƒˆã‹ã‚‰è‡ªåˆ†ä»¥å¤–ã®ç›¸æ‰‹ã‚’æ¤œç´¢ã™ã‚‹
+        // ã“ã‚Œã¯ã€ã‚¹ãƒˆãƒ¼ãƒªãƒ¼ãƒ¢ãƒ¼ãƒ‰ã®CPUãªã©ã§å‚ç…§è¨­å®šã‚’å¿˜ã‚ŒãŸéš›ã®ã€Œãƒ•ã‚§ãƒ¼ãƒ«ã‚»ãƒ¼ãƒ•ã€ã«ãªã‚Šã¾ã™
         if (winner == null)
         {
             foreach (var p in PlayerMove.AllPlayers)
@@ -440,21 +466,21 @@ public class PlayerHitHandler : MonoBehaviour
             }
         }
 
-        // 2. ŸÒ‚ªŒ©‚Â‚©‚èA‚©‚ÂUI‚ÌQÆ‚ª‚ ‚éê‡‚Ì‚İƒeƒLƒXƒg‚ğXV‚·‚é
+        // 2. å‹è€…ãŒè¦‹ã¤ã‹ã‚Šã€ã‹ã¤UIã®å‚ç…§ãŒã‚ã‚‹å ´åˆã®ã¿ãƒ†ã‚­ã‚¹ãƒˆã‚’æ›´æ–°ã™ã‚‹
         if (winner != null && myStatusManager.winText != null)
         {
             PlayerStatusManager winnerStatus = winner.GetComponent<PlayerStatusManager>();
 
-            // ŸÒ‚Ì–¼‘O‚ğæ“¾i–¢İ’è‚È‚çuPlayerv‚Æ‚·‚éj
+            // å‹è€…ã®åå‰ã‚’å–å¾—ï¼ˆæœªè¨­å®šãªã‚‰ã€ŒPlayerã€ã¨ã™ã‚‹ï¼‰
             string winnerName = (winnerStatus != null && winnerStatus.characterData != null)
                 ? winnerStatus.characterData.characterName
                 : "Player";
 
-            // ƒƒbƒZ[ƒW‚ğu–¼‘O + Wins!v‚ÌŒ`‚ÉXV
+            // ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’ã€Œåå‰ + Wins!ã€ã®å½¢ã«æ›´æ–°
             myStatusManager.winText.text = winnerName + " Wins!";
             myStatusManager.winText.gameObject.SetActive(true);
 
-            // ŸÒ‚ÌƒCƒ[ƒWƒJƒ‰[‚ğ•¶šF‚É”½‰f
+            // å‹è€…ã®ã‚¤ãƒ¡ãƒ¼ã‚¸ã‚«ãƒ©ãƒ¼ã‚’æ–‡å­—è‰²ã«åæ˜ 
             if (winnerStatus != null && winnerStatus.characterData != null)
             {
                 myStatusManager.winText.color = winnerStatus.characterData.imageColor;
@@ -462,7 +488,7 @@ public class PlayerHitHandler : MonoBehaviour
         }
         else
         {
-            // ‚à‚µ–œ‚ªˆêAŸÒ‚ª“Á’è‚Å‚«‚È‚©‚Á‚½ê‡‚ÌƒfƒoƒbƒO—p
+            // ã‚‚ã—ä¸‡ãŒä¸€ã€å‹è€…ãŒç‰¹å®šã§ããªã‹ã£ãŸå ´åˆã®ãƒ‡ãƒãƒƒã‚°ç”¨
             Debug.LogWarning("Winner could not be identified.");
         }
     }

@@ -1,11 +1,11 @@
-// --- PlayerSkillData.cs 修正版 ---
+// --- PlayerSkillData.cs 修正完全版 ---
 using UnityEngine;
 
 public enum SkillPatternType
 {
     Standard, nWay, Round, Polygon, Line, Custom,
-    MovingArc, // ★ 追加：動く弾源パターン // ★ 追加：円弧状に弾源を設置するパターン
-    RandomRound, // ★ 追加：ランダム位置からの全方位弾
+    MovingArc,
+    RandomRound,
     Boomerang,
     DefensiveField,
     ChainRandomAim,
@@ -20,9 +20,11 @@ public class PlayerSkillData : ScriptableObject
     [Header("Character Info")]
     public string characterName = "キャラクター名";
     public Color imageColor = Color.white;
+
     [Header("Character Energy Settings")]
-    public float maxEnergy = 100f;        // 最大コスト
-    public float energyRegenRate = 15f;   // 1秒あたりの回復量（キャラごとに差をつける）
+    public float maxEnergy = 100f;
+    public float energyRegenRate = 15f;
+
     [System.Serializable]
     public struct SkillSettings
     {
@@ -30,7 +32,7 @@ public class PlayerSkillData : ScriptableObject
         public Sprite skillIcon;
         public SkillPatternType patternType;
         public BulletData bulletData;
-        public float cooldown; // ★ これが「次の射撃までの待ち時間」になります
+        public float cooldown;
         public string sePath;
 
         [Header("Pattern Parameters")]
@@ -43,16 +45,16 @@ public class PlayerSkillData : ScriptableObject
         [Header("Effect Parameters")]
         public float delay;
 
-        // ★ maxBurstCount と burstInterval はコスト制への移行に伴い削除
         public float cost;
-        // --- PlayerSkillData.cs (想定) の SkillSettings 構造体内に追記 ---
-        public float ultimateGain; // このスキルを使用した時に溜まるゲージ量
+        public float ultimateGain;
     }
 
-
-    [Header("Skill Definitions")]
+    [Header("Normal Skills")]
     public SkillSettings skillZ;
     public SkillSettings skillX;
     public SkillSettings skillC;
     public SkillSettings skillV;
+
+    [Header("★ Ultimate Skills (Gauge 100% Base)")]
+    public SkillSettings skillEX; // ★追加：インスペクターで完全に独立して設定可能に
 }

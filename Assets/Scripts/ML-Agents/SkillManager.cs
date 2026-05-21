@@ -1,3 +1,4 @@
+ï»¿// --- SkillManager.cs ã€åŒæ™‚æŠ¼ã—æ®‹åƒçµåˆãƒ»ã‚¨ãƒ©ãƒ¼å®Œå…¨è§£æ¶ˆç‰ˆã€‘ ---
 using KanKikuchi.AudioManager;
 using NUnit.Framework;
 using UnityEngine;
@@ -10,49 +11,63 @@ public class SkillManager : MonoBehaviour
     private PlayerMove playerMove;
     private PlayerHitHandler hitHandler;
     private PlayerDanmakuEmitter emitter;
-    [Header("UI Slots")]
+
+    [Header("UI Slots (Normal Skills Only)")]
     public SkillCooldownUI uiZ;
     public SkillCooldownUI uiX;
     public SkillCooldownUI uiC;
     public SkillCooldownUI uiV;
-    // š’Ç‰ÁFŠeƒXƒLƒ‹‚ÌŒ»İ‚Ì˜AË”‚ğƒJƒEƒ“ƒg‚·‚é
+
     private int burstCountZ, burstCountX, burstCountC, burstCountV;
-    // š ’Ç‰ÁF˜AËƒJƒEƒ“ƒg‚ğ•Û‚·‚é—P—\ŠÔƒ^ƒCƒ}[
     private float burstResetTimerZ, burstResetTimerX, burstResetTimerC, burstResetTimerV;
-    private float _recoveryDelayTimer = 0f; // ‰ñ•œŠJn‚Ü‚Å‚Ì‘Ò‹@ƒ^ƒCƒ}[
-    // —P—\ŠÔ‚Ìİ’èi—áF0.5•bŠÔ“ü—Í‚ª‚È‚¯‚ê‚Î˜AËƒJƒEƒ“ƒg‚ğƒŠƒZƒbƒg‚·‚éj
+    private float _recoveryDelayTimer = 0f;
     private const float BURST_RESET_DELAY = 0.5f;
-    private float timerZ, timerX, timerC, timerV;
+    public float timerZ, timerX, timerC, timerV, timerEX;
+
+    private const float EX_COOLDOWN = 2.5f;
+
     [Header("Energy UI")]
-    public EnergyGaugeUI energyGauge; // š ’Ç‰ÁFƒCƒ“ƒXƒyƒNƒ^[‚ÅƒZƒbƒg
+    public EnergyGaugeUI energyGauge;
     [Header("Ultimate UI")]
-    public UltimateGaugeUI ultimateGaugeUI; // ƒCƒ“ƒXƒyƒNƒ^[‚ÅƒZƒbƒg
+    public UltimateGaugeUI ultimateGaugeUI;
+
+    // â˜…â˜…â˜… ã€Input System é©åˆã€‘åŒæ™‚æŠ¼ã—ã‚’æˆç«‹ã•ã›ã‚‹ãŸã‚ã®ãƒªã‚¢ãƒ«ã‚¿ã‚¤ãƒ ãƒ»ã‚¿ã‚¤ãƒ ã‚¹ã‚¿ãƒ³ãƒ—å¤‰æ•° â˜…â˜…â˜…
+    private float _cPressedTimestamp = -100f;
+    private float _vPressedTimestamp = -100f;
+    private const float INTERACTION_WINDOW = 0.08f; // åŒæ™‚æŠ¼ã—ã¨ã—ã¦è¨±å®¹ã™ã‚‹çŒ¶äºˆæ™‚é–“ï¼ˆ0.08ç§’ ï¼ ç´„5ãƒ•ãƒ¬ãƒ¼ãƒ åˆ†ï¼‰
+
+    // â˜… ç‰©ç†ã‚­ãƒ¼ãƒœãƒ¼ãƒ‰ã®è·³ã­è¿”ã‚Šã«ã‚ˆã‚‹å…¥åŠ›å¯¸æ–­ã‚’æ•‘æ¸ˆã™ã‚‹æ®‹åƒã‚«ã‚¦ãƒ³ã‚¿ãƒ¼
+    private int _cHoldFrame = 0;
+    private int _vHoldFrame = 0;
+    private const int HOLD_REMAINS_FRAMES = 5; // é›¢ã•ã‚Œã¦ã‹ã‚‰5ç‰©ç†ãƒ•ãƒ¬ãƒ¼ãƒ ã®é–“ã¯ã€Œã¾ã æŠ¼ã•ã‚Œã¦ã„ã‚‹ã€ã¨è„³å†…ã«æ®‹åƒã‚’æ®‹ã™
+
+    private bool _isExExecutedInThisWindow = false;
+    private PlayerMove.ReplayFrame _lastInput;
+
     void Start()
     {
-        // 1. •K—v‚ÈƒRƒ“ƒ|[ƒlƒ“ƒg‚ğ©g‚Ìe‚âq‚©‚çæ“¾‚·‚éi‚±‚ê‚ª”²‚¯‚Ä‚¢‚Ü‚µ‚½j
         playerMove = GetComponentInParent<PlayerMove>();
         hitHandler = GetComponentInParent<PlayerHitHandler>();
         emitter = GetComponentInParent<PlayerDanmakuEmitter>();
+
         if (ultimateGaugeUI != null && playerMove != null)
         {
             ultimateGaugeUI.Initialize(playerMove);
         }
-        // 2. ©•ª‚ÌƒLƒƒƒ‰ƒNƒ^[ƒf[ƒ^‚ğæ“¾
+
         var status = GetComponentInParent<PlayerStatusManager>();
         if (status != null)
         {
             skillData = status.characterData;
         }
-        // 2. ©•ª‚ÌƒLƒƒƒ‰ƒNƒ^[ƒf[ƒ^‚©‚çÅ‘åƒRƒXƒg‚ğƒZƒbƒg[cite: 10, 12]
+
         if (playerMove != null && skillData != null)
         {
             playerMove.maxEnergy = skillData.maxEnergy;
             playerMove.currentEnergy = skillData.maxEnergy;
-
-            // 3. ƒGƒlƒ‹ƒM[ƒQ[ƒW‚Ì‰Šú‰»
             if (energyGauge != null) energyGauge.Initialize(playerMove);
         }
-        // 3. ƒAƒCƒRƒ“‚ğUI‚ÉƒZƒbƒg‚·‚é
+
         if (skillData != null)
         {
             if (uiZ != null) uiZ.SetSkillIcon(skillData.skillZ.skillIcon);
@@ -60,96 +75,160 @@ public class SkillManager : MonoBehaviour
             if (uiC != null) uiC.SetSkillIcon(skillData.skillC.skillIcon);
             if (uiV != null) uiV.SetSkillIcon(skillData.skillV.skillIcon);
         }
-        else
-        {
-            Debug.LogWarning("SkillManager: characterData ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB");
-        }
     }
-    void FixedUpdate()
+
+    // --- SkillManager.cs ã€ãƒã‚°å®Œå…¨ä¿®æ­£ãƒ»C,Vå˜æŠ¼ã—æœ€é€Ÿè§£æ”¾ç‰ˆã€‘Update å†… ---
+
+    // --- SkillManager.cs ã€æ’ä»–ãƒ¢ãƒ‡ã‚£ãƒ•ã‚¡ã‚¤ã‚¢ï¼ˆExclusive Modifierï¼‰é©åˆç‰ˆã€‘Update å†… ---
+
+    // --- SkillManager.cs ã€ãƒã‚±ãƒ„ãƒªãƒ¬ãƒ¼æ’¤å»ƒãƒ»Inputã‚¢ã‚»ãƒƒãƒˆãƒ€ã‚¤ãƒ¬ã‚¯ãƒˆãƒã‚¤ãƒ³ãƒ‰ç‰ˆã€‘Update å†… ---
+
+    void Update()
     {
         if (playerMove == null || skillData == null) return;
 
-        // 1. ƒGƒlƒ‹ƒM[‚Ì‰ñ•œ”»’èiÀs’†ƒtƒ‰ƒO‚ğŠm”Fj
+        // 1. ã‚¨ãƒãƒ«ã‚®ãƒ¼ã®è‡ªç„¶å›å¾©å‡¦ç†
         if (emitter.IsAnySkillActive)
         {
             _recoveryDelayTimer = 0f;
         }
         else
         {
-            _recoveryDelayTimer += Time.fixedDeltaTime;
+            _recoveryDelayTimer += Time.deltaTime;
         }
 
-        // 2. 1•b‘Ò‹@Œã‚Ì‰ñ•œ
         if (_recoveryDelayTimer >= 0.5f)
         {
             playerMove.currentEnergy = Mathf.Min(
                 skillData.maxEnergy,
-                playerMove.currentEnergy + skillData.energyRegenRate * Time.fixedDeltaTime
+                playerMove.currentEnergy + skillData.energyRegenRate * Time.deltaTime
             );
         }
 
-        // 3. ƒ^ƒCƒ}[XV
+        // 2. ã‚¿ã‚¤ãƒãƒ¼æ›´æ–°
         UpdateTimers();
         UpdateAllCooldownUI();
 
         if (!PlayerMove.CanShoot) return;
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
-        var input = playerMove.currentFrameInput;
+        // --- â˜…â˜…â˜… æ ¸å¿ƒï¼šAIæ€è€ƒã¨äººé–“ãƒ‡ãƒãƒƒã‚°æ“ä½œã®å…¥åŠ›ã‚½ãƒ¼ã‚¹å®Œå…¨æº¶æ¥ â˜…â˜…â˜… ---
+        bool zPressed = false;
+        bool xPressed = false;
+        bool cPressed = false;
+        bool vPressed = false;
+        bool exPressed = false;
 
-        // 4. š C³FƒVƒ“ƒvƒ‹‚È“ü—Íˆ—iƒRƒXƒg‚ÆƒN[ƒ‹ƒ_ƒEƒ“‚Ì‚İj
-        HandleSkillInput(input.shotZ, ref timerZ, skillData.skillZ);
-        HandleSkillInput(input.shotX, ref timerX, skillData.skillX);
-        HandleSkillInput(input.shotC, ref timerC, skillData.skillC);
-        HandleSkillInput(input.shotV, ref timerV, skillData.skillV);
+        DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
+
+        // ğŸŒŸ ä¿®æ­£ã®æ ¸å¿ƒï¼š
+        // ğŸŒŸ ã‚¨ãƒ¼ã‚¸ã‚§ãƒ³ãƒˆã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒå­˜åœ¨ã—ã€ã‹ã¤ã€Œè‡ªå‹•å›é¿AIãƒ¢ãƒ¼ãƒ‰(_useAutoEvadeAI)ã€ãŒONã«ãªã£ã¦ã„ã‚‹æ™‚ã¯ã€
+        // ğŸŒŸ äººé–“ã®ã‚¢ã‚»ãƒƒãƒˆå…¥åŠ›ã‚’ãƒã‚¤ãƒ‘ã‚¹ã—ã€AIãŒæ¯ãƒ•ãƒ¬ãƒ¼ãƒ åãå‡ºã™é«˜ç²¾åº¦ãƒ‘ã‚±ãƒƒãƒˆ(currentFrameInput)ã‚’å®Œå…¨é©ç”¨ã™ã‚‹ï¼
+        if (agent != null && agent._useAutoEvadeAI)
+        {
+            // AIã®é ­è„³ãƒ¢ãƒ‡ãƒ«ãŒèµ°ã£ã¦ã„ã‚‹æ™‚ã€ã¾ãŸã¯è‡ªå¾‹è¡Œå‹•ãƒ‡ãƒãƒƒã‚°æ™‚ã¯ãƒ‘ã‚±ãƒƒãƒˆã‹ã‚‰å®Œå…¨ãƒ‡ã‚³ãƒ¼ãƒ‰
+            var input = playerMove.currentFrameInput;
+            zPressed = input.shotZ;
+            xPressed = input.shotX;
+            cPressed = input.shotC;
+            vPressed = input.shotV;
+            exPressed = input.ultimate;
+        }
+        else
+        {
+            // ğŸŒŸ äººé–“ãŒæ‰‹å‹•ã§ã‚­ãƒ¼ãƒœãƒ¼ãƒ‰æ“ä½œãƒ‡ãƒãƒƒã‚°ã—ã¦ã„ã‚‹æ™‚ã¯ã€InputManagerã‚¢ã‚»ãƒƒãƒˆã‹ã‚‰ç›´æ¥ãƒãƒ¼ãƒªãƒ³ã‚°ï¼
+            if (InputManager.Instance != null)
+            {
+                var inputSet = (playerMove.playerId == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2;
+
+                zPressed = inputSet.skillZ.action.IsPressed();
+                xPressed = inputSet.skillX.action.IsPressed();
+                cPressed = inputSet.skillC.action.IsPressed();
+                vPressed = inputSet.skillV.action.IsPressed();
+
+                if (inputSet.skillEX != null && inputSet.skillEX.action != null)
+                {
+                    exPressed = inputSet.skillEX.action.IsPressed();
+                }
+                else
+                {
+                    exPressed = (cPressed && vPressed);
+                }
+            }
+        }
+
+        // â‘  ã€æœ€å„ªå…ˆï¼šEXå¿…æ®ºæŠ€ï¼ˆã‚¢ã‚¯ã‚·ãƒ§ãƒ³5ç•ªï¼‰ã®å®Ÿè¡Œåˆ¤å®šã€‘
+        // AIã®æˆ¦è¡“çš„ã¶ã£æ”¾ã—ã€ã¾ãŸã¯äººé–“ã®åŒæ™‚æŠ¼ã—ã‚¢ã‚»ãƒƒãƒˆã‚·ã‚°ãƒŠãƒ«ã‚’ãƒ€ã‚¤ãƒ¬ã‚¯ãƒˆã«ç›´æ’ƒã•ã›ã¾ã™
+        if (exPressed)
+        {
+            if (timerEX <= 0f && playerMove.ultimateEnergy >= 100f)
+            {
+                playerMove.ultimateEnergy -= 100f; // 100%æ¶ˆè²»
+                emitter.FireEX(skillData.skillEX); // ç‹¬ç«‹EXæ ã®å°„å‡º
+
+                // å†…éƒ¨ã‚¿ã‚¤ãƒãƒ¼ã‚’ScriptableObjectã‚¢ã‚»ãƒƒãƒˆã®å›ºæœ‰å€¤ã‹ã‚‰è‡ªå‹•åŒæœŸï¼
+                timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
+
+                Debug.Log("<color=orange>â˜…â˜…â˜…â˜…â˜… ã€ç©¶æ¥µå¤§æˆåŠŸã€‘äºŒé‡ãƒã‚±ãƒ„ãƒªãƒ¬ãƒ¼ã‚’æ’¤å»ƒã—ã€AIã‚·ã‚°ãƒŠãƒ«ã¨Inputã‚¢ã‚»ãƒƒãƒˆã®åŒæ–¹ã‹ã‚‰EXå¼¾å¹•ãŒå®Œå…¨è¦šé†’ã—ã¾ã—ãŸï¼ â˜…â˜…â˜…â˜…â˜…</color>");
+            }
+
+            // åŒæ™‚æŠ¼ã—ActionãŒèµ°ã£ã¦ã„ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ ã¯ã€ä¸‹å±¤ã®é€šå¸¸å˜æŠ¼ã—Cãƒ»Vã®ãƒˆãƒ©ãƒ³ã‚¶ã‚¯ã‚·ãƒ§ãƒ³ã‚’100%æ’ä»–ã—ã¦å‡¦ç†ã‚’æŠœã‘ã‚‹
+            return;
+        }
+
+        // â‘¡ ã€é€šå¸¸ã‚¹ã‚­ãƒ«ã®æœ€é€Ÿå®Ÿè¡Œã€‘
+        // åŒæ™‚æŠ¼ã—ï¼ˆEXï¼‰ãŒONã«ãªã£ã¦ã„ãªã„ãƒ—ãƒ¬ãƒ¼ãƒ³ãªãƒ•ãƒ¬ãƒ¼ãƒ ã®æ™‚ã ã‘ã€é€šå¸¸æŠ€ãŒãƒ¬ã‚¤ãƒ†ãƒ³ã‚·ï¼ˆé…å»¶ï¼‰ã‚¼ãƒ­ã§å³åº§ã«å®Ÿè¡Œã•ã‚Œã¾ã™ï¼
+        HandleSkillInput(zPressed, ref timerZ, skillData.skillZ);
+        HandleSkillInput(xPressed, ref timerX, skillData.skillX);
+        HandleSkillInput(cPressed, ref timerC, skillData.skillC);
+        HandleSkillInput(vPressed, ref timerV, skillData.skillV);
     }
 
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
-        // ƒN[ƒ‹ƒ_ƒEƒ“’†A‚Ü‚½‚ÍƒRƒXƒg•s‘«‚Í”­“®‚µ‚È‚¢
         if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)
         {
-            // ”­“®¬Œ÷F‰ñ•œƒ^ƒCƒ}[ƒŠƒZƒbƒg
             _recoveryDelayTimer = 0f;
-
-            // ƒŠƒ\[ƒXÁ”ï
             playerMove.currentEnergy -= settings.cost;
-
-            // ’e‚ÌËo
             emitter.Fire(settings);
-
-            // š C³Fí‚Éİ’è‚³‚ê‚½ cooldown ‚ğƒ^ƒCƒ}[‚ÉƒZƒbƒg‚·‚é
-            // ‚±‚ê‚É‚æ‚èA˜AË‚µ‚½‚¢ƒXƒLƒ‹‚ÍƒCƒ“ƒXƒyƒNƒ^[‚Å cooldown ‚ğ’Z‚­i0.1s‚È‚Çjİ’è‚µA
-            // ‘å‹ZiCƒXƒLƒ‹‚È‚Çj‚Í’·‚­İ’è‚·‚é‚¾‚¯‚Å§Œä‰Â”\‚É‚È‚è‚Ü‚·B
             timer = settings.cooldown;
         }
     }
 
     private void UpdateTimers()
     {
-        float dt = Time.fixedDeltaTime;
+        float dt = Time.deltaTime;
         if (timerZ > 0) timerZ -= dt;
         if (timerX > 0) timerX -= dt;
         if (timerC > 0) timerC -= dt;
         if (timerV > 0) timerV -= dt;
+        if (timerEX > 0) timerEX -= dt;
     }
 
     private void ResetAllTimers()
     {
-        timerZ = timerX = timerC = timerV = 0;
+        timerZ = timerX = timerC = timerV = timerEX = 0;
         burstCountZ = burstCountX = burstCountC = burstCountV = 0;
         burstResetTimerZ = burstResetTimerX = burstResetTimerC = burstResetTimerV = 0;
     }
+
     private void UpdateAllCooldownUI()
     {
         if (skillData == null) return;
-
-        // ‘O‰ñ‚Ì‰ñ“š‚Åì¬‚µ‚½ SkillCooldownUI.UpdateCooldown ‚ğŒÄ‚Ño‚·
         if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
         if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
         if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
         if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
     }
-   
 
+    public void InstantFullRecovery()
+    {
+        ResetAllTimers();
+        if (playerMove != null && skillData != null)
+        {
+            playerMove.currentEnergy = skillData.maxEnergy;
+        }
+        _recoveryDelayTimer = 0f;
+        UpdateAllCooldownUI();
+    }
 }

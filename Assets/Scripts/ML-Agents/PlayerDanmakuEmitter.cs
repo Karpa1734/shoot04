@@ -763,6 +763,519 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
+
+    /// <summary>
+    /// 独立したEX枠のデータを受け取り、パターン（s.patternType）に応じて固有の必殺技をキックする
+    /// </summary>
+    public void FireEX(PlayerSkillData.SkillSettings s)
+    {
+        if (!PlayerMove.CanShoot) return;
+
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
+
+        // 🌟 共通インフラ（硬直制御・例外安全ライフサイクル）を開始
+        StartCoroutine(ExecuteEXInfrastructureRoutine(s));
+    }
+
+    /// <summary>
+    /// EX/超必殺の共通インフラ（器）
+    /// </summary>
+    private IEnumerator ExecuteEXInfrastructureRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        // 発動中の移動速度制限（タメ硬直）をインスペクターの値から適用
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        PlaySkillSE(s.sePath);
+
+        try
+        {
+            // 領域展開（強化ステート）中かどうかのフラグ（将来用）
+            bool isZoneActive = false;
+
+            // 🌟 キャラクターや設定アセットの patternType に応じて完全に美しく分岐
+            switch (s.patternType)
+            {
+                // 【キャラA専用EX】陰陽宝玉・公転慣性ホーミング（旧ボム挙動）
+                case SkillPatternType.Custom:
+                    yield return StartCoroutine(CharA_SealOrbEXPattern(s, myHH, isZoneActive));
+                    break;
+
+                // 🌟【新規追加：キャラB専用EX】時間停止ナイフ・一回転ロックオン超高速直線突撃！
+                // ※ インスペクター（PlayerSkillData）側で、キャラBのEXの patternType を「Line」などに設定してください
+                case SkillPatternType.Line:
+                case SkillPatternType.GreedTaxPossession: // 必要に応じて空いているスロットへマッピング
+                    yield return StartCoroutine(CharB_TimeStopKnifeEXPattern(s, myHH, isZoneActive));
+                    break;
+
+                case SkillPatternType.Standard:
+                    yield return StartCoroutine(CharA_SealOrbEXPattern(s, myHH, isZoneActive));
+                    break;
+
+                default:
+                    Debug.LogWarning($"[FireEX] 未実装のEXパターンタイプです: {s.patternType}");
+                    break;
+            }
+        }
+        finally
+        {
+            // 被弾早期脱出時も100%安全にリセット
+            if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+            _activeSkillCoroutines--;
+        }
+    }
+    /// <summary>
+    /// 【キャラA専用EX】陰陽オーブ公転・ホーミング追従アサルト（公転最終ベクトル・滑らかな慣性遷移再現版）
+    /// </summary>
+    private IEnumerator CharA_SealOrbEXPattern(PlayerSkillData.SkillSettings s, PlayerHitHandler myHH, bool isZoneActive)
+    {
+        int totalOrbs = s.count > 0 ? s.count : 8;
+        if (isZoneActive) totalOrbs = Mathf.RoundToInt(totalOrbs * 1.5f);
+
+        List<ExOrbTrackData> activeOrbs = new List<ExOrbTrackData>();
+        float baseAngleStep = 360f / totalOrbs;
+
+        // --- パラメータ定義（旧SealOrb.csの定数を完全再現） ---
+        const float CONST_SPREAD_SPEED = 0.02f; //
+        const float CONST_ROTATION_SPEED = 4f;   //
+
+        float enemyHomingSpeed = isZoneActive ? s.speed * 1.5f : s.speed;
+        float playerReturnSpeed = enemyHomingSpeed * 0.8f; //
+        SEManager.Instance.Play(SEPath.SLASH, 0.5f);
+        SEManager.Instance.Play(SEPath.LASER7, 0.5f);
+        // =========================================================================
+        // --- 段階1：オーブを一斉に実体化（クッキリ光る加算合成・赤維持） ---
+        // =========================================================================
+        for (int i = 0; i < totalOrbs; i++)
+        {
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
+
+            float startAngle = s.angleOffset + (baseAngleStep * i);
+            GameObject bulletObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
+
+            SpriteRenderer orbSR = bulletObj.GetComponent<SpriteRenderer>();
+            if (orbSR == null) orbSR = bulletObj.GetComponentInChildren<SpriteRenderer>();
+
+            if (orbSR != null && s.bulletData != null)
+            {
+                if (s.bulletData.bulletSprite != null) orbSR.sprite = s.bulletData.bulletSprite;
+
+                Color baseColor = orbSR.color;
+                baseColor.a = 1.0f;
+
+                // 🌟 【最重要リファクタリング】BulletData側でマテリアルが直接指定されているか評価
+                if (s.bulletData.material != null)
+                {
+                    // インスペクターで設定されたこだわりの独自エフェクトマテリアルを最優先で100%完全適用！
+                    orbSR.material = s.bulletData.material;
+                }
+                else
+                {
+                    // マテリアルが未指定(空っぽ)の場合のみ、フォールバックとしてLegacy加算合成を動的生成して救済
+                    Shader additiveShader = Shader.Find("Legacy Shaders/Particles/Additive");
+                    if (additiveShader != null)
+                    {
+                        orbSR.material = new Material(additiveShader);
+                    }
+                }
+            }
+
+            var myStatus = GetComponentInParent<PlayerStatusManager>();
+            int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+            string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
+            int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+            bulletObj.tag = assignedTag;
+            bulletObj.layer = assignedLayer;
+            SetLayerRecursive(bulletObj, assignedLayer);
+
+            activeOrbs.Add(new ExOrbTrackData
+            {
+                tx = bulletObj.transform,
+                angle = startAngle,
+                radius = 0.2f,
+                currentSpeed = 0f // 段階2の物理移動から動的に速度を算出するため初期値は0
+            });
+
+            if (i % 2 == 0) PlaySkillSE(s.sePath);
+            yield return new WaitForFixedUpdate();
+        }
+
+        // =========================================================================
+        // --- 段階2：自機の周りを公転しながらじわじわと外に広がる（120フレーム） ---
+        // =========================================================================
+        int orbitDurationFrames = 60; //
+
+        for (int f = 0; f < orbitDurationFrames; f++)
+        {
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
+
+            Vector3 playerPos = transform.position;
+            for (int i = activeOrbs.Count - 1; i >= 0; i--)
+            {
+                var orb = activeOrbs[i];
+                if (orb.tx == null) { activeOrbs.RemoveAt(i); continue; }
+
+                // 🌟 【旧ボム再現部】1フレーム前の座標を一時記憶
+                Vector3 posBefore = orb.tx.position; //
+
+                orb.angle += CONST_ROTATION_SPEED; //
+                orb.radius += CONST_SPREAD_SPEED;  //
+
+                float rad = orb.angle * Mathf.Deg2Rad; //
+                Vector3 offset = new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * orb.radius; //
+                orb.tx.position = playerPos + offset; //
+
+                // 🌟 【旧ボム再現部】回転による実際の移動速度ベクトルをフレーム間で逆算・備蓄する！
+                // これにより、公転の勢いが乗った最高の初速が自動的に currentSpeed にチャージされます
+                if (Time.fixedDeltaTime > 0)
+                {
+                    orb.currentSpeed = (orb.tx.position - posBefore).magnitude / Time.fixedDeltaTime; //
+                }
+
+                // 見た目の向きを公転の進行方向（接線）へ綺麗に向ける
+                orb.tx.rotation = Quaternion.Euler(0, 0, orb.angle + 90f);
+            }
+
+            yield return new WaitForFixedUpdate();
+        }
+
+        // =========================================================================
+        // --- 段階3：【完全再現】回転の慣性ベクトルを維持したまま、滑らかに追尾へ遷移 ---
+        // =========================================================================
+        Debug.Log("<color=cyan>【EXスキル】ロックオン完了！ 公転ベクトルを引き継いで滑らかな追尾を開始します！</color>");
+
+        for (int i = 0; i < activeOrbs.Count; i++)
+        {
+            var orb = activeOrbs[i];
+            if (orb.tx == null) continue;
+
+            DanmakuBullet bullet = orb.tx.GetComponent<DanmakuBullet>();
+            if (bullet == null) bullet = orb.tx.gameObject.AddComponent<DanmakuBullet>();
+
+            float currentHomingAngle = GetAngleToTarget(orb.tx.position) + s.angleOffset;
+
+            // 当たり判定インフラの結合
+            bullet.Initialize(_rootOwner, targetTag, enemyHomingSpeed, currentHomingAngle, 0f, enemyHomingSpeed, 0f, 0f, s.bulletData, true);
+            bullet.isMovementSuspended = true;
+
+            // 🚨【大修正】急激な角度のワープを防止！
+            // 元の SealOrb.cs と同様に、それまで回転していた角度（orb.angle）のコンテキストをリセットせずそのまま維持。
+            // 進行方向（見た目の向き）をホーミング遷移用の初期ベクトル（+90f）に補正する仕様を完全トレースします。
+            orb.angle += 90f; //
+        }
+
+        PlaySkillSE(s.sePath);
+
+        float homingTimer = 0;
+        float maxHomingTime = 180f; // 約3秒間の永続チェイス
+
+        while (homingTimer < maxHomingTime && activeOrbs.Count > 0)
+        {
+            if (!PlayerMove.CanShoot) yield break;
+
+            float dt = Time.fixedDeltaTime;
+
+            for (int i = activeOrbs.Count - 1; i >= 0; i--)
+            {
+                var orb = activeOrbs[i];
+                if (orb.tx == null) { activeOrbs.RemoveAt(i); continue; }
+
+                Vector3 destination;
+                float homingDamp;
+                float targetSpeed;
+
+                PlayerMove targetPlayer = null;
+                foreach (var p in PlayerMove.AllPlayers)
+                {
+                    if (p != null && p.gameObject != _rootOwner)
+                    {
+                        targetPlayer = p;
+                        break;
+                    }
+                }
+
+                if (targetPlayer != null)
+                {
+                    destination = targetPlayer.transform.position;
+                    homingDamp = 24f;               // 🌟 前回の調整に基づき、美しく避けるためにキレを「12f」の甘め設定へ統合
+                    targetSpeed = enemyHomingSpeed;
+                }
+                else
+                {
+                    destination = _rootOwner != null ? _rootOwner.transform.position : transform.position;
+                    homingDamp = 12f;
+                    targetSpeed = playerReturnSpeed;
+                }
+
+                // 高精度旋回ロジック（旧SealOrb.csと100%一致）
+                Vector3 diff = destination - orb.tx.position;
+                float targetAngleRad = Mathf.Atan2(diff.y, diff.x);
+                float judgangle = Mathf.Sin(targetAngleRad - (orb.angle * Mathf.Deg2Rad));
+
+                if (Mathf.Abs(judgangle) > 0.05f)
+                    orb.angle += Mathf.Asin(judgangle) * Mathf.Rad2Deg / homingDamp;
+                else
+                    orb.angle = targetAngleRad * Mathf.Rad2Deg; //
+
+                // 🌟 【滑らかなベクトルの架け橋】
+                // 段階2の最終フレームで逆算された「回転の速度（大体15〜20前後の高速）」から、
+                // 必殺技データで指定された「目標巡航速度（s.speed）」に向けて、毎フレーム 0.15f の比率でヌルッと滑らかに減速・補間される！
+                orb.currentSpeed = Mathf.Lerp(orb.currentSpeed, targetSpeed, 0.15f); //
+
+                // 回転の適用と、速度相殺のないスムーズな等速スライド加算
+                orb.tx.rotation = Quaternion.Euler(0, 0, orb.angle);
+                float rad = orb.angle * Mathf.Deg2Rad; //
+                orb.tx.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * orb.currentSpeed * dt; //
+            }
+
+            homingTimer++;
+            yield return new WaitForFixedUpdate();
+        }
+
+        // =========================================================================
+        // --- 段階4：時間切れ慣性直進フェーズ ---
+        // =========================================================================
+        Debug.Log("<color=gray>[EXスキル] 追尾時間が終了しました。残存オーブを慣性直進へ解放します。</color>");
+
+        while (activeOrbs.Count > 0)
+        {
+            if (!PlayerMove.CanShoot) yield break;
+
+            float dt = Time.fixedDeltaTime;
+
+            for (int i = activeOrbs.Count - 1; i >= 0; i--)
+            {
+                var orb = activeOrbs[i];
+                if (orb.tx == null) { activeOrbs.RemoveAt(i); continue; }
+
+                float rad = orb.angle * Mathf.Deg2Rad;
+                orb.tx.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * orb.currentSpeed * dt; //
+
+                if (Mathf.Abs(orb.tx.position.x) > 10.0f || Mathf.Abs(orb.tx.position.y) > 10.0f)
+                {
+                    DanmakuBullet bullet = orb.tx.GetComponent<DanmakuBullet>();
+                    if (bullet != null)
+                    {
+                        bullet.isMovementSuspended = false;
+                        bullet.Deactivate(false); //
+                    }
+                    else
+                    {
+                        Destroy(orb.tx.gameObject);
+                    }
+                    activeOrbs.RemoveAt(i);
+                }
+            }
+
+            yield return new WaitForFixedUpdate();
+        }
+        activeOrbs.Clear();
+    }
+    /// <summary>
+    /// 【キャラB専用EX】時間停止ナイフ・一回転ロックオン・超高速直線突撃（過去物理・Curve02_2完全再現版）
+    /// 特徴：自機中心から発射され、0.06秒進んだ先で停止(判定OFF)、その場で360度スピンし、完了後に敵を1.5倍速の一直線で射抜く
+    /// </summary>
+    private IEnumerator CharB_TimeStopKnifeEXPattern(PlayerSkillData.SkillSettings s, PlayerHitHandler myHH, bool isZoneActive)
+    {
+        // インスペクターのCountをベースに、展開するナイフの総数を決定
+        int totalKnives = s.count > 0 ? s.count : 12;
+        if (isZoneActive) totalKnives = Mathf.RoundToInt(totalKnives * 1.5f);
+
+        List<ExKnifeTrackData> activeKnives = new List<ExKnifeTrackData>();
+
+        // 過去コード再現：発射時の初期速度（初速はマイルドに飛び出す）
+        float initialSpeed = s.speed;
+
+        // 過去コード再現：突撃時は初速の1.5倍の超高速で一直線に撃ち抜く
+        float dashSpeed = isZoneActive ? (initialSpeed * 1.5f) * 1.3f : initialSpeed * 1.5f;
+
+        // 敵の方向を基準とした広角Nway（全方位）の角度計算
+        float targetAimAngle = GetAngleToTarget();
+        float totalSpreadAngle = s.wideAngle > 0f ? s.wideAngle : 360f;
+        float startAngle = targetAimAngle - (totalSpreadAngle / 2f);
+        float angleStep = totalKnives > 1 ? totalSpreadAngle / (totalKnives - 1) : 0f;
+
+        // =========================================================================
+        // --- 段階1：【自機中心から射出】 初期速度を持ってNway状に弾源から飛び出す ---
+        // =========================================================================
+        for (int i = 0; i < totalKnives; i++)
+        {
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
+
+            // 過去コードの「angleZ」をNwayマトリクスに落とし込み
+            float knifeAngle = startAngle + (angleStep * i);
+
+            // 過去コード通り：完全に自機中心（transform.position）から実体化して発射
+            Vector3 spawnPos = transform.position;
+
+            GameObject knifeObj = Instantiate(s.bulletData.bulletPrefab, spawnPos, Quaternion.identity);
+
+            // チームの所属タグ・レイヤーを動的自動結合
+            var myStatus = GetComponentInParent<PlayerStatusManager>();
+            int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+            string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
+            int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+            knifeObj.tag = assignedTag;
+            knifeObj.layer = assignedLayer;
+            SetLayerRecursive(knifeObj, assignedLayer);
+
+            // コンポーネントを取得
+            DanmakuBullet bullet = knifeObj.GetComponent<DanmakuBullet>();
+            if (bullet == null) bullet = knifeObj.AddComponent<DanmakuBullet>();
+
+            // 🌟 核心：自動前進物理をサスペンド（ON）にし、移動の主導権をこの過去数式ループへ完全委譲
+            bullet.Initialize(_rootOwner, targetTag, initialSpeed, knifeAngle, 8.0f, initialSpeed, 0f, 0f, s.bulletData, false);
+            bullet.isMovementSuspended = true;
+
+            // 過去コード再現：画像そのまま（加算合成なし設定）
+            SpriteRenderer knifeSR = knifeObj.GetComponent<SpriteRenderer>();
+            if (knifeSR == null) knifeSR = knifeObj.GetComponentInChildren<SpriteRenderer>();
+            if (knifeSR != null && s.bulletData != null)
+            {
+                if (s.bulletData.bulletSprite != null) knifeSR.sprite = s.bulletData.bulletSprite;
+                if (s.bulletData.material != null) knifeSR.material = s.bulletData.material;
+
+                Color baseColor = s.bulletData.breakColor != Color.clear ? s.bulletData.breakColor : Color.white;
+                baseColor.a = 1.0f;
+                knifeSR.color = baseColor;
+            }
+
+            // データスタックへ登録
+            activeKnives.Add(new ExKnifeTrackData
+            {
+                tx = knifeObj.transform,
+                bulletComp = bullet,
+                col = knifeObj.GetComponent<CircleCollider2D>(),
+                baseAngle = knifeAngle,
+                currentAngle = knifeAngle,
+                speed = initialSpeed,
+                stateTimer = 0f
+            });
+
+            // 過去コードの「WaitForSeconds(0.06f)」の連射ディレイをFixedUpdate（約4フレーム）で完全トレース
+            for (int f = 0; f < 4; f++) yield return new WaitForFixedUpdate();
+        }
+
+
+        // =========================================================================
+        // --- 段階2：【0.06秒後に一時停止 ➔ 判定OFF ➔ その場で360度カチカチ回転スピン】 ---
+        // =========================================================================
+        // 過去コード「for (int i = 0; i < 360; i += 12)」をタイムラインへ完全移植
+        for (int rotationAngleDelta = 0; rotationAngleDelta < 360; rotationAngleDelta += 12)
+        {
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) yield break;
+
+            float dt = Time.fixedDeltaTime;
+
+            for (int i = 0; i < activeKnives.Count; i++)
+            {
+                var knife = activeKnives[i];
+                if (knife.tx == null) continue;
+
+                // 過去コードの「yield return new WaitForSeconds(0.06f)」に達するまでは初速で前進
+                if (knife.stateTimer < 0.06f)
+                {
+                    knife.stateTimer += dt;
+                    float rad = knife.baseAngle * Mathf.Deg2Rad;
+                    knife.tx.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * knife.speed * dt;
+
+                    // 進行方向を向く（angle - 90）
+                    knife.tx.rotation = Quaternion.Euler(0, 0, knife.baseAngle - 90f);
+                }
+                else
+                {
+                    // 🌟【過去コード完全再現部】0.06秒進んだ先で、速度が0になり、当たり判定が完全に消滅（damage = 0）
+                    knife.speed = 0f;
+                    if (knife.col != null) knife.col.enabled = false; // 当たり判定を完全に一時遮断！
+
+                    // その場で「i += 12」ずつ360度カチカチと回転スピンする
+                    knife.currentAngle = knife.baseAngle + rotationAngleDelta;
+                    knife.tx.rotation = Quaternion.Euler(0, 0, knife.currentAngle - 90f);
+                }
+            }
+
+            // カチカチと1コマずつ回る静止時間（1物理フレーム待機）
+            yield return new WaitForFixedUpdate();
+        }
+
+        // =========================================================================
+        // --- 段階3：【時間再開・一直線一斉突撃】 一番近い敵をロックし1.5倍速で撃ち抜く ---
+        // =========================================================================
+        Debug.Log("<color=pink>⏳『世界は動き出す――。』 過去物理準拠・超高速直線突撃！</color>");
+
+        for (int i = 0; i < activeKnives.Count; i++)
+        {
+            var knife = activeKnives[i];
+            if (knife.tx == null) continue;
+
+            // 過去コード再現：ターゲット（もっとも近い敵）をサーチして角度を再計算
+            float finalAimAngle = knife.baseAngle; // 敵がいない場合の正面ベクトル
+
+            Transform nearestEnemy = null;
+            float minDistance = Mathf.Infinity;
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p != null && p.gameObject != _rootOwner)
+                {
+                    float dist = Vector3.Distance(knife.tx.position, p.transform.position);
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        nearestEnemy = p.transform;
+                    }
+                }
+            }
+
+            if (nearestEnemy != null)
+            {
+                // 過去コード「angle = GetAngle(gameObject, target);」
+                Vector3 dir = nearestEnemy.position - knife.tx.position;
+                finalAimAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            }
+
+            // 過去コード再現：突撃角度の再確定、速度は1.5倍へ、当たり判定の復活（damage = def_d）
+            knife.currentAngle = finalAimAngle;
+            knife.speed = dashSpeed;
+            if (knife.col != null) knife.col.enabled = true; // コライダーを安全に完全復旧！
+
+            // 銃口を敵機へ「ガチッ」と完全に向け直す
+            knife.tx.rotation = Quaternion.Euler(0, 0, knife.currentAngle - 90f);
+
+            // 🌟 物理の解放：DanmakuBulletの制御スイッチを安全に戻して、等速直線運動で画面外へバリアント射出！
+            if (knife.bulletComp != null)
+            {
+                // Initializeを最新の突撃角度と1.5倍速のパラメータで上書き再バインドし、直進物理をキック！
+                knife.bulletComp.isMovementSuspended = false;
+                knife.bulletComp.Initialize(_rootOwner, targetTag, knife.speed, knife.currentAngle, 0f, knife.speed, 0f, 0f, s.bulletData, false);
+            }
+        }
+
+        yield return null;
+    }
+
+    // キャラB専用の内部追跡データクラス
+    private class ExKnifeTrackData
+    {
+        public Transform tx;
+        public DanmakuBullet bulletComp;
+        public CircleCollider2D col;
+        public float baseAngle;
+        public float currentAngle;
+        public float speed;
+        public float stateTimer;
+    }
+    // 拡張した内部データ管理クラス
+    private class ExOrbTrackData
+    {
+        public Transform tx;
+        public float angle;
+        public float radius;
+        public float currentSpeed; // 慣性等速ホーミング用の速度スタック
+    }
+
     private void PlaySkillSE(string path)
     {
         string clip = string.IsNullOrEmpty(path) ? SEPath.SHOT1 : path;
