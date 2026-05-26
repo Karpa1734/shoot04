@@ -1,3 +1,4 @@
+ï»¿// --- PlayerStatusManager.cs ã€VSå‹æ˜Ÿãƒã‚°ãƒ»2å‹ãƒªãƒ¼ã‚µãƒ«å®Œå…¨æ±ºç€ç‰ˆã€‘ ---
 using KanKikuchi.AudioManager;
 using System.Collections;
 using TMPro;
@@ -5,10 +6,10 @@ using UnityEngine;
 
 public class PlayerStatusManager : MonoBehaviour
 {
-    // š Instance‚ğ”p~‚µ‚½‚½‚ßA playerId ‚ÅŒÂ‘Ì¯•Ê‚µ‚Ü‚·
     [Header("Player Settings")]
     public int playerId = 1;
-    public PlayerSkillData characterData; // š’Ç‰ÁF©g‚ÌƒLƒƒƒ‰ƒf[ƒ^(ScriptableObject)
+    public PlayerSkillData characterData;
+
     [Header("Resources")]
     public int life = 2;
     public int bomb = 3;
@@ -16,9 +17,9 @@ public class PlayerStatusManager : MonoBehaviour
     public int maxPower = 128;
     public int initialLife = 2;
     public int initialSpell = 3;
-    public float currentHP = 50f; // š ƒ‰ƒCƒt”(int)‚©‚çHP(float)‚Ö
+    public float currentHP = 50f;
     public float maxHP = 50f;
-    public int stockLives = 2;      // ]—ˆ‚Ìƒ‰ƒCƒt‚Íuc‹@iƒXƒgƒbƒNjv‚Æ‚µ‚Ä•Û
+    public int stockLives = 2;
 
     [Header("Piece Settings")]
     public int lifePieces = 0;
@@ -31,16 +32,17 @@ public class PlayerStatusManager : MonoBehaviour
     public float deathBombTimer = 0f;
 
     [Header("Statistics")]
-    public int continueCount = 0; // ƒRƒ“ƒeƒBƒjƒ…[‰ñ”
-    public TextMeshProUGUI countdownText; // š’Ç‰ÁFƒJƒEƒ“ƒgƒ_ƒEƒ“•\¦—p‚ÌTMP
+    public int continueCount = 0;
+    public TextMeshProUGUI countdownText;
 
     [Header("UI References")]
     public PlayerStatusUI lifeUI;
     public PlayerStatusUI spellUI;
     public ExtendNotificationUI extendUI;
-    // --- PlayerStatusManager.cs C³‰ÓŠ ---
+
     [Header("Round Transition")]
-    public CanvasGroup screenFader; // ‰æ–Ê‘S‘Ì‚ğ•¢‚¤•‚¢ƒpƒlƒ‹iCanvasGroupj
+    public CanvasGroup screenFader;
+
     [Header("Global References")]
     public PauseManager pauseManager;
 
@@ -48,13 +50,14 @@ public class PlayerStatusManager : MonoBehaviour
 
     public bool IsInvincible => invincibleTimer > 0;
     public bool IsDeathBombWindow => deathBombTimer > 0;
-    // š’Ç‰ÁFHPƒo[iSliderj‚ÌQÆ
-    public TextMeshProUGUI characterNameText; // š’Ç‰ÁF–¼‘O•\¦—pUI
-    public TextMeshProUGUI winText; // š’Ç‰ÁF‰æ–Ê’†‰›‚É‘å‚«‚­uWins!v‚Æo‚·—p‚ÌƒeƒLƒXƒg
-    public TextMeshProUGUI koText; // š’Ç‰ÁFuK.O.v•\¦—pƒeƒLƒXƒg
+
+    public TextMeshProUGUI characterNameText;
+    public TextMeshProUGUI winText;
+    public TextMeshProUGUI koText;
     public UnityEngine.UI.Slider hpBar;
-    public UnityEngine.UI.Slider orangeBar; // š’Ç‰ÁF”w–Ê‚ÌŒ¸­—pƒo[iƒIƒŒƒ“ƒWj
-    public float lerpSpeed = 2.0f;          // š’Ç‰ÁFƒIƒŒƒ“ƒWƒo[‚ª’Ç‚¢‚Â‚­ƒXƒs[ƒh
+    public UnityEngine.UI.Slider orangeBar;
+    public float lerpSpeed = 2.0f;
+
     void Awake()
     {
         _playerMove = GetComponent<PlayerMove>();
@@ -63,7 +66,6 @@ public class PlayerStatusManager : MonoBehaviour
         {
             stockLives = 0; life = 0; bomb = 0;
         }
-        // š ƒXƒg[ƒŠ[ƒ‚[ƒhF3‹@i‰ŠúƒXƒgƒbƒN2j
         else if (GameModeManager.IsStoryMode)
         {
             initialLife = 3;
@@ -71,42 +73,52 @@ public class PlayerStatusManager : MonoBehaviour
             life = 3;
             bomb = initialSpell;
         }
-        // š ‘Îíƒ‚[ƒhF1ƒXƒgƒbƒNi‰Šúƒ‰ƒCƒt1j
-        // ¦ 2ƒ}ƒbƒ`ææi2‰ñ•‰‚¯‚½‚çI‚í‚èj‚ğ‘z’è‚µ‚½İ’è
         else
         {
-            initialLife = 1;
-            stockLives = 1;
-            life = 1;
+            // ğŸŒŸ VSãƒ¢ãƒ¼ãƒ‰ï¼šåˆæœŸå€¤è¨­å®š
+            initialLife = 2;   // 2ãƒãƒƒãƒå…ˆå–ï¼ˆ2å›æ’ƒç ´ã§ã‚²ãƒ¼ãƒ ã‚»ãƒƒãƒˆï¼‰
+            stockLives = 2;    // æ®‹ã‚Šä½“åŠ›ï¼ˆ2å›æ­»ã‚“ã ã‚‰çµ‚ã‚ã‚Šï¼‰
+            life = 0;          // ç²å¾—ã—ãŸå‹æ˜Ÿï¼ˆæœ€åˆã¯0å€‹ç‚¹ç¯ï¼‰
             bomb = initialSpell;
         }
     }
 
     void Start()
     {
+        currentHP = maxHP;
+        bomb = initialSpell;
+
+        // ğŸŒŸ ä¿®æ­£ã®æ ¸å¿ƒï¼šStart() ã§ã® life = initialLife; ã®èª¤ä¸Šæ›¸ãã‚’å®Œå…¨æ’¤å»ƒï¼
+        // ã“ã‚Œã«ã‚ˆã‚Šã€VSãƒ¢ãƒ¼ãƒ‰æ™‚ã«0ç‚¹ç¯ã‹ã‚‰æ­£å¸¸ã‚¹ã‚¿ãƒ¼ãƒˆã™ã‚‹ã‚ˆã†ã«ãªã‚Šã¾ã™ã€‚
+        if (GameModeManager.IsStoryMode)
+        {
+            life = initialLife;
+        }
+
         ApplyCharacterSettings();
         StartCoroutine(SetupInitialUI());
+        StartCoroutine(InitUIWithDelay());
     }
-    /// <summary>
-    /// w’è‚µ‚½ŠÔ‚ğ‚©‚¯‚ÄHP‚ğÅ‘å‚Ü‚Å‰ñ•œ‚³‚¹‚é
-    /// </summary>
-  
+
+    private IEnumerator InitUIWithDelay()
+    {
+        yield return null;
+        UpdateUI();
+    }
+
     private IEnumerator SetupInitialUI()
     {
         yield return null;
-
-        // Œ»İ‚ÌHP‚ğÅ‘å’l‚ÉƒŠƒZƒbƒgi”O‚Ì‚½‚ßj
         currentHP = maxHP;
-
         UpdateUI();
 
-        // š ’Ç‰ÁFƒQ[ƒ€ŠJn‚ÉƒIƒŒƒ“ƒW‚Ìƒo[‚ğŒ»İ‚ÌHPi–ƒ^ƒ“j‚É“¯Šú‚³‚¹‚é
         if (orangeBar != null)
         {
             orangeBar.maxValue = maxHP;
             orangeBar.value = currentHP;
         }
     }
+
     private void ApplyCharacterSettings()
     {
         if (characterData != null)
@@ -116,48 +128,84 @@ public class PlayerStatusManager : MonoBehaviour
                 characterNameText.text = characterData.characterName;
                 characterNameText.color = characterData.imageColor;
             }
-/*
-            // ‚¨D‚İ‚ÅFHPƒo[‚ÌF‚àƒCƒ[ƒWƒJƒ‰[‚É‡‚í‚¹‚éê‡
-            if (hpBar != null)
-            {
-                var fill = hpBar.fillRect.GetComponent<UnityEngine.UI.Image>();
-                if (fill != null) fill.color = characterData.imageColor;
-            }
-  */      }
+        }
     }
+
+    /// <summary>
+    /// ğŸŒŸ ä¿®æ­£ã®æ ¸å¿ƒï¼šVSãƒ¢ãƒ¼ãƒ‰ã®2æœ¬å…ˆå–ãƒªãƒ¼ã‚µãƒ«åˆ¤å®šã‚’å®Œå…¨çµ„ã¿è¾¼ã¿
+    /// </summary>
     public bool SubtractLifeAndCheckRebirth()
     {
         if (stockLives > 0)
         {
             stockLives--;
-            life = stockLives;
 
-            // š íœF‚±‚±‚É‚ ‚Á‚½ currentHP = maxHP; ‚ğÁ‚·B
-            // ‚±‚ê‚É‚æ‚èA”sÒ‚ÍHP 0i‹ó‚Ìƒo[j‚Ì‚Ü‚ÜƒXƒ^ƒ“ŠÔ‚ğŒ}‚¦‚Ü‚·B
+            if (GameModeManager.IsStoryMode)
+            {
+                life = stockLives;
+                UpdateUI();
+                return true; // ã‚¹ãƒˆãƒ¼ãƒªãƒ¼ã¯æ®‹æ©ŸãŒã‚ã‚‹é™ã‚Šå¾©æ´»å¯èƒ½
+            }
+            else
+            {
+                // =========================================================================
+                // ğŸŒŸã€VSãƒ¢ãƒ¼ãƒ‰ï¼šå‹æ˜ŸåŠ ç®— ï¼† 2å‹å…ˆå–ã®å®Œå…¨æ±ºç€ã‚¸ãƒ£ãƒƒã‚¸ã€‘
+                // =========================================================================
+                if (_playerMove != null && _playerMove.Opponent != null)
+                {
+                    PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                    if (oppStatus != null)
+                    {
+                        // 1. å‹ã£ãŸå´ï¼ˆå¯¾æˆ¦ç›¸æ‰‹ï¼‰ã®æ˜Ÿã‚’å¢—ã‚„ã™
+                        oppStatus.life++;
+                        oppStatus.UpdateUI();
 
-            UpdateUI();
-            return true;
+                        // 2. ğŸš¨ã€è¶…é‡è¦ã€‘ï¼šã‚‚ã—ç›¸æ‰‹ãŒã€Œ2å‹ã€ã«é”ã—ãŸã‚‰ã€ã“ã®ç¬é–“ã«è©¦åˆå®Œå…¨æ±ºç€ï¼
+                        if (oppStatus.life >= 2)
+                        {
+                            UpdateUI(); // è‡ªåˆ†ã®UIã‚‚æœ€çµ‚åŒæœŸï¼ˆè‡ªåˆ†ã®å…¨æ•—ãŒç¢ºå®šï¼‰
+                            return false; // âŒ å¾©æ´»ã‚’ã€Œæ‹’å¦ã€ã—ã¦ã€å®Œå…¨ãªã‚‹çˆ†æ•£ã‚²ãƒ¼ãƒ ã‚»ãƒƒãƒˆã¸è½ã¨ã™
+                        }
+                    }
+                }
+
+                UpdateUI();
+                return true; // ã¾ã ç›¸æ‰‹ãŒ2å‹æœªæº€ï¼ˆ1å‹ç›®ãªã©ï¼‰ãªã‚‰ã€æ¬¡ã®ãƒ©ã‚¦ãƒ³ãƒ‰ã¸ä»•åˆ‡ã‚Šç›´ã—ï¼ˆå¾©æ´»ï¼‰
+            }
         }
         return false;
     }
 
-    // ”sÒ•œŠˆ‚Ì‰ñ•œ‰‰oi0‚©‚ç1•b‚©‚¯‚Ä‰ñ•œj
     public IEnumerator GradualHealthRecovery(float duration)
     {
         float startHP = currentHP;
         float elapsed = 0;
 
+        // ğŸŒŸã€æœ€é‡è¦ã€‘ï¼šå›å¾©ãŒå§‹ã¾ã‚‹ç¬é–“ã«ã€èƒŒé¢ã®ã‚ªãƒ¬ãƒ³ã‚¸ãƒãƒ¼ã‚’ç¾åœ¨ã®ä½ã„HPï¼ˆstartHPï¼‰ã«ã‚¬ãƒãƒƒã¨åˆã‚ã›ã‚‹ï¼
+        // ã“ã‚Œã«ã‚ˆã‚Šã€æ¸›å°‘è£œå®Œãƒ­ã‚¸ãƒƒã‚¯ã®ãƒãƒƒãƒ†ã‚£ãƒ³ã‚°ã‚„å–ã‚Šæ®‹ã—ã‚’å®Œç’§ã«é˜²ãã¾ã™ã€‚
+        if (orangeBar != null)
+        {
+            orangeBar.maxValue = maxHP;
+            orangeBar.value = startHP;
+        }
+
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
             currentHP = Mathf.Lerp(startHP, maxHP, elapsed / duration);
+
+            // æ¯ãƒ•ãƒ¬ãƒ¼ãƒ UIã‚’æ›´æ–°ã—ã€è£ã®ãƒãƒ¼ã‚‚ä¸€ç·’ã«å¼•ãä¸Šã’ã¾ã™
             UpdateUI();
             yield return null;
         }
+
         currentHP = maxHP;
         UpdateUI();
+
+        // ğŸŒŸã€å¿µæŠ¼ã—ã€‘ï¼šå›å¾©å®Œäº†æ™‚ã«ã€åŒæ–¹ã®ãƒãƒ¼ãŒå®Œå…¨ã«æº€ã‚¿ãƒ³ï¼ˆmaxHPï¼‰ã§ä¸€è‡´ã™ã‚‹ã‚ˆã†ã«å®Œå…¨ãƒ›ãƒ¼ãƒ«ãƒ‰
+        if (orangeBar != null) orangeBar.value = maxHP;
     }
-    // ‰æ–Ê‚ğƒtƒF[ƒh‚³‚¹‚éƒRƒ‹[ƒ`ƒ“
+
     public IEnumerator FadeRoutine(float targetAlpha, float duration)
     {
         if (screenFader == null) yield break;
@@ -165,27 +213,25 @@ public class PlayerStatusManager : MonoBehaviour
         float elapsed = 0;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime; // ƒXƒ[’†‚Å‚à“®‚­‚æ‚¤‚ÉÀŠÔ‚ğg—p
+            elapsed += Time.unscaledDeltaTime;
             screenFader.alpha = Mathf.Lerp(startAlpha, targetAlpha, elapsed / duration);
             yield return null;
         }
         screenFader.alpha = targetAlpha;
     }
+
     void Update()
     {
         if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
-        // š’Ç‰ÁFƒIƒŒƒ“ƒWF‚Ìƒo[‚ğŒ»İ‚ÌHP‚ÖŒü‚©‚Á‚ÄŠŠ‚ç‚©‚ÉŒ¸­‚³‚¹‚é
+
         if (orangeBar != null && orangeBar.value > currentHP)
         {
-            // Mathf.Lerp ‚ğg‚¤‚ÆAÅ‰‚Í‘¬‚­A™X‚É‚ä‚Á‚­‚è‚ÆŒ¸‚è‚Ü‚·
             orangeBar.value = Mathf.Lerp(orangeBar.value, currentHP, Time.deltaTime * lerpSpeed);
-
-            // ·‚ª‚²‚­‚í‚¸‚©‚É‚È‚Á‚½‚ç’l‚ğ“¯Šú‚³‚¹‚é
             if (orangeBar.value - currentHP < 0.1f) orangeBar.value = currentHP;
         }
     }
-    // ”O‚Ì‚½‚ßA•œŠˆiƒŠƒXƒ^[ƒgj‚É‚àŒÄ‚×‚é“¯Šúƒƒ\ƒbƒh
+
     public void SyncBarsImmediately()
     {
         currentHP = maxHP;
@@ -200,48 +246,33 @@ public class PlayerStatusManager : MonoBehaviour
             orangeBar.value = currentHP;
         }
     }
-    // --- ƒRƒ“ƒeƒBƒjƒ…[ŠÖ˜A‚Ì•œŠˆ ---
 
-    // š ƒ_ƒ[ƒW‚ğó‚¯‚éƒƒ\ƒbƒh‚ğVİ
-    // ƒ_ƒ[ƒW“K—pƒƒ\ƒbƒh
-    // --- PlayerStatusManager.cs C³‰ÓŠ ---
     public bool ApplyDamage(int amount)
     {
         currentHP -= amount;
-        UpdateUI(); // HPƒo[iSliderj‚ğXV
+        UpdateUI();
 
         if (currentHP <= 0)
         {
             currentHP = 0;
-            return true; // Œ‚’Äiƒ_ƒEƒ“jŠm’è
+            return true;
         }
         return false;
     }
 
-
     public void PerformContinue()
     {
         continueCount++;
-        currentHP = maxHP; // HP‘S‰õ
+        currentHP = maxHP;
         stockLives = initialLife;
         bomb = initialSpell;
         UpdateUI();
-        continueCount++;
-        life = initialLife;
-        bomb = initialSpell;
-        UpdateUI();
 
-        // •œŠˆˆ—‚ğŒÄ‚ÔiHitHandler‚ª©g‚Ìq‚É‚ ‚é‘O’ñj
         PlayerHitHandler hitHandler = GetComponentInChildren<PlayerHitHandler>();
         if (hitHandler != null) hitHandler.StartRebirthFromContinue();
     }
 
-    public void ResetContinueCount()
-    {
-        continueCount = 0;
-    }
-
-    // --- ƒXƒe[ƒ^ƒX‘€ìƒƒ\ƒbƒh ---
+    public void ResetContinueCount() => continueCount = 0;
 
     public bool AddPower(int amount)
     {
@@ -275,7 +306,6 @@ public class PlayerStatusManager : MonoBehaviour
         return false;
     }
 
-
     public void AddLifePiece(int amount)
     {
         lifePieces += amount;
@@ -299,57 +329,69 @@ public class PlayerStatusManager : MonoBehaviour
         }
         UpdateUI();
     }
+
     public void TriggerGameOver()
     {
         if (pauseManager == null) return;
-
-        // —ûKƒ‚[ƒh’†‚È‚çê—p‚ÌƒŠƒUƒ‹ƒg‚ğ•\¦
         if (BossPracticeManager.IsPracticeMode)
         {
             pauseManager.SetPracticeResultMode(true, false);
         }
         else
         {
-            // ’ÊíƒvƒŒƒC‚ÍƒQ[ƒ€ƒI[ƒo[‰æ–Ê‚ğ•\¦‚µ‚Äƒ|[ƒY
             pauseManager.SetGameOverMode(true);
             pauseManager.PauseGame();
         }
     }
+
     private void UpdateUI()
     {
-        // šUI‚É‚ÍŒ»İ‚ÌƒXƒgƒbƒN”istockLivesj‚ğ•\¦‚·‚é‚æ‚¤‚É“ˆê
-        if (winText != null) winText.gameObject.SetActive(false); // ‰Šúó‘Ô‚Í”ñ•\¦
-        if (koText != null) koText.gameObject.SetActive(false); // š‰Šúó‘Ô‚Í”ñ•\¦
-        if (lifeUI != null) lifeUI.SetCount(life, lifePieces, lifePiecesRequired);
-        if (spellUI != null) spellUI.SetCount(bomb, bombPieces, bombPiecesRequired);
+        if (winText != null) winText.gameObject.SetActive(false);
+        if (koText != null) koText.gameObject.SetActive(false);
+
+        bool isVs = !GameModeManager.IsStoryMode;
+
+        if (lifeUI != null)
+        {
+            lifeUI.SetCountVsVariant(life, lifePieces, lifePiecesRequired, isVs);
+        }
+
+        if (spellUI != null)
+        {
+            spellUI.SetCountVsVariant(bomb, bombPieces, bombPiecesRequired, false);
+        }
+
         if (hpBar != null)
         {
             hpBar.maxValue = maxHP;
             hpBar.value = currentHP;
         }
-        if (orangeBar != null) orangeBar.maxValue = maxHP;
+
+        // ğŸŒŸã€ä¿®æ­£ã€‘ï¼šè£ã®ã‚ªãƒ¬ãƒ³ã‚¸ãƒãƒ¼ã®æœ€å¤§å€¤ã‚’ä¿è¨¼ã—ã¤ã¤ã€
+        // ğŸŒŸã‚‚ã—ç¾åœ¨å€¤ãŒæº€ã‚¿ãƒ³ã‚’ã‚ªãƒ¼ãƒãƒ¼ã—ã¦ã„ãŸã‚Šã€å›å¾©å®Œäº†ç›´å¾Œã§ã‚ã‚Œã°å®‰å…¨å¼ã¨ã—ã¦ä¸Šé™ã‚¯ãƒªãƒƒãƒ—ã—ã¾ã™ã€‚
+        if (orangeBar != null)
+        {
+            orangeBar.maxValue = maxHP;
+            if (currentHP >= maxHP)
+            {
+                orangeBar.value = maxHP;
+            }
+        }
     }
-    // š’Ç‰ÁFK.O.‰‰o—p‚ÌƒRƒ‹[ƒ`ƒ“
+
     public IEnumerator PlayKOAnimation()
     {
         if (koText == null) yield break;
-
         koText.text = "Game Set !!";
         koText.gameObject.SetActive(true);
 
-        // K.O.‚ÌSE‚ğ–Â‚ç‚·‚Æ‚æ‚è—Ç‚¢‚Å‚·
-        // SEManager.Instance.Play(SEPath.SE_KO); 
-
-        // ŠÈˆÕ“I‚Èƒpƒ“ƒ`‰‰oiƒXƒP[ƒ‹‚ğ‘å‚«‚­‚µ‚Ä–ß‚·j
         koText.transform.localScale = Vector3.zero;
         float elapsed = 0;
         float duration = 0.5f;
 
-        // šƒXƒ[’†‚à“®‚­‚æ‚¤‚ÉRealtimeiÀŠÔj‚ğg—p
         while (elapsed < duration)
         {
             float t = elapsed / duration;
-            // 0 -> 1.5 -> 1.0 ‚Ö‚ÆƒXƒP[ƒ‹‚ğ•Ï‰»‚³‚¹‚éi”ò‚Ño‚·‚æ‚¤‚È‰‰oj
             float scale = 0;
             if (t < 0.7f) scale = Mathf.Lerp(0, 1.5f, t / 0.7f);
             else scale = Mathf.Lerp(1.5f, 1.0f, (t - 0.7f) / 0.3f);
@@ -360,27 +402,21 @@ public class PlayerStatusManager : MonoBehaviour
         }
         koText.transform.localScale = Vector3.one;
     }
-    /// <summary>
-    /// K.O.ƒeƒLƒXƒg‚ğŠŠ‚ç‚©‚ÉƒtƒF[ƒhƒAƒEƒg‚³‚¹‚é
-    /// </summary>
+
     public IEnumerator FadeOutKOAnimation(float duration)
     {
         if (koText == null) yield break;
-
         Color startColor = koText.color;
         float elapsed = 0;
 
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime; // ƒXƒ[’†‚Å‚àˆê’è‘¬“x‚ÅÁ‚¦‚é‚æ‚¤‚ÉÀŠÔ‚ğg—p
+            elapsed += Time.unscaledDeltaTime;
             float alpha = Mathf.Lerp(1, 0, elapsed / duration);
             koText.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
             yield return null;
         }
-
         koText.gameObject.SetActive(false);
-
-        // Ÿ‰ñ•\¦‚Ì‚½‚ß‚ÉF‚ğŒ³‚É–ß‚µ‚Ä‚¨‚­
         koText.color = startColor;
     }
 

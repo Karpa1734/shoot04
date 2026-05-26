@@ -205,11 +205,26 @@ public class PlayerHitHandler : MonoBehaviour
                 currentState = PlayerState.Normal;
                 if (playerMove != null) playerMove.enabled = true;
 
+                // 復活時の無敵を付与
                 playerMove.SetInvincible(invincibilityTime);
-                yield return new WaitForSeconds(invincibilityTime);
 
-                PlayerMove.CanShoot = true;
-                if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+                // 🌟【修正】ショットを禁止し、カウントダウンをキックする
+                PlayerMove.CanShoot = false;
+                if (GameStartCountdown.Instance != null)
+                {
+                    GameStartCountdown.Instance.StartCountdown();
+
+                    // カウントダウン中はインプットやタイマーが制御されるため、
+                    // カウントダウンが終了する（CanShootがTrueになる等）まで待機するか、
+                    // 内部でタイマーが再開されるのを任せます。
+                    // ここではカウントダウン開始をフックする形にします。
+                }
+                else
+                {
+                    // カウントダウンのインフラがない場合のフェールセーフ
+                    PlayerMove.CanShoot = true;
+                    if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+                }
             }
             else
             {
@@ -272,50 +287,32 @@ public class PlayerHitHandler : MonoBehaviour
             }
         }
 
-        // 2. ★★★ 【VSモード時一括】両プレイヤーのHPを並列で滑らかに回復させるコルーチン演出群 ★★★
-        if (!GameModeManager.IsStoryMode)
+        // =========================================================================
+        // 🌟 2. 【核心の修正】ストーリー・VSモード共通で「滑らかなHP全快演出」に統一！
+        // =========================================================================
+        int playerCount = 0;
+        foreach (var p in PlayerMove.AllPlayers) if (p != null) playerCount++;
+
+        Coroutine[] recoveryCoroutines = new Coroutine[playerCount];
+        int idx = 0;
+
+        // 1P・2P（または自機とボス）の双方に対し、1.0秒かけた滑らかなリチャージコルーチンを並列で走らせる
+        foreach (var p in PlayerMove.AllPlayers)
         {
-            // 存在するプレイヤーの数をカウント
-            int playerCount = 0;
-            foreach (var p in PlayerMove.AllPlayers) if (p != null) playerCount++;
-
-            Coroutine[] recoveryCoroutines = new Coroutine[playerCount];
-            int idx = 0;
-
-            // 全員の回復演出（GradualHealthRecovery）を同時にキックする
-            foreach (var p in PlayerMove.AllPlayers)
+            if (p == null) continue;
+            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+            if (ps != null)
             {
-                if (p == null) continue;
-                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-                if (ps != null)
-                {
-                    // 1.0秒かけて現在のHPから最大HPまでじわじわ回復するコルーチンを配列に登録して開始
-                    recoveryCoroutines[idx] = StartCoroutine(ps.GradualHealthRecovery(1.0f));
-                    idx++;
-                }
-            }
-
-            // 起動したすべての回復演出が完全に終了するまで、このフレームで同期待ち（ファンイン同期）
-            for (int i = 0; i < idx; i++)
-            {
-                if (recoveryCoroutines[i] != null) yield return recoveryCoroutines[i];
+                // 🌟 ストーリーでもVSでも、一律で「GradualHealthRecovery」を回して瞬時上書きを完全阻止！
+                recoveryCoroutines[idx] = StartCoroutine(ps.GradualHealthRecovery(1.0f));
+                idx++;
             }
         }
-        else
+
+        // 起動したすべての回復演出が完全に終了するまで、このフレームで同期待ち（ファンイン同期）
+        for (int i = 0; i < idx; i++)
         {
-            // ストーリーモード：既存のルール（敗者のみ全快している状態）を適用
-            foreach (var p in PlayerMove.AllPlayers)
-            {
-                if (p == null) continue;
-                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-                if (ps != null)
-                {
-                    if (ps.currentHP >= ps.maxHP || ps.currentHP <= 0)
-                    {
-                        ps.SyncBarsImmediately();
-                    }
-                }
-            }
+            if (recoveryCoroutines[i] != null) yield return recoveryCoroutines[i];
         }
 
         // 3. タイマーのリセット
@@ -333,6 +330,7 @@ public class PlayerHitHandler : MonoBehaviour
         {
             PlayerMove.CanInput = true;
         }
+
         yield return null;
     }
     // ★修正：指定された順序で演出を実行するコルーチン
@@ -415,6 +413,7 @@ public class PlayerHitHandler : MonoBehaviour
     private IEnumerator RebirthRoutine()
     {
         currentState = PlayerState.Rebirth;
+        PlayerMove.CanShoot = false; // 🌟 復活演出中はショット禁止
 
         // 登場座標の計算
         float spawnX = (myStatusManager != null && myStatusManager.playerId == 2) ? 8.0f : -8.0f;
@@ -422,13 +421,14 @@ public class PlayerHitHandler : MonoBehaviour
 
         transform.parent.position = new Vector3(spawnX, 0, 0);
 
-        // ★ 復活時に全てを表示状態に戻す
+        // 復活時に全てを表示状態に戻す
         SetPlayerActiveState(true);
 
         float elapsed = 0;
         Vector3 startPos = transform.parent.position;
         Vector3 targetPos = new Vector3(targetX, 0, 0);
 
+        // 定位置までのスライド移動（実時間または通常時間）
         while (elapsed < 0.6f)
         {
             transform.parent.position = Vector3.Lerp(startPos, targetPos, elapsed / 0.6f);
@@ -438,6 +438,24 @@ public class PlayerHitHandler : MonoBehaviour
 
         currentState = PlayerState.Normal;
         playerMove.SetInvincible(invincibilityTime);
+
+        // 🌟【修正】定位置に付いたら、タイマーを一度リセット/停止させてカウントダウンを挟む
+        if (MatchTimerUI.Instance != null)
+        {
+            MatchTimerUI.Instance.StopTimer();
+        }
+
+        if (GameStartCountdown.Instance != null)
+        {
+            // カウントダウン演出を開始（演出終了時に内部でCanShoot=true、タイマーResumeが呼ばれる想定）
+            GameStartCountdown.Instance.StartCountdown();
+        }
+        else
+        {
+            // カウントダウンがない場合のフェールセーフ
+            PlayerMove.CanShoot = true;
+            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+        }
     }
     /// <summary>
     /// 勝者（自分を倒した相手）の名前を取得して表示する

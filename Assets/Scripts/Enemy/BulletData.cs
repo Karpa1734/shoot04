@@ -15,6 +15,7 @@ public class BulletData : ScriptableObject
 
     [Header("サイズ・当たり判定")]
     public BulletSize sizeType;
+    public float bulletScale = 1.0f;
     public float radius = 0.05f; // 弾の場合の半径
     public Vector2 colliderOffset = Vector2.zero;
 

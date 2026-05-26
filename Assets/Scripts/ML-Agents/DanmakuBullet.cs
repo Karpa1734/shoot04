@@ -62,6 +62,12 @@ public class DanmakuBullet : MonoBehaviour
         this.totalDelay = this.delayFrames;
         this.isConverging = converge;
 
+        // 🌟 修正の核心：プレハブ本来の初期スケール（1.3など）をベースとして取得！
+        Vector3 baseScale = transform.localScale;
+        // インスペクターの拡大率を「さらに何倍するか」の乗算チップに切り替え
+        float multiplier = (data.bulletScale > 0f) ? data.bulletScale : 1.0f;
+        transform.localScale = new Vector3(baseScale.x * multiplier, baseScale.y * multiplier, baseScale.z * multiplier);
+
         sr.sprite = data.bulletSprite;
         col.radius = data.radius;
         if (data.material != null) sr.material = data.material;
@@ -112,6 +118,11 @@ public class DanmakuBullet : MonoBehaviour
         this.accel = 0;
         this.maxSpeed = shootSpeed;
         this.angularVelocity = 0;
+
+        // 🌟 修正の核心：時間停止ナイフ用でもプレハブ本来のサイズ（1.3など）をベースに乗算
+        Vector3 baseScaleKn = transform.localScale;
+        float multiplierKn = (data.bulletScale > 0f) ? data.bulletScale : 1.0f;
+        transform.localScale = new Vector3(baseScaleKn.x * multiplierKn, baseScaleKn.y * multiplierKn, baseScaleKn.z * multiplierKn);
 
         // 秒数をFixedUpdate基準のフレーム数に変換（例: 0.5秒 ➔ 30フレーム）
         this.delayFrames = Mathf.RoundToInt(delayDuration * 60f);

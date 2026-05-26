@@ -54,7 +54,7 @@ public class GameStartCountdown : MonoBehaviour
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = true;
 
-        yield return StartCoroutine(AnimateText("GO !!", 1.5f));
+        yield return StartCoroutine(AnimateText("Go Shoot !!", 1.5f));
 
         countdownText.gameObject.SetActive(false);
     }

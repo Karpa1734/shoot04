@@ -194,15 +194,15 @@ public class DanmakuAgent : Agent
     }
 
     /// <summary>
-    /// 【完全強豪化】ダミー値を徹底駆逐し、本物のMP・ゲージ・クールダウンUIと完全直結させたAIの戦術思考
+    /// 【リソース最適運用型】現在のコスト残量、リキャスト、必殺ゲージの溢れ（3ストック）を検知し、
+    /// ゲージが満タンの時は条件を極限まで緩めてポンポンEXスキルをぶっ放すように進化したAIの戦術思考
     /// </summary>
     private int EvaluateAndSelectTacticalSkill()
     {
-        // 🌟 修正：仮受けデータを完全消去し、PlayerMoveおよびSkillManagerの本物のリアルタイム実数へと結合！
         float currentMP = (playerMove != null) ? playerMove.currentEnergy : 100f;
-        float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
+        float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f; // 🌟 0〜300% (100%で1ストック)
 
-        // SkillManager側の実際の最新クールダウン残時間（<= 0 で撃てる）を正確にマッピング同期
+        // SkillManager側の実際の最新クールダウン残時間を正確にマッピング同期
         bool isZReady = (skillManager != null) ? (skillManager.timerZ <= 0f) : true;
         bool isXReady = (skillManager != null) ? (skillManager.timerX <= 0f) : true;
         bool isCReady = (skillManager != null) ? (skillManager.timerC <= 0f) : true;
@@ -212,13 +212,45 @@ public class DanmakuAgent : Agent
         int nearbyBulletCount = CountNearbyBullets();
         float distanceToEnemy = (opponent != null) ? Vector3.Distance(transform.position, opponent.position) : 10f;
 
-        // --- A. 最優先：絶対的な大ピンチ時の「強欲ディフェンス（V結界）」 ---
+        // =========================================================================
+        // 🔥 【最優先：超必殺技（EXスキル・アクション5番）の最適ぶっ放しトリガー】
+        // =========================================================================
+        if (isUltReady)
+        {
+            // 🚨 思考A：ゲージが300%（3ストック完全マックス）に達してしまい、これ以上はリソースが無駄になる大至急コンテキスト
+            // ➔ 敵との距離や周囲の危険度を100%完全に無視して、ゲージが溢れる前に最優先で能動的にポンポンぶっ放す！
+            if (currentUltGauge >= 300f)
+            {
+                Debug.Log("<color=red>🤖【AIの緊急リソース運用】ゲージが3ストックMAXで溢れるため、条件を完全無視して最速ぶっ放しを敢行します！</color>");
+                return 5; // アクション5番を発動！
+            }
+
+            // 💡 思考B：ゲージが200%（2ストック分以上）溜まっており、やや溢れるリスクが見え始めているコンテキスト
+            // ➔ 敵がどこにいようが（距離制限を8.5fの画面全体付近まで大幅に緩和）、牽制・プレッシャー目的で積極的に放り込む！
+            if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f)
+            {
+                Debug.Log("<color=orange>🤖【AIの積極的戦術運用】ゲージに余裕があるため、長距離からでも積極的にEXスキルを展開して盤面を制圧します！</color>");
+                return 5; // アクション5番を発動！
+            }
+
+            // 🎯 思考C：平時（1ストック〜1.9ストック）の慎重なリーサル狙いコンテキスト
+            // ➔ 確実に仕留めきる、あるいはリターン勝負に勝つために「近中距離（6.0f未満）」の決定的チャンスを厳密に見極めて撃つ
+            if (currentUltGauge >= 100f && distanceToEnemy < 6.0f && nearbyBulletCount <= 2)
+            {
+                Debug.Log("<color=gold>🤖【AIの決定的戦術決断】1ストックを消費し、近距離の勝機へピンポイントでEXスキルを叩き込みます！</color>");
+                return 5; // アクション5番を発動！
+            }
+        }
+
+        // --- 以下、通常スキルやMPヒステリシス管理の既存処理へ繋ぐ ---
+
+        // --- 大ピンチ時の「強欲ディフェンス（V結界）」 ---
         if (nearbyBulletCount >= 5 && isVReady && currentMP >= 20f)
         {
             return 4; // Vキー：強欲結界
         }
 
-        // --- B. ヒステリシス特性を用いたコスト（MP）温存ステートマシン ---
+        // --- ヒステリシス特性を用いたコスト（MP）温存ステートマシン ---
         if (_currentShootingState == ShootingState.Bursting)
         {
             if (currentMP <= _mpSaveThreshold) _currentShootingState = ShootingState.Charging;
@@ -226,35 +258,23 @@ public class DanmakuAgent : Agent
         else
         {
             if (currentMP >= _mpReadyThreshold) _currentShootingState = ShootingState.Bursting;
-            else return 0; // チャージ中は大ピンチ以外打ち止め
+            else return 0; // チャージ中は基本打つのを止めて温存
         }
 
-        // --- C. 状況適応型の最適なショット選択（Utility評価） ---
-
-        // ① アルティメット（同時押し）の超高火力チャンス判定
-        // 条件：必殺ゲージが1ストック分(100)以上溜まっており、かつリキャスト完了、敵が射程圏内(6.0f)の時！
-        if (isUltReady && currentUltGauge >= 100f && distanceToEnemy < 6.0f && nearbyBulletCount <= 2)
-        {
-            Debug.Log("<color=gold>🤖【AIの戦術的決断】超必殺ゲージMAX。必殺のEX陰章オーブアサルトを解放します！</color>");
-            return 5; // アクション5番を発動！
-        }
-
-        // ② ★★★ Xスキル（自機外し全方位回転加速弾）のハメ設置 ★★★
+        // --- 状況適応型の最適な通常ショット選択（Utility評価） ---
         if (isXReady && currentMP >= 25f && distanceToEnemy >= 2.0f && distanceToEnemy <= 8.5f)
         {
-            return 2;
+            return 2; // Xスキル発動
         }
 
-        // ③ Cスキル（長距離・高火力狙撃弾）の隙間スナイプ
         if (isCReady && distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f)
         {
-            return 3;
+            return 3; // Cスキル発動
         }
 
-        // ④ Zスキル（基本連射・牽制弾）の隙間埋めコンボ連射
         if (isZReady && currentMP >= 10f)
         {
-            return 1;
+            return 1; // Zスキル発動
         }
 
         return 0;

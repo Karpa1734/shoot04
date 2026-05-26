@@ -122,17 +122,18 @@ public class SkillManager : MonoBehaviour
         DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
 
         // 🌟 修正の核心：
-        // 🌟 エージェントコンポーネントが存在し、かつ「自動回避AIモード(_useAutoEvadeAI)」がONになっている時は、
-        // 🌟 人間のアセット入力をバイパスし、AIが毎フレーム吐き出す高精度パケット(currentFrameInput)を完全適用する！
-        if (agent != null && agent._useAutoEvadeAI)
+        // 🌟 エージェントコンポーネントが存在し、かつ
+        // 🌟「自動回避AIモード(_useAutoEvadeAI)」がON、または「ML-Agents学習モデル推論中(Playing)」のいずれかであれば、
+        // 🌟 人間のアセット入力を完全にバイパスし、AIが毎フレーム吐き出す高精度パケット(currentFrameInput)を100%適用する！
+        if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing))
         {
-            // AIの頭脳モデルが走っている時、または自律行動デバッグ時はパケットから完全デコード
+            // AIの頭脳（OnActionReceived）が算出した正規パケットから完全デコード
             var input = playerMove.currentFrameInput;
             zPressed = input.shotZ;
             xPressed = input.shotX;
             cPressed = input.shotC;
             vPressed = input.shotV;
-            exPressed = input.ultimate;
+            exPressed = input.ultimate; // 🌟 これにより、AIの必殺シグナル（5番）が遮断されずに直撃します！
         }
         else
         {
@@ -183,7 +184,6 @@ public class SkillManager : MonoBehaviour
         HandleSkillInput(cPressed, ref timerC, skillData.skillC);
         HandleSkillInput(vPressed, ref timerV, skillData.skillV);
     }
-
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
         if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)

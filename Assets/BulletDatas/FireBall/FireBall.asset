@@ -16,9 +16,10 @@ MonoBehaviour:
   laserColor: 0
   bulletPrefab: {fileID: 7699670774643920682, guid: ed639f1228a4350468b5206fb81afe3b, type: 3}
   sizeType: 0
+  bulletScale: 1
   radius: 0.9
   colliderOffset: {x: 0, y: 0}
-  damage: 35
+  damage: 25
   bulletSprite: {fileID: 5402474465312207100, guid: 6544e5b02dc066a4f9bfbe63abc2a2f0, type: 3}
   animationSprites: []
   animationFPS: 20

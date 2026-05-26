@@ -1,51 +1,51 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// ‘¬‚³ƒx[ƒX‚ÅˆÚ“®‚·‚éƒu[ƒƒ‰ƒ“Œ^ƒrƒbƒgB
-/// oŒ»EÁ–Å‚ÌŠgki‘¬“x0jAˆÚ“®’†‚Ìc‘œA–Ú“I’n‚Å‚Ì1•bƒXƒeƒCAƒ‰ƒEƒ“ƒhI—¹‚Ì©“®Á–Å‚ğÀ‘•B
+/// é€Ÿã•ãƒ™ãƒ¼ã‚¹ã§ç§»å‹•ã™ã‚‹ãƒ–ãƒ¼ãƒ¡ãƒ©ãƒ³å‹ãƒ“ãƒƒãƒˆã€‚
+/// å‡ºç¾ãƒ»æ¶ˆæ»…æ™‚ã®æ‹¡ç¸®ï¼ˆé€Ÿåº¦0ï¼‰ã€ç§»å‹•ä¸­ã®æ®‹åƒã€ç›®çš„åœ°ã§ã®1ç§’ã‚¹ãƒ†ã‚¤ã€ãƒ©ã‚¦ãƒ³ãƒ‰çµ‚äº†æ™‚ã®è‡ªå‹•æ¶ˆæ»…ã‚’å®Ÿè£…ã€‚
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer), typeof(Collider2D), typeof(Rigidbody2D))]
 public class BoomerangObject : MonoBehaviour
 {
     private Transform _owner;
-    private Vector3 _fixedTargetPos; // ”­Ë‚Ì“GÀ•Wi–Ú“I’nj
+    private Vector3 _fixedTargetPos; // ç™ºå°„æ™‚ã®æ•µåº§æ¨™ï¼ˆç›®çš„åœ°ï¼‰
     private BulletData _subBulletData;
     private PlayerDanmakuEmitter _ownerEmitter;
 
     private SpriteRenderer _sr;
-    private float _speed; // š C³F‘¬‚³
+    private float _speed; // â˜… ä¿®æ­£ï¼šé€Ÿã•
 
     [Header("Behavior Settings")]
-    [SerializeField] private float _stayDuration = 1.0f;    // –Ú“I’n‚Å‚Ì‘Ò‹@ŠÔ
-    [SerializeField] private float _scaleDuration = 0.3f;   // oŒ»EÁ–Å‚ÌŠgk‚É‚©‚©‚éŠÔ
-    [SerializeField] private float _rotationSpeed = 720f;   // 1•bŠÔ‚Ì‰ñ“]Šp“x
+    [SerializeField] private float _stayDuration = 1.0f;    // ç›®çš„åœ°ã§ã®å¾…æ©Ÿæ™‚é–“
+    [SerializeField] private float _scaleDuration = 0.3f;   // å‡ºç¾ãƒ»æ¶ˆæ»…ã®æ‹¡ç¸®ã«ã‹ã‹ã‚‹æ™‚é–“
+    [SerializeField] private float _rotationSpeed = 720f;   // 1ç§’é–“ã®å›è»¢è§’åº¦
 
     [Header("Afterimage Settings")]
-    [SerializeField] private bool _enableAfterimage = true;     // c‘œ‚ğ—LŒø‚É‚·‚é‚©
-    [SerializeField] private float _afterimageInterval = 0.05f; // c‘œ‚ğ¶¬‚·‚éŠÔŠui•bj
-    [SerializeField] private float _afterimageFadeTime = 0.3f;  // c‘œ‚ªÁ‚¦‚é‚Ü‚Å‚ÌŠÔ
-    [SerializeField] private float _afterimageStartAlpha = 0.5f; // c‘œ‚Ì‰Šú“§–¾“x
+    [SerializeField] private bool _enableAfterimage = true;     // æ®‹åƒã‚’æœ‰åŠ¹ã«ã™ã‚‹ã‹
+    [SerializeField] private float _afterimageInterval = 0.05f; // æ®‹åƒã‚’ç”Ÿæˆã™ã‚‹é–“éš”ï¼ˆç§’ï¼‰
+    [SerializeField] private float _afterimageFadeTime = 0.3f;  // æ®‹åƒãŒæ¶ˆãˆã‚‹ã¾ã§ã®æ™‚é–“
+    [SerializeField] private float _afterimageStartAlpha = 0.5f; // æ®‹åƒã®åˆæœŸé€æ˜åº¦
     private float _afterimageTimer = 0f;
 
     [Header("Sub Bullet Settings")]
     [SerializeField] private BulletData _subDanmakuData;
     [SerializeField] private Transform _muzzleTransform;
-    [SerializeField] private float _subBulletMaxSpeed = 5f; // š –Ú•W‚Æ‚·‚éÅ‚‘¬“x
-    [SerializeField] private float _subBulletAccel = 0.1f;    // š 1ƒtƒŒ[ƒ€‚ ‚½‚è‚Ì‰Á‘¬“x
+    [SerializeField] private float _subBulletMaxSpeed = 5f; // â˜… ç›®æ¨™ã¨ã™ã‚‹æœ€é«˜é€Ÿåº¦
+    [SerializeField] private float _subBulletAccel = 0.1f;    // â˜… 1ãƒ•ãƒ¬ãƒ¼ãƒ ã‚ãŸã‚Šã®åŠ é€Ÿåº¦
     [SerializeField] private int _subBulletCount = 8;
     /// <summary>
-    /// ‰Šú‰»BPlayerDanmakuEmitter‚©‚çŒÄ‚Î‚ê‚éB
+    /// åˆæœŸåŒ–ã€‚PlayerDanmakuEmitterã‹ã‚‰å‘¼ã°ã‚Œã‚‹ã€‚
     /// </summary>
     public void Initialize(Transform owner, Transform target, BulletData data, float speed, PlayerDanmakuEmitter emitter)
     {
         _owner = owner;
         _subBulletData = data;
-        _speed = speed; // š ‘¬‚³‚ğ‘ã“ü
+        _speed = speed; // â˜… é€Ÿã•ã‚’ä»£å…¥
         _ownerEmitter = emitter;
         _sr = GetComponent<SpriteRenderer>();
 
-        // ¶¬‚Í–³iLocalScale 0j
+        // ç”Ÿæˆæ™‚ã¯ç„¡ï¼ˆLocalScale 0ï¼‰
         transform.localScale = Vector3.zero;
 
         if (target != null)
@@ -66,30 +66,35 @@ public class BoomerangObject : MonoBehaviour
 
     private void Update()
     {
-        // í‚É‚‘¬‰ñ“]
+        // å¸¸ã«é«˜é€Ÿå›è»¢
         transform.Rotate(0, 0, _rotationSpeed * Time.deltaTime);
     }
 
     private IEnumerator BoomerangRoutine()
     {
-        // --- A. oŒ»‰‰oF–³‚©‚çŠg‘åi‚»‚Ìê‚É’â~j ---
+        // --- A. å‡ºç¾æ¼”å‡ºï¼šç„¡ã‹ã‚‰æ‹¡å¤§ï¼ˆãã®å ´ã«åœæ­¢ï¼‰ ---
         yield return StartCoroutine(ScaleRoutine(0, 1));
 
-        // --- B. ‰˜Hi–Ú“I’n‚Ö‘¬‚³ƒx[ƒX‚ÅˆÚ“®j ---
+        // --- B. å¾€è·¯ï¼ˆç›®çš„åœ°ã¸é€Ÿã•ãƒ™ãƒ¼ã‚¹ã§ç§»å‹•ï¼‰ ---
         Vector3 startPos = transform.position;
         float distanceToTarget = Vector3.Distance(startPos, _fixedTargetPos);
 
-        // ‹——£‚Æ‘¬‚³‚©‚çˆÚ“®‚É‚©‚©‚éŠÔ‚ğŒvZ
         float moveTimeForward = (distanceToTarget > 0) ? distanceToTarget / _speed : 0.1f;
         float elapsed = 0;
 
         while (elapsed < moveTimeForward)
         {
-            if (!PlayerMove.CanShoot) break; // ƒ‰ƒEƒ“ƒhI—¹‚ÍˆÚ“®’†’f
+            // ğŸŒŸã€å®Œå…¨æº¶æ¥ã€‘ï¼šUnityã®ã‚¿ã‚¤ãƒ ã‚¹ã‚±ãƒ¼ãƒ«ãŒ0ï¼ˆãƒãƒ¼ã‚ºä¸­ï¼‰ã®å ´åˆã¯ã€ã“ã“ã§ãƒ•ãƒ¬ãƒ¼ãƒ ã®é€²è¡Œã‚’å®Œå…¨ã«ãƒ•ãƒªãƒ¼ã‚ºã•ã›ã¦å¾…æ©Ÿï¼
+            // ã“ã‚Œã«ã‚ˆã‚Šã€ãƒãƒ¼ã‚ºä¸­ã«ä¸‹ã® FireSubDanmaku() ã‚„ yield return null ã¸å‡¦ç†ãŒæµã‚Œã‚‹ã®ã‚’å®Œç’§ã«ãƒ–ãƒ­ãƒƒã‚¯ã—ã¾ã™ã€‚
+            while (Mathf.Approximately(Time.timeScale, 0f))
+            {
+                yield return null;
+            }
+
+            if (!PlayerMove.CanShoot) break;
 
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / moveTimeForward);
-            // ŠŠ‚ç‚©‚È‰ÁŒ¸‘¬‚ğ“K—p‚µ‚Â‚ÂAƒ^[ƒQƒbƒg‚ÖˆÚ“®
             transform.position = Vector3.Lerp(startPos, _fixedTargetPos, Mathf.SmoothStep(0, 1, t));
 
             UpdateAfterimage();
@@ -97,13 +102,20 @@ public class BoomerangObject : MonoBehaviour
             yield return null;
         }
 
-        // --- C. –Ú“I’nƒXƒeƒCi1•bŠÔ’â~j ---
+        // --- C. ç›®çš„åœ°ã‚¹ãƒ†ã‚¤ï¼ˆ1ç§’é–“åœæ­¢ï¼‰ ---
         if (PlayerMove.CanShoot)
         {
             float stayElapsed = 0;
             while (stayElapsed < _stayDuration)
             {
-                if (!PlayerMove.CanShoot) break; // ƒ‰ƒEƒ“ƒhI—¹‚ÍƒXƒeƒC’†’f
+                // ğŸŒŸã€å®Œå…¨æº¶æ¥ã€‘ï¼šç›®çš„åœ°å¾…æ©Ÿä¸­ã‚‚åŒæ§˜ã«ã€ãƒãƒ¼ã‚ºä¸­ã¯ä¸€åˆ‡ã®æ™‚é–“ã‚’ãƒ•ãƒªãƒ¼ã‚º
+                while (Mathf.Approximately(Time.timeScale, 0f))
+                {
+                    yield return null;
+                }
+
+                if (!PlayerMove.CanShoot) break;
+
                 UpdateAfterimage();
                 stayElapsed += Time.deltaTime;
                 if (Time.frameCount % 5 == 0) FireSubDanmaku();
@@ -111,28 +123,30 @@ public class BoomerangObject : MonoBehaviour
             }
         }
 
-        // --- D. •œ˜Hi“®‚¢‚Ä‚¢‚é©‹@‚É–ß‚éj ---
+        // --- D. å¾©è·¯ï¼ˆå‹•ã„ã¦ã„ã‚‹è‡ªæ©Ÿã«æˆ»ã‚‹ï¼‰ ---
         if (PlayerMove.CanShoot)
         {
             elapsed = 0;
-            // •œ˜HŠJn‚ÌˆÊ’u‚ğ‹L‰¯
             Vector3 peakPos = transform.position;
 
-            // í‚É©‹@‚ğ’Ç‚¢‚©‚¯‚é‚½‚ßA–ˆƒtƒŒ[ƒ€‹——£‚©‚çŠ—vŠÔ‚ğŒvZ‚µ’¼‚·‚Ì‚Å‚Í‚È‚­A
-            // ŠJn‚Ì‹——£‚©‚çƒx[ƒX‚Æ‚È‚éˆÚ“®ŠÔ‚ğŒˆ’è‚µ‚Ü‚·B
             float distanceToOwner = Vector3.Distance(peakPos, _owner != null ? _owner.position : peakPos);
             float moveTimeReturn = (distanceToOwner > 0) ? distanceToOwner / _speed : 0.1f;
 
             while (elapsed < moveTimeReturn)
             {
-                if (!PlayerMove.CanShoot) break; // ƒ‰ƒEƒ“ƒhI—¹‚ÍˆÚ“®’†’f
+                // ğŸŒŸã€å®Œå…¨æº¶æ¥ã€‘ï¼šå¸°ã‚Šé“ã‚‚ãƒãƒ¼ã‚ºä¸­ã¯å®Œå…¨ã«å‡¦ç†ã‚’ä¸€æ™‚åœæ­¢
+                while (Mathf.Approximately(Time.timeScale, 0f))
+                {
+                    yield return null;
+                }
+
+                if (!PlayerMove.CanShoot) break;
 
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / moveTimeReturn);
 
                 if (_owner != null)
                 {
-                    // ŠŠ‚ç‚©‚É–ß‚éBLerp‚Ì‘æ2ˆø”‚ğí‚É _owner.position ‚É‚·‚é‚±‚Æ‚Å’Ç]B
                     transform.position = Vector3.Lerp(peakPos, _owner.position, Mathf.SmoothStep(0, 1, t));
                 }
 
@@ -142,14 +156,17 @@ public class BoomerangObject : MonoBehaviour
             }
         }
 
-        // --- E. Á–Å‰‰oFk¬‚µ‚ÄÁ‚¦‚éi‚»‚Ìê‚É’â~j ---
+        // --- E. æ¶ˆæ»…æ¼”å‡ºï¼šç¸®å°ã—ã¦æ¶ˆãˆã‚‹ï¼ˆãã®å ´ã«åœæ­¢ï¼‰ ---
+        // ğŸŒŸã€å®Œå…¨æº¶æ¥ã€‘ï¼šæ¶ˆæ»…æ‹¡ç¸®ãƒ«ãƒ¼ãƒ—ã«å…¥ã‚‹å‰ã«ã‚‚ãƒãƒ¼ã‚ºãƒã‚§ãƒƒã‚¯ã‚’æŒŸã‚“ã§å®‰å…¨æ€§ã‚’ä¿è¨¼
+        while (Mathf.Approximately(Time.timeScale, 0f)) yield return null;
+
         yield return StartCoroutine(ScaleRoutine(1, 0));
 
-        Destroy(gameObject); //
+        Destroy(gameObject);
     }
 
     /// <summary>
-    /// ‚»‚Ìê‚É’â~‚µ‚ÄƒTƒCƒY‚ğ•ÏX‚·‚éƒRƒ‹[ƒ`ƒ“
+    /// ãã®å ´ã«åœæ­¢ã—ã¦ã‚µã‚¤ã‚ºã‚’å¤‰æ›´ã™ã‚‹ã‚³ãƒ«ãƒ¼ãƒãƒ³
     /// </summary>
     private IEnumerator ScaleRoutine(float start, float end)
     {
@@ -197,20 +214,20 @@ public class BoomerangObject : MonoBehaviour
 
         Vector3 firePos = (_muzzleTransform != null) ? _muzzleTransform.position : transform.position;
 
-        // š C³FŒ»İ‚Ìƒrƒbƒg‚Ì‰ñ“]Šp“x‚ğæ“¾‚µ‚ÄŠî€‚É‚·‚é
+        // â˜… ä¿®æ­£ï¼šç¾åœ¨ã®ãƒ“ãƒƒãƒˆã®å›è»¢è§’åº¦ã‚’å–å¾—ã—ã¦åŸºæº–ã«ã™ã‚‹
         float baseAngle = transform.eulerAngles.z;
         float angleStep = 360f / _subBulletCount;
 
         for (int i = 0; i < _subBulletCount; i++)
         {
-            // š C³F‰‘¬‚ğ 0A‰Á‘¬“x‚ÆÅ‚‘¬“x‚ğ“n‚·‚æ‚¤‚ÉŠg’£ƒƒ\ƒbƒh‚ğŒÄ‚Ño‚·
+            // â˜… ä¿®æ­£ï¼šåˆé€Ÿã‚’ 0ã€åŠ é€Ÿåº¦ã¨æœ€é«˜é€Ÿåº¦ã‚’æ¸¡ã™ã‚ˆã†ã«æ‹¡å¼µãƒ¡ã‚½ãƒƒãƒ‰ã‚’å‘¼ã³å‡ºã™
             _ownerEmitter.ExecuteSubShot(
                 dataToUse,
                 firePos,
-                0f,                     // ‰‘¬‚Í 0
-                baseAngle + (i * angleStep), // e‚ÌŠp“x + ‰~üƒIƒtƒZƒbƒg
-                _subBulletAccel,         // ‰Á‘¬“x
-                _subBulletMaxSpeed,      // Å‚‘¬“x
+                0f,                     // åˆé€Ÿã¯ 0
+                baseAngle + (i * angleStep), // è¦ªã®è§’åº¦ + å††å‘¨ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+                _subBulletAccel,         // åŠ é€Ÿåº¦
+                _subBulletMaxSpeed,      // æœ€é«˜é€Ÿåº¦
                 gameObject.tag,
                 gameObject.layer
             );
