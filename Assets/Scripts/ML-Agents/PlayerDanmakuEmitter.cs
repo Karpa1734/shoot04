@@ -1076,7 +1076,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float stopDelayTime = 0.5f;   // 💡発射されてから空間停止するまでの時間（0.5秒）
 
         float initialSpeed = 5f;      // 弾幕データ初期速度
-        float dashSpeed = isZoneActive ? (initialSpeed * 1.5f) * 1.3f : initialSpeed * 2f; // 突撃時は1.5倍速
+        float dashSpeed = isZoneActive ? (initialSpeed * 1.5f) * 1.3f : initialSpeed * 3.5f; // 突撃時は1.5倍速
         // 🌟 追加：現在の発射主の PlayerMove から、共通インフラが設定してくれた EX移動倍率をスタック
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
         float currentAngle = UnityEngine.Random.Range(1f, 360f);

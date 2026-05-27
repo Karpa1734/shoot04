@@ -314,7 +314,7 @@
                 {
                     "name": "",
                     "id": "b527554f-6e75-4dd8-a778-ff9dbeb28f4f",
-                    "path": "<Gamepad>/leftShoulder",
+                    "path": "<Gamepad>/leftTrigger",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -325,7 +325,7 @@
                 {
                     "name": "",
                     "id": "e6962100-1e17-4e79-8b6a-ef67e8326c62",
-                    "path": "<XInputController>/leftShoulder",
+                    "path": "<XInputController>/leftTrigger",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -369,10 +369,21 @@
                 {
                     "name": "",
                     "id": "250087a1-32ed-46ba-bbb0-35bccf516546",
-                    "path": "",
+                    "path": "<Gamepad>/leftShoulder",
                     "interactions": "",
                     "processors": "",
-                    "groups": "",
+                    "groups": ";Gamepad",
+                    "action": "Skill_EX",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "d41ee979-cafd-4f63-a20b-320b7c7bca23",
+                    "path": "<XInputController>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Gamepad",
                     "action": "Skill_EX",
                     "isComposite": false,
                     "isPartOfComposite": false
