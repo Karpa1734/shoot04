@@ -66,10 +66,10 @@ public class PlayerHitHandler : MonoBehaviour
         if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
         bool isDown = false;
+
         if (myStatusManager != null)
         {
             // ★★★ 【ML-Agents 連携】被弾時のペナルティ通知をここに割り込ませる ★★★
-            // 親オブジェクト（Playerルート）に付いている DanmakuAgent を安全に取得
             DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
             if (agent != null)
             {
@@ -85,6 +85,17 @@ public class PlayerHitHandler : MonoBehaviour
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
         SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
 
+        // =========================================================================
+        // 🌟【スペルカードシステム拡張】：スーパーアーマー（被弾ノンスタン）の完全開通
+        // =========================================================================
+        if (myStatusManager != null && myStatusManager.isSpellCardActive)
+        {
+            // スペル発動中は、ダメージ計算と被弾VFX/SFXは通しつつ、
+            // スタンコルーチンへの突入を完全に拒否（アーマー維持）してこの場で即座に処理を抜けます！
+            return;
+        }
+
+        // 以下のスタン遷移は、スペルカード未発動の通常時のみ実行されます
         if (isDown)
         {
             currentState = PlayerState.Hit;

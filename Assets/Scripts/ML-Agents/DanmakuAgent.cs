@@ -159,9 +159,60 @@ public class DanmakuAgent : Agent
         // 手動操作デバッグ
         if (InputManager.Instance == null) return;
         var inputSet = (playerID == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2;
+
+        // 1. スティックのアナログ生の入力ベクトルを取得
         Vector2 m = inputSet.move.action.ReadValue<Vector2>();
-        if (m.x < -0.5f) discrete[0] = 1; else if (m.x > 0.5f) discrete[0] = 2;
-        if (m.y > 0.5f) discrete[1] = 1; else if (m.y < -0.5f) discrete[1] = 2;
+
+        // 🌟【核心の修正】：直進と斜めの閾値を「ベクトルの長さ」と「角度（Atan2）」で極めて滑らかに等価分解する
+        // スティックの傾きがこの値（遊びのデッドゾーン）を超えた時だけ移動を検知（低速の価値を完全保護）
+        const float STICK_DEADZONE = 0.35f;
+
+        if (m.magnitude > STICK_DEADZONE)
+        {
+            // スティックが倒されている方向の正確なラジアン角度を割り出す（-180度〜180度）
+            float angleDeg = Mathf.Atan2(m.y, m.x) * Mathf.Rad2Deg;
+
+            // 0度（右）を基準に、45度ずつの扇形でカチッと綺麗な8方向デジタルへ変換
+            // これにより、直進から斜めへ入る境界線（閾値）の歪みが100%消滅します！
+            if (angleDeg >= -22.5f && angleDeg < 22.5f)
+            {
+                discrete[0] = 2; // 右
+            }
+            else if (angleDeg >= 22.5f && angleDeg < 67.5f)
+            {
+                discrete[0] = 2; discrete[1] = 1; // 右上
+            }
+            else if (angleDeg >= 67.5f && angleDeg < 112.5f)
+            {
+                discrete[1] = 1; // 上
+            }
+            else if (angleDeg >= 112.5f && angleDeg < 157.5f)
+            {
+                discrete[0] = 1; discrete[1] = 1; // 左上
+            }
+            else if (angleDeg >= 157.5f || angleDeg < -157.5f)
+            {
+                discrete[0] = 1; // 左
+            }
+            else if (angleDeg >= -157.5f && angleDeg < -112.5f)
+            {
+                discrete[0] = 1; discrete[1] = 2; // 左下
+            }
+            else if (angleDeg >= -112.5f && angleDeg < -67.5f)
+            {
+                discrete[1] = 2; // 下
+            }
+            else if (angleDeg >= -67.5f && angleDeg < -22.5f)
+            {
+                discrete[0] = 2; discrete[1] = 2; // 右下
+            }
+        }
+        else
+        {
+            // デッドゾーン以下の微小な傾きは完全静止（低速移動の絶対的なアイデンティティを死守）
+            discrete[0] = 0;
+            discrete[1] = 0;
+        }
 
         bool isCPressed = (inputSet.skillC != null && inputSet.skillC.action != null) && inputSet.skillC.action.IsPressed();
         bool isVPressed = (inputSet.skillV != null && inputSet.skillV.action != null) && inputSet.skillV.action.IsPressed();

@@ -46,6 +46,13 @@ public class PlayerStatusManager : MonoBehaviour
     [Header("Global References")]
     public PauseManager pauseManager;
 
+    [Header("Spell Card System")]
+    public bool isSpellCardActive = false;      // スペルカードが発動中か
+    public bool isOverheated = false;          // 術式焼き切れ中か
+    public float preSpellHP = 50f;             // 発動直前の通常HPの退避用
+    public float preSpellMaxHP = 50f;          // 発動直前の通常最大HPの退避用
+    private float spellOverheatTimer = 0f;     // 焼き切れ状態の残り時間カウント
+
     private PlayerMove _playerMove;
 
     public bool IsInvincible => invincibleTimer > 0;

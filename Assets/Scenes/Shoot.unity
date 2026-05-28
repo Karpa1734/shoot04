@@ -9503,7 +9503,7 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -9676,6 +9676,10 @@ MonoBehaviour:
   extendUI: {fileID: 0}
   screenFader: {fileID: 830759199}
   pauseManager: {fileID: 2061502870}
+  isSpellCardActive: 0
+  isOverheated: 0
+  preSpellHP: 50
+  preSpellMaxHP: 50
   characterNameText: {fileID: 1523547701}
   winText: {fileID: 1156281031}
   koText: {fileID: 1851834070}
@@ -27267,6 +27271,10 @@ MonoBehaviour:
   extendUI: {fileID: 0}
   screenFader: {fileID: 830759199}
   pauseManager: {fileID: 2061502870}
+  isSpellCardActive: 0
+  isOverheated: 0
+  preSpellHP: 50
+  preSpellMaxHP: 50
   characterNameText: {fileID: 471975658}
   winText: {fileID: 1156281031}
   koText: {fileID: 1851834070}
