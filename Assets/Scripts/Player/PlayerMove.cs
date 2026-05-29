@@ -52,6 +52,18 @@ public class PlayerMove : MonoBehaviour
 
     private SpriteRenderer sr;
 
+    // UIや外部マネージャーが参照する、現在の実質的な「アルカナストック数（0〜3）」
+    public int ArcanaStockCount => Mathf.FloorToInt(ultimateEnergy / 100f);
+
+    // 現在蓄積中のストック内の残り％（0.0 ~ 1.0f）➔ UIのSliderのfillAmount等にそのままバインド可能
+    public float CurrentArcanaGaugeRatio
+    {
+        get
+        {
+            if (ultimateEnergy >= MAX_ULTIMATE_ENERGY) return 1.0f;
+            return (ultimateEnergy % 100f) / 100f;
+        }
+    }
     void Awake()
     {
         Time.timeScale = 1f;

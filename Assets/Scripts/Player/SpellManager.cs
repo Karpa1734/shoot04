@@ -1,8 +1,8 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
-using System.Linq; // ƒVƒƒƒbƒtƒ‹—p
+using System.Linq; // ã‚·ãƒ£ãƒƒãƒ•ãƒ«ç”¨
 using UnityEngine;
-using UnityEngine.UI; // UI‘€ì‚Ì‚½‚ß‚É’Ç‰Á
+using UnityEngine.UI; // UIæ“ä½œã®ãŸã‚ã«è¿½åŠ 
 using KanKikuchi.AudioManager;
 public class SpellManager : MonoBehaviour
 {
@@ -15,9 +15,9 @@ public class SpellManager : MonoBehaviour
     public Sprite shockwaveSprite;
 
     [Header("UI Elements")]
-    // --- ’Ç‰ÁFCanvas“à‚ÌˆÃ“]—p‰æ‘œƒIƒuƒWƒFƒNƒgiDarkOverlay“™j ---
+    // --- è¿½åŠ ï¼šCanvaså†…ã®æš—è»¢ç”¨ç”»åƒã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆï¼ˆDarkOverlayç­‰ï¼‰ ---
     public GameObject darkOverlay;
-    public SpellCardUI spellUI; // ’Ç‰ÁFUIƒXƒNƒŠƒvƒg‚ÌQÆ
+    public SpellCardUI spellUI; // è¿½åŠ ï¼šUIã‚¹ã‚¯ãƒªãƒ—ãƒˆã®å‚ç…§
     public EnemyStatus bossStatus;
     private bool isOnSpell = false;
 
@@ -27,7 +27,7 @@ public class SpellManager : MonoBehaviour
 
     void Awake()
     {
-        // ©g‚Æ“¯‚¶A‚ ‚é‚¢‚ÍeƒIƒuƒWƒFƒNƒg‚©‚çƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾
+        // è‡ªèº«ã¨åŒã˜ã€ã‚ã‚‹ã„ã¯è¦ªã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‹ã‚‰ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å–å¾—
         _status = GetComponentInParent<PlayerStatusManager>();
         _move = GetComponentInParent<PlayerMove>();
     }
@@ -36,12 +36,12 @@ public class SpellManager : MonoBehaviour
     {
         if (Time.timeScale <= 0) return;
         if (!PlayerMove.CanInput) return;
-        if (Input.GetKeyDown(KeyCode.X) && !isOnSpell)
+
+        // ğŸŒŸã€ä¿®æ­£ã€‘ï¼š_status.UseSpell() ã‚’å»ƒæ­¢ã—ã€ã‚¢ãƒ«ã‚«ãƒŠã‚²ãƒ¼ã‚¸ãŒ100%ï¼ˆ1ã‚¹ãƒˆãƒƒã‚¯åˆ†ï¼‰ä»¥ä¸Šã‚ã‚‹ã‹ãƒã‚§ãƒƒã‚¯
+        if (Input.GetKeyDown(KeyCode.X) && !isOnSpell && _move != null)
         {
-            // Instance ‚Å‚Í‚È‚­æ“¾‚µ‚½ _status ‚ğg—p
-            if (_status != null && _status.UseSpell())
+            if (_move.ultimateEnergy >= 100f)
             {
-                // PlayerMove.Instance ‚Å‚Í‚È‚­ _move ‚ğg—p
                 PlayerHitHandler hitHandler = _move.GetComponentInChildren<PlayerHitHandler>();
 
                 if (hitHandler != null)
@@ -49,6 +49,9 @@ public class SpellManager : MonoBehaviour
                     if (hitHandler.currentState == PlayerHitHandler.PlayerState.Normal ||
                         hitHandler.currentState == PlayerHitHandler.PlayerState.DeathBomb)
                     {
+                        // ğŸŒŸã€ç¢ºå®šæ¶ˆè²»ã€‘ï¼šæ¡ä»¶ã‚’ã‚¯ãƒªã‚¢ã—ã¦æŠ€ãŒç¢ºå®šã§ç™ºå‹•ã™ã‚‹ãŸã‚ã€ã“ã“ã§ã‚¢ãƒ«ã‚«ãƒŠã‚²ãƒ¼ã‚¸ã‚’1ã‚¹ãƒˆãƒƒã‚¯åˆ†æ¶ˆè²»
+                        _move.ultimateEnergy -= 100f;
+
                         EnemyStatus boss = Object.FindFirstObjectByType<EnemyStatus>();
                         if (boss != null) boss.FailSpell();
 
@@ -65,16 +68,16 @@ public class SpellManager : MonoBehaviour
 
         SEManager.Instance.Play(SEPath.LASER7,0.5f);
 
-        float invincibilityDuration = 360f / 60f; // 5.33•b
+        float invincibilityDuration = 360f / 60f; // 5.33ç§’
         if (spellUI != null)
         {
-            spellUI.gameObject.SetActive(true); // UIƒIƒuƒWƒFƒNƒg–{‘Ì‚ğƒAƒNƒeƒBƒu‚É‚·‚é
-            spellUI.DisplaySpell("—ì•„u–²‘z••ˆóv", invincibilityDuration);
+            spellUI.gameObject.SetActive(true); // UIã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆæœ¬ä½“ã‚’ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã«ã™ã‚‹
+            spellUI.DisplaySpell("éœŠç¬¦ã€Œå¤¢æƒ³å°å°ã€", invincibilityDuration);
         }
-        // --- ’Ç‰ÁF”wŒi‚ÌˆÃ“]‚ğŠJn ---
+        // --- è¿½åŠ ï¼šèƒŒæ™¯ã®æš—è»¢ã‚’é–‹å§‹ ---
         if (darkOverlay != null) darkOverlay.SetActive(true);
 
-        // –³“GŠÔ‚ğİ’èi285ƒtƒŒ[ƒ€‘Š“–j [cite: 7]
+        // ç„¡æ•µæ™‚é–“ã‚’è¨­å®šï¼ˆ285ãƒ•ãƒ¬ãƒ¼ãƒ ç›¸å½“ï¼‰ [cite: 7]
         if (_move != null) _move.SetInvincible(360f / 60f);
         /*
         if (shockwavePrefab != null)
@@ -83,38 +86,38 @@ public class SpellManager : MonoBehaviour
             Shockwave logic = shock.GetComponent<Shockwave>();
             if (logic != null)
             {
-                // ‰ŠúÕŒ‚”g‚Í”’iƒfƒtƒHƒ‹ƒgj‚Ì‚Ü‚Ü‚Æ‚µ‚Ü‚·
+                // åˆæœŸè¡æ’ƒæ³¢ã¯ç™½ï¼ˆãƒ‡ãƒ•ã‚©ãƒ«ãƒˆï¼‰ã®ã¾ã¾ã¨ã—ã¾ã™
                // logic.InitializeWithCustomScale(shockwaveSprite, Color.white, 1.0f, 0.05f);
             }
         }
         */
-        // --- ƒz[ƒ~ƒ“ƒO‡˜‚Ìƒ‰ƒ“ƒ_ƒ€‰» ---
+        // --- ãƒ›ãƒ¼ãƒŸãƒ³ã‚°é †åºã®ãƒ©ãƒ³ãƒ€ãƒ åŒ– ---
         int[] homingOrders = { 0, 1, 2, 3, 4, 5, 6, 7 };
-        Shuffle(homingOrders); // ‡”Ô‚ğƒoƒ‰ƒoƒ‰‚É‚·‚é
+        Shuffle(homingOrders); // é †ç•ªã‚’ãƒãƒ©ãƒãƒ©ã«ã™ã‚‹
 
-        // 8‚Â‚Ì••ˆó’e‚ğˆêÄ‚É¶¬ 
+        // 8ã¤ã®å°å°å¼¾ã‚’ä¸€æ–‰ã«ç”Ÿæˆ 
         for (int i = 0; i < 8; i++)
         {
             float startAngle = i * 45f;
 
-            // “øF{”’‚ğ‡”Ô‚ÉŠ„‚è“–‚Ä‚é
+            // è™¹è‰²ï¼‹ç™½ã‚’é †ç•ªã«å‰²ã‚Šå½“ã¦ã‚‹
             Color c = GetSealColor(i);
 
-            // ¶¬‚Í“¯‚¾‚ªA“à•”‚Éuƒz[ƒ~ƒ“ƒO‚Ì‡”Ô(homingOrders[i])v‚ğ“n‚·
+            // ç”Ÿæˆã¯åŒæ™‚ã ãŒã€å†…éƒ¨ã«ã€Œãƒ›ãƒ¼ãƒŸãƒ³ã‚°ã®é †ç•ª(homingOrders[i])ã€ã‚’æ¸¡ã™
             SpawnSealImmediate(startAngle, c, homingOrders[i]);
         }
 
-        // ƒXƒyƒ‹‘±ŠÔi255ƒtƒŒ[ƒ€‘Š“–j‚Ì‘Ò‹@ [cite: 7]
+        // ã‚¹ãƒšãƒ«æŒç¶šæ™‚é–“ï¼ˆ255ãƒ•ãƒ¬ãƒ¼ãƒ ç›¸å½“ï¼‰ã®å¾…æ©Ÿ [cite: 7]
         yield return new WaitForSeconds(360f / 60f);
 
-        // --- ’Ç‰ÁF”wŒi‚ÌˆÃ“]‚ğI—¹ ---
+        // --- è¿½åŠ ï¼šèƒŒæ™¯ã®æš—è»¢ã‚’çµ‚äº† ---
         if (darkOverlay != null) darkOverlay.SetActive(false);
 
         SEManager.Instance.Play(SEPath.POWER36, 0.5f);
         isOnSpell = false;
     }
 
-    // ”z—ñ‚ğƒVƒƒƒbƒtƒ‹‚·‚éƒwƒ‹ƒp[
+    // é…åˆ—ã‚’ã‚·ãƒ£ãƒƒãƒ•ãƒ«ã™ã‚‹ãƒ˜ãƒ«ãƒ‘ãƒ¼
     void Shuffle(int[] array)
     {
         for (int i = array.Length - 1; i > 0; i--)
@@ -136,20 +139,20 @@ public class SpellManager : MonoBehaviour
         }
     }
 
-    // “øF{”’‚ğ•Ô‚·ƒƒ\ƒbƒh
+    // è™¹è‰²ï¼‹ç™½ã‚’è¿”ã™ãƒ¡ã‚½ãƒƒãƒ‰
     private Color GetSealColor(int index)
     {
-        // F‚Ì”z—ñF”’AÔAòA‰©A—ÎAÂA—•A‡
+        // è‰²ã®é…åˆ—ï¼šç™½ã€èµ¤ã€æ©™ã€é»„ã€ç·‘ã€é’ã€è—ã€ç´«
         Color[] rainbowPlusWhite = new Color[]
         {
-            Color.white,                     // 0: ”’
-            new Color(1f, 0f, 0f),           // 1: Ô
-            new Color(1f, 0.5f, 0f),         // 2: ò
-            new Color(1f, 1f, 0f),           // 3: ‰©
-            new Color(0f, 1f, 0f),           // 4: —Î
-            new Color(0f, 1f, 1f),           // 5: Â
-            new Color(0f, 0f, 1f),     // 6: —•
-            new Color(1f, 0f, 1f)          // 7: ‡
+            Color.white,                     // 0: ç™½
+            new Color(1f, 0f, 0f),           // 1: èµ¤
+            new Color(1f, 0.5f, 0f),         // 2: æ©™
+            new Color(1f, 1f, 0f),           // 3: é»„
+            new Color(0f, 1f, 0f),           // 4: ç·‘
+            new Color(0f, 1f, 1f),           // 5: é’
+            new Color(0f, 0f, 1f),     // 6: è—
+            new Color(1f, 0f, 1f)          // 7: ç´«
         };
 
         return rainbowPlusWhite[index % 8];

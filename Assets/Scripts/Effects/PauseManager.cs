@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 using KanKikuchi.AudioManager;
@@ -11,7 +11,7 @@ public class PauseManager : MonoBehaviour
     public TextMeshProUGUI[] menuTexts;
 
     [Header("Confirmation UI")]
-    public GameObject confirmPanel; // Šm”Fƒ_ƒCƒAƒƒO‚ÌeƒIƒuƒWƒFƒNƒg
+    public GameObject confirmPanel; // ç¢ºèªãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã®è¦ªã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
     public TextMeshProUGUI confirmYesText;
     public TextMeshProUGUI confirmNoText;
 
@@ -27,11 +27,11 @@ public class PauseManager : MonoBehaviour
     private int selectedIndex = 0;
     private bool isGameOverMode = false;
 
-    // --- ’Ç‰ÁFó‘ÔŠÇ——p ---
+    // --- è¿½åŠ ï¼šçŠ¶æ…‹ç®¡ç†ç”¨ ---
     private enum PauseState { Main, ConfirmExit, ConfirmRestart }
     private PauseState currentState = PauseState.Main;
-    private int confirmIndex = 1; // 0: Yes, 1: No (‰ŠúˆÊ’u‚ğNo‚É)
-    private bool isPracticeResultMode = false; // š’Ç‰ÁF‰‰KƒŠƒUƒ‹ƒg’†‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
+    private int confirmIndex = 1; // 0: Yes, 1: No (åˆæœŸä½ç½®ã‚’Noã«)
+    private bool isPracticeResultMode = false; // â˜…è¿½åŠ ï¼šæ¼”ç¿’ãƒªã‚¶ãƒ«ãƒˆä¸­ã‹ã©ã†ã‹ã®ãƒ•ãƒ©ã‚°
     void Start()
     {
         if (pauseCanvas != null) pauseCanvas.SetActive(false);
@@ -46,7 +46,7 @@ public class PauseManager : MonoBehaviour
 
     void Update()
     {
-        // š’Ç‰ÁF—ûKƒ‚[ƒh’†‚©‚ÂUnityƒGƒfƒBƒ^ã‚Ì‚İAEscƒL[‚Å‘¦À‚ÉƒŠƒgƒ‰ƒC
+        // â˜…è¿½åŠ ï¼šç·´ç¿’ãƒ¢ãƒ¼ãƒ‰ä¸­ã‹ã¤Unityã‚¨ãƒ‡ã‚£ã‚¿ä¸Šã®ã¿ã€Escã‚­ãƒ¼ã§å³åº§ã«ãƒªãƒˆãƒ©ã‚¤
 #if UNITY_EDITOR
         if (BossPracticeManager.IsPracticeMode && !isPaused && Input.GetKeyDown(KeyCode.Backspace))
         {
@@ -68,7 +68,7 @@ public class PauseManager : MonoBehaviour
             }
             else
             {
-                // šC³FƒJƒEƒ“ƒgƒ_ƒEƒ“’†iPlayerMove.CanInput ‚ª falsej‚Íƒ|[ƒY‚ğŠJ‚©‚È‚¢
+                // â˜…ä¿®æ­£ï¼šã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³ä¸­ï¼ˆPlayerMove.CanInput ãŒ falseï¼‰ã¯ãƒãƒ¼ã‚ºã‚’é–‹ã‹ãªã„
                 if (!PlayerMove.CanInput) return;
 
                 PauseGame();
@@ -123,7 +123,7 @@ public class PauseManager : MonoBehaviour
         }
     }
 
-    // --- ’Ç‰ÁFŠm”F‰æ–Ê‚ÌƒiƒrƒQ[ƒVƒ‡ƒ“ ---
+    // --- è¿½åŠ ï¼šç¢ºèªç”»é¢ã®ãƒŠãƒ“ã‚²ãƒ¼ã‚·ãƒ§ãƒ³ ---
     void HandleConfirmNavigation()
     {
         int prev = confirmIndex;
@@ -147,11 +147,11 @@ public class PauseManager : MonoBehaviour
     {
         switch (selectedIndex)
         {
-            case 0: // ÄŠJ / ƒRƒ“ƒeƒBƒjƒ…[
+            case 0: // å†é–‹ / ã‚³ãƒ³ãƒ†ã‚£ãƒ‹ãƒ¥ãƒ¼
                 SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
                 if (isGameOverMode)
                 {
-                    // šC³F‘SƒvƒŒƒCƒ„[‚ğƒRƒ“ƒeƒBƒjƒ…[‚³‚¹‚é
+                    // â˜…ä¿®æ­£ï¼šå…¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’ã‚³ãƒ³ãƒ†ã‚£ãƒ‹ãƒ¥ãƒ¼ã•ã›ã‚‹
                     foreach (var player in PlayerMove.AllPlayers)
                     {
                         var status = player.GetComponent<PlayerStatusManager>();
@@ -162,36 +162,36 @@ public class PauseManager : MonoBehaviour
                 ResumeGame();
                 break;
 
-            case 1: // ƒ^ƒCƒgƒ‹‚Ö / ƒQ[ƒ€‚ğI—¹
+            case 1: // ã‚¿ã‚¤ãƒˆãƒ«ã¸ / ã‚²ãƒ¼ãƒ ã‚’çµ‚äº†
                 if (isPracticeResultMode)
                 {
-                    // š’Ç‰ÁFŒ‚”jŒã‚È‚çŠm”F‚È‚µ‚Å‘¦Às
+                    // â˜…è¿½åŠ ï¼šæ’ƒç ´å¾Œãªã‚‰ç¢ºèªãªã—ã§å³å®Ÿè¡Œ
                     currentState = PauseState.ConfirmExit;
                     ExecuteConfirmedAction();
                 }
                 else
                 {
-                    // ’Êí‚ÍŠm”F‰æ–Ê‚ğŠJ‚­
+                    // é€šå¸¸æ™‚ã¯ç¢ºèªç”»é¢ã‚’é–‹ã
                     OpenConfirmation(PauseState.ConfirmExit);
                 }
                 break;
 
-            case 4: // Å‰‚©‚ç‚â‚è’¼‚·
+            case 4: // æœ€åˆã‹ã‚‰ã‚„ã‚Šç›´ã™
                 if (isPracticeResultMode)
                 {
-                    // š’Ç‰ÁFŒ‚”jŒã‚È‚çŠm”F‚È‚µ‚Å‘¦Às
+                    // â˜…è¿½åŠ ï¼šæ’ƒç ´å¾Œãªã‚‰ç¢ºèªãªã—ã§å³å®Ÿè¡Œ
                     currentState = PauseState.ConfirmRestart;
                     ExecuteConfirmedAction();
                 }
                 else
                 {
-                    // ’Êí‚ÍŠm”F‰æ–Ê‚ğŠJ‚­
+                    // é€šå¸¸æ™‚ã¯ç¢ºèªç”»é¢ã‚’é–‹ã
                     OpenConfirmation(PauseState.ConfirmRestart);
                 }
                 break;
 
             default:
-                // ‚»‚Ì‘¼‚Ì€–Úi‘€ìà–¾‚È‚Çj
+                // ãã®ä»–ã®é …ç›®ï¼ˆæ“ä½œèª¬æ˜ãªã©ï¼‰
                 SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
                 break;
         }
@@ -200,7 +200,7 @@ public class PauseManager : MonoBehaviour
     {
         SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
         currentState = state;
-        confirmIndex = 1; // ‰ŠúˆÊ’u‚ğ No ‚Éİ’è
+        confirmIndex = 1; // åˆæœŸä½ç½®ã‚’ No ã«è¨­å®š
         confirmPanel.SetActive(true);
         UpdateConfirmVisuals();
     }
@@ -218,7 +218,7 @@ public class PauseManager : MonoBehaviour
 
         if (ScoreManager.Instance != null) ScoreManager.Instance.SaveHighScore();
 
-        // šC³F‘SƒvƒŒƒCƒ„[‚ÌƒRƒ“ƒeƒBƒjƒ…[ƒJƒEƒ“ƒg‚ğƒŠƒZƒbƒg
+        // â˜…ä¿®æ­£ï¼šå…¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ã‚³ãƒ³ãƒ†ã‚£ãƒ‹ãƒ¥ãƒ¼ã‚«ã‚¦ãƒ³ãƒˆã‚’ãƒªã‚»ãƒƒãƒˆ
         foreach (var player in PlayerMove.AllPlayers)
         {
             var status = player.GetComponent<PlayerStatusManager>();
@@ -238,7 +238,7 @@ public class PauseManager : MonoBehaviour
     }
 
 
-    // --- ’Ç‰ÁFŸ‚É‘I‘ğ‰Â”\‚ÈƒCƒ“ƒfƒbƒNƒX‚ğ’Tõ‚·‚é ---
+    // --- è¿½åŠ ï¼šæ¬¡ã«é¸æŠå¯èƒ½ãªã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’æ¢ç´¢ã™ã‚‹ ---
     int FindNextSelectableIndex(int current, int direction)
     {
         int count = menuTexts.Length;
@@ -259,7 +259,7 @@ public class PauseManager : MonoBehaviour
 
         for (int i = 0; i < menuTexts.Length; i++)
         {
-            // ’Ç‰ÁFƒCƒ“ƒXƒyƒNƒ^[‚Å None ‚ª¬‚´‚Á‚Ä‚¢‚éê‡‚Ì‘Îô
+            // è¿½åŠ ï¼šã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼ã§ None ãŒæ··ã–ã£ã¦ã„ã‚‹å ´åˆã®å¯¾ç­–
             if (menuTexts[i] == null) continue;
 
             if (!menuSelectable[i])
@@ -274,8 +274,8 @@ public class PauseManager : MonoBehaviour
             }
         }
     }
-    // š’Ç‰ÁF‰‰KƒŠƒUƒ‹ƒgiŒ‚”jŒãj—p‚Ìƒ‚[ƒhİ’è
-    // šC³F‘æ2ˆø” isWin ‚ğ’Ç‰Á
+    // â˜…è¿½åŠ ï¼šæ¼”ç¿’ãƒªã‚¶ãƒ«ãƒˆï¼ˆæ’ƒç ´å¾Œï¼‰ç”¨ã®ãƒ¢ãƒ¼ãƒ‰è¨­å®š
+    // â˜…ä¿®æ­£ï¼šç¬¬2å¼•æ•° isWin ã‚’è¿½åŠ 
     public void SetPracticeResultMode(bool active, bool isWin)
     {
         isPracticeResultMode = active;
@@ -286,19 +286,19 @@ public class PauseManager : MonoBehaviour
             pauseCanvas.SetActive(true);
             Time.timeScale = 0f;
 
-            // 1. uˆê’â~‚ğ‰ğœ (index 0)v‚ğ”ñ•\¦E‘I‘ğ•s‰Â‚É‚·‚é
+            // 1. ã€Œä¸€æ™‚åœæ­¢ã‚’è§£é™¤ (index 0)ã€ã‚’éè¡¨ç¤ºãƒ»é¸æŠä¸å¯ã«ã™ã‚‹
             menuSelectable[0] = false;
             if (menuTexts[0] != null) menuTexts[0].gameObject.SetActive(false);
 
-            // 2. šŒ‹‰Ê‚É‰‚¶‚Ä‰ŠúƒJ[ƒ\ƒ‹‚ğ•ÏX
+            // 2. â˜…çµæœã«å¿œã˜ã¦åˆæœŸã‚«ãƒ¼ã‚½ãƒ«ã‚’å¤‰æ›´
             if (isWin)
             {
-                // Ÿ—˜Fƒ^ƒCƒgƒ‹‚É–ß‚é (index 1) ‚ğ‘I‘ğ
+                // å‹åˆ©æ™‚ï¼šã‚¿ã‚¤ãƒˆãƒ«ã«æˆ»ã‚‹ (index 1) ã‚’é¸æŠ
                 selectedIndex = 1;
             }
             else
             {
-                // ”s–kFÅ‰‚©‚ç‚â‚è’¼‚· (index 4) ‚ğ‘I‘ğ
+                // æ•—åŒ—æ™‚ï¼šæœ€åˆã‹ã‚‰ã‚„ã‚Šç›´ã™ (index 4) ã‚’é¸æŠ
                 selectedIndex = 4;
             }
 
@@ -307,23 +307,23 @@ public class PauseManager : MonoBehaviour
         }
         else
         {
-            // ƒŠƒZƒbƒgˆ—
+            // ãƒªã‚»ãƒƒãƒˆå‡¦ç†
             menuSelectable[0] = true;
             if (menuTexts[0] != null) menuTexts[0].gameObject.SetActive(true);
         }
     }
-    // ŠO•”‚©‚çƒ‚[ƒh‚ğØ‚è‘Ö‚¦‚éƒƒ\ƒbƒh
+    // å¤–éƒ¨ã‹ã‚‰ãƒ¢ãƒ¼ãƒ‰ã‚’åˆ‡ã‚Šæ›¿ãˆã‚‹ãƒ¡ã‚½ãƒƒãƒ‰
     public void SetGameOverMode(bool active)
     {
         isGameOverMode = active;
         if (active)
         {
-            menuTexts[0].text = "ƒRƒ“ƒeƒBƒjƒ…[‚·‚é"; // •¶Œ¾‚ğ•ÏX
-            menuSelectable[0] = true; // ƒQ[ƒ€ƒI[ƒo[‚Í‘I‚×‚é‚æ‚¤‚É‚·‚é
+            menuTexts[0].text = "ã‚³ãƒ³ãƒ†ã‚£ãƒ‹ãƒ¥ãƒ¼ã™ã‚‹"; // æ–‡è¨€ã‚’å¤‰æ›´
+            menuSelectable[0] = true; // ã‚²ãƒ¼ãƒ ã‚ªãƒ¼ãƒãƒ¼æ™‚ã¯é¸ã¹ã‚‹ã‚ˆã†ã«ã™ã‚‹
         }
         else
         {
-            menuTexts[0].text = "ˆê’â~‚ğ‰ğœ";
+            menuTexts[0].text = "ä¸€æ™‚åœæ­¢ã‚’è§£é™¤";
         }
     }
 }

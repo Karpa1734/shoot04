@@ -1,4 +1,4 @@
-﻿// --- InputManager.cs 修正完全同期版 ---
+﻿// --- InputManager.cs 修正完全同期版（Skill_VJT対応） ---
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -18,7 +18,8 @@ public class InputManager : MonoBehaviour
         public InputActionReference skillX;
         public InputActionReference skillC;
         public InputActionReference skillV;
-        public InputActionReference skillEX; // 🌟【完全溶接】インスペクターの「Skill_EX」を割り当てるための受け皿を追加
+        public InputActionReference skillEX; // 1ストック通常EX
+        public InputActionReference skillVJT; // 🌟【追加】聖少女領域（VJT）用のリファレンス枠
         public InputActionReference slow;
         public InputActionReference barrier;
     }

@@ -49,23 +49,7 @@ public class ItemEffectHandler : MonoBehaviour
                 }
                 break;
                 */
-            case ItemController.ITEM_TYPE.LIFE_UP01:
-                _status.AddLife(1); // èCê≥
-                SEManager.Instance.Play(SEPath.SE_EXTEND2);
-                break;
 
-            case ItemController.ITEM_TYPE.BOMB_UP01:
-                _status.AddBomb(1); // èCê≥
-                SEManager.Instance.Play(SEPath.GETSPELLCARD);
-                break;
-
-            case ItemController.ITEM_TYPE.LIFE_UP02:
-                _status.AddLifePiece(1); // èCê≥
-                break;
-
-            case ItemController.ITEM_TYPE.BOMB_UP02:
-                _status.AddBombPiece(1); // èCê≥
-                break;
         }
 
         Destroy(collision.gameObject);

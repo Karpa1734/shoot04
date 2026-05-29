@@ -1,8 +1,6 @@
-﻿// --- SkillManager.cs 【同時押し残像結合・エラー完全解消版】 ---
+﻿// --- SkillManager.cs 【Skill_VJTインプット完全溶接版】 ---
 using KanKikuchi.AudioManager;
-using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 public class SkillManager : MonoBehaviour
 {
@@ -11,6 +9,7 @@ public class SkillManager : MonoBehaviour
     private PlayerMove playerMove;
     private PlayerHitHandler hitHandler;
     private PlayerDanmakuEmitter emitter;
+    private PlayerStatusManager statusManager;
 
     [Header("UI Slots (Normal Skills Only)")]
     public SkillCooldownUI uiZ;
@@ -31,15 +30,13 @@ public class SkillManager : MonoBehaviour
     [Header("Ultimate UI")]
     public UltimateGaugeUI ultimateGaugeUI;
 
-    // ★★★ 【Input System 適合】同時押しを成立させるためのリアルタイム・タイムスタンプ変数 ★★★
     private float _cPressedTimestamp = -100f;
     private float _vPressedTimestamp = -100f;
-    private const float INTERACTION_WINDOW = 0.08f; // 同時押しとして許容する猶予時間（0.08秒 ＝ 約5フレーム分）
+    private const float INTERACTION_WINDOW = 0.08f;
 
-    // ★ 物理キーボードの跳ね返りによる入力寸断を救済する残像カウンター
     private int _cHoldFrame = 0;
     private int _vHoldFrame = 0;
-    private const int HOLD_REMAINS_FRAMES = 5; // 離されてから5物理フレームの間は「まだ押されている」と脳内に残像を残す
+    private const int HOLD_REMAINS_FRAMES = 5;
 
     private bool _isExExecutedInThisWindow = false;
     private PlayerMove.ReplayFrame _lastInput;
@@ -49,16 +46,16 @@ public class SkillManager : MonoBehaviour
         playerMove = GetComponentInParent<PlayerMove>();
         hitHandler = GetComponentInParent<PlayerHitHandler>();
         emitter = GetComponentInParent<PlayerDanmakuEmitter>();
+        statusManager = GetComponentInParent<PlayerStatusManager>();
 
         if (ultimateGaugeUI != null && playerMove != null)
         {
             ultimateGaugeUI.Initialize(playerMove);
         }
 
-        var status = GetComponentInParent<PlayerStatusManager>();
-        if (status != null)
+        if (statusManager != null)
         {
-            skillData = status.characterData;
+            skillData = statusManager.characterData;
         }
 
         if (playerMove != null && skillData != null)
@@ -77,17 +74,11 @@ public class SkillManager : MonoBehaviour
         }
     }
 
-    // --- SkillManager.cs 【バグ完全修正・C,V単押し最速解放版】Update 内 ---
-
-    // --- SkillManager.cs 【排他モディファイア（Exclusive Modifier）適合版】Update 内 ---
-
-    // --- SkillManager.cs 【バケツリレー撤廃・Inputアセットダイレクトバインド版】Update 内 ---
-
     void Update()
     {
-        if (playerMove == null || skillData == null) return;
+        if (playerMove == null || skillData == null || statusManager == null) return;
 
-        // 1. エネルギーの自然回復処理
+        // 1. エネルギーの自然回復処理（焼き切れデバフ連動）
         if (emitter.IsAnySkillActive)
         {
             _recoveryDelayTimer = 0f;
@@ -99,9 +90,11 @@ public class SkillManager : MonoBehaviour
 
         if (_recoveryDelayTimer >= 0.5f)
         {
+            float regenMultiplier = statusManager.isOverheated ? 0.5f : 1.0f;
+
             playerMove.currentEnergy = Mathf.Min(
                 skillData.maxEnergy,
-                playerMove.currentEnergy + skillData.energyRegenRate * Time.deltaTime
+                playerMove.currentEnergy + (skillData.energyRegenRate * regenMultiplier * Time.deltaTime)
             );
         }
 
@@ -112,32 +105,29 @@ public class SkillManager : MonoBehaviour
         if (!PlayerMove.CanShoot) return;
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
-        // --- ★★★ 核心：AI思考と人間デバッグ操作の入力ソース完全溶接 ★★★ ---
+        // --- 入力ソースの同期デコード ---
         bool zPressed = false;
         bool xPressed = false;
         bool cPressed = false;
         bool vPressed = false;
         bool exPressed = false;
+        bool vjtPressed = false; // 🌟 追加：VJT発動ボタンフラグ
 
         DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
 
-        // 🌟 修正の核心：
-        // 🌟 エージェントコンポーネントが存在し、かつ
-        // 🌟「自動回避AIモード(_useAutoEvadeAI)」がON、または「ML-Agents学習モデル推論中(Playing)」のいずれかであれば、
-        // 🌟 人間のアセット入力を完全にバイパスし、AIが毎フレーム吐き出す高精度パケット(currentFrameInput)を100%適用する！
         if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing))
         {
-            // AIの頭脳（OnActionReceived）が算出した正規パケットから完全デコード
             var input = playerMove.currentFrameInput;
             zPressed = input.shotZ;
             xPressed = input.shotX;
             cPressed = input.shotC;
             vPressed = input.shotV;
-            exPressed = input.ultimate; // 🌟 これにより、AIの必殺シグナル（5番）が遮断されずに直撃します！
+            exPressed = input.ultimate;
+            // ※必要に応じて ReplayFrame 構造体に vjt 項目の追加拡張が可能ですが、
+            // 現在は手動・AI双方から安全にインターセプトできるよう、以下で共通ボタン検知を走らせます
         }
         else
         {
-            // 🌟 人間が手動でキーボード操作デバッグしている時は、InputManagerアセットから直接ポーリング！
             if (InputManager.Instance != null)
             {
                 var inputSet = (playerMove.playerId == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2;
@@ -155,35 +145,91 @@ public class SkillManager : MonoBehaviour
                 {
                     exPressed = (cPressed && vPressed);
                 }
+
+                // 🌟【新設】InputManager に追加した Skill_VJT の入力をフレーム検知
+                if (inputSet.skillVJT != null && inputSet.skillVJT.action != null)
+                {
+                    vjtPressed = inputSet.skillVJT.action.WasPressedThisFrame();
+                }
+                else
+                {
+                    // フォールバック（念のためのZ+Xキーボード直押し同時入力判定）
+                    vjtPressed = (Input.GetKeyDown(KeyCode.Z) && Input.GetKey(KeyCode.X)) || (Input.GetKeyDown(KeyCode.X) && Input.GetKey(KeyCode.Z));
+                }
             }
         }
 
-        // ① 【最優先：EX必殺技（アクション5番）の実行判定】
-        // AIの戦術的ぶっ放し、または人間の同時押しアセットシグナルをダイレクトに直撃させます
-        if (exPressed)
+        // =========================================================================
+        // 🌟 ① 【Skill_VJT 結合】：聖少女領域（VJT）発動処理の実行ジャッジ
+        // =========================================================================
+        if (vjtPressed && !statusManager.isSpellCardActive)
         {
-            if (timerEX <= 0f && playerMove.ultimateEnergy >= 100f)
-            {
-                playerMove.ultimateEnergy -= 100f; // 100%消費
-                emitter.FireEX(skillData.skillEX); // 独立EX枠の射出
+            // PlayerStatusManager 内部の「アルカナゲージ200%以上チェック」および
+            // 「相手が発動していないかどうかの排他処理（早い者勝ちルール）」を実行して領域を展開！
+            statusManager.ActivateSpellCard();
 
-                // 内部タイマーをScriptableObjectアセットの固有値から自動同期！
-                timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
-
-                Debug.Log("<color=orange>★★★★★ 【究極大成功】二重バケツリレーを撤廃し、AIシグナルとInputアセットの双方からEX弾幕が完全覚醒しました！ ★★★★★</color>");
-            }
-
-            // 同時押しActionが走っているフレームは、下層の通常単押しC・Vのトランザクションを100%排他して処理を抜ける
+            // 発動フレームは他の通常スキル入力をカットして即座にリターン
             return;
         }
 
-        // ② 【通常スキルの最速実行】
-        // 同時押し（EX）がONになっていないプレーンなフレームの時だけ、通常技がレイテンシ（遅延）ゼロで即座に実行されます！
+        // =========================================================================
+        // ② EXスキル ＆ アルティメットスキル（ULT）の排他制御
+        // =========================================================================
+        if (exPressed)
+        {
+            if (statusManager.isSpellCardActive)
+            {
+                // 🚨【領域展開中】➔ 完全無敵のアルティメットスキル（ULT）発動！
+                if (timerEX <= 0f)
+                {
+                    statusManager.SetInvincible(2.0f);
+                    emitter.FireEX(skillData.skillEX);
+
+                    playerMove.ultimateEnergy = 0f;
+                    statusManager.DeactivateSpellCard(false);
+
+                    timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
+                    Debug.Log("<color=magenta>👑【アルティメットスキル(ULT)】領域を強制解除し、必殺技を放ちました！</color>");
+                }
+            }
+            else
+            {
+                // 通常時の通常Exボム（1ストック消費）
+                if (timerEX <= 0f && playerMove.ultimateEnergy >= 100f)
+                {
+                    // アルカナゲージを1ストック(100f)消費して
+                    playerMove.ultimateEnergy -= 100f;
+
+                    // 🌟【修正】：statusManager.UseSpell(); の行を完全に削除しました
+
+                    // 弾幕エミッターから技を射出
+                    emitter.FireEX(skillData.skillEX);
+
+                    timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
+                    Debug.Log("<color=orange>★★ 1ストック通常Exスキルを発動しました ★★</color>");
+                }
+            }
+
+            return;
+        }
+
+        // =========================================================================
+        // ③ 通常スキルの実行判定
+        // =========================================================================
         HandleSkillInput(zPressed, ref timerZ, skillData.skillZ);
         HandleSkillInput(xPressed, ref timerX, skillData.skillX);
+
+        // 術式焼き切れ（isOverheated）中のC/V封印処理
+        if (statusManager.isOverheated)
+        {
+            cPressed = false;
+            vPressed = false;
+        }
+
         HandleSkillInput(cPressed, ref timerC, skillData.skillC);
         HandleSkillInput(vPressed, ref timerV, skillData.skillV);
     }
+
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
         if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)

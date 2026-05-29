@@ -25,9 +25,7 @@ public static class SEPath{
 	public const string PAUSE               = "SE/pause";
 	public const string POWER36             = "SE/power36";
 	public const string SE_DAMAGE00         = "SE/se_damage00";
-	public const string SE_DAMAGE001        = "SE/se_damage00 1";
 	public const string SE_DAMAGE01         = "SE/se_damage01";
-	public const string SE_DAMAGE011        = "SE/se_damage01 1";
 	public const string SE_EXTEND2          = "SE/se_extend2";
 	public const string SE_NODAMAGE         = "SE/se_nodamage";
 	public const string SE_PLST00           = "SE/se_plst00";

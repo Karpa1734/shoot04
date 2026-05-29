@@ -1,4 +1,4 @@
-﻿// --- PlayerStatusManager.cs 【VS勝星バグ・2勝リーサル完全決着版】 ---
+﻿// --- PlayerStatusManager.cs 【VJTタイムベース・UIブロック・エラー完全解消版】 ---
 using KanKikuchi.AudioManager;
 using System.Collections;
 using TMPro;
@@ -11,21 +11,14 @@ public class PlayerStatusManager : MonoBehaviour
     public PlayerSkillData characterData;
 
     [Header("Resources")]
-    public int life = 2;
-    public int bomb = 3;
-    public int power = 0;
-    public int maxPower = 128;
-    public int initialLife = 2;
-    public int initialSpell = 3;
-    public float currentHP = 50f;
-    public float maxHP = 50f;
-    public int stockLives = 2;
+    public int life = 0;          // 対戦時の獲得ラウンド勝星数（0からスタート）
+    public float currentHP = 100f; // 通常時のHP（インスペクター準拠で100）
+    public float maxHP = 100f;     // 通常時の最大HP（インスペクター準拠で100）
+    public int stockLives = 2;    // 通常時の残機
 
     [Header("Piece Settings")]
     public int lifePieces = 0;
-    public int bombPieces = 0;
     public int lifePiecesRequired = 3;
-    public int bombPiecesRequired = 3;
 
     [Header("Timers")]
     public float invincibleTimer = 0f;
@@ -37,7 +30,6 @@ public class PlayerStatusManager : MonoBehaviour
 
     [Header("UI References")]
     public PlayerStatusUI lifeUI;
-    public PlayerStatusUI spellUI;
     public ExtendNotificationUI extendUI;
 
     [Header("Round Transition")]
@@ -45,14 +37,8 @@ public class PlayerStatusManager : MonoBehaviour
 
     [Header("Global References")]
     public PauseManager pauseManager;
-
-    [Header("Spell Card System")]
-    public bool isSpellCardActive = false;      // スペルカードが発動中か
-    public bool isOverheated = false;          // 術式焼き切れ中か
-    public float preSpellHP = 50f;             // 発動直前の通常HPの退避用
-    public float preSpellMaxHP = 50f;          // 発動直前の通常最大HPの退避用
-    private float spellOverheatTimer = 0f;     // 焼き切れ状態の残り時間カウント
-
+    [Header("VJT Visual Effects")]
+    public SpellBarrierEffect spellBarrier; // インスペクターからアタッチするバリアの参照
     private PlayerMove _playerMove;
 
     public bool IsInvincible => invincibleTimer > 0;
@@ -63,7 +49,39 @@ public class PlayerStatusManager : MonoBehaviour
     public TextMeshProUGUI koText;
     public UnityEngine.UI.Slider hpBar;
     public UnityEngine.UI.Slider orangeBar;
+    public UnityEngine.UI.Slider spellHpBar;
     public float lerpSpeed = 2.0f;
+
+    // =========================================================================
+    // 🌟 聖少女領域（VJT）独立上乗せライフ ＆ デバフ管理ステート
+    // =========================================================================
+    [Header("--- Spell Card (VJT) 上乗せライフシステム ---")]
+    public bool isSpellCardActive = false;      // 聖少女領域（VJT）展開中フラグ
+    public bool isOverheated = false;          // 術式焼き切れ（デバフ）中フラグ
+
+    public float spellHP = 0f;
+    public float spellMaxHP = 0f;
+
+    [HideInInspector] public float preSpellHP;             // 発動直前の通常HPをロック固定して覚える用
+
+    [Header("--- VJT Duration Settings (Seconds) ---")]
+    public float minSpellDuration = 8.0f;       // ゲージ200%（最小）で発動した時の維持秒数
+    public float maxSpellDuration = 15.0f;      // ゲージ300%（最大）で発動した時の維持秒数
+
+    private float totalSpellDuration = 0f;      // 発動時に確定した今回の総維持秒数
+    private float spellTimer = 0f;              // 残り時間をカウントするリアルタイムタイマー
+    private float initialUltimateEnergy = 0f;   // 発動した瞬間のアルカナゲージ量を記憶する用
+
+    public float overheatDuration = 5f;        // 術式焼き切れのデバフ持続時間（5秒）
+    private float overheatTimer = 0f;
+
+    private Vector3 originalColliderScale = Vector3.one;
+    private Collider2D playerCollider;
+
+    private float appearanceElapsed = 0f;
+    private float animatedSpellHP = 0f;
+    private bool isAnimatingSpellBar = false;
+    private const float SPELL_BAR_ANIM_DURATION = 0.4f;
 
     void Awake()
     {
@@ -71,37 +89,29 @@ public class PlayerStatusManager : MonoBehaviour
 
         if (BossPracticeManager.IsPracticeMode)
         {
-            stockLives = 0; life = 0; bomb = 0;
+            stockLives = 0; life = 0;
         }
         else if (GameModeManager.IsStoryMode)
         {
-            initialLife = 3;
-            stockLives = 3;
             life = 3;
-            bomb = initialSpell;
+            stockLives = 3;
         }
         else
         {
-            // 🌟 VSモード：初期値設定
-            initialLife = 2;   // 2マッチ先取（2回撃破でゲームセット）
-            stockLives = 2;    // 残り体力（2回死んだら終わり）
-            life = 0;          // 獲得した勝星（最初は0個点灯）
-            bomb = initialSpell;
+            life = 0;
+            stockLives = 0;
+        }
+
+        playerCollider = GetComponentInChildren<Collider2D>();
+        if (playerCollider != null)
+        {
+            originalColliderScale = playerCollider.transform.localScale;
         }
     }
 
     void Start()
     {
         currentHP = maxHP;
-        bomb = initialSpell;
-
-        // 🌟 修正の核心：Start() での life = initialLife; の誤上書きを完全撤廃！
-        // これにより、VSモード時に0点灯から正常スタートするようになります。
-        if (GameModeManager.IsStoryMode)
-        {
-            life = initialLife;
-        }
-
         ApplyCharacterSettings();
         StartCoroutine(SetupInitialUI());
         StartCoroutine(InitUIWithDelay());
@@ -138,49 +148,223 @@ public class PlayerStatusManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 🌟 修正の核心：VSモードの2本先取リーサル判定を完全組み込み
-    /// </summary>
-    public bool SubtractLifeAndCheckRebirth()
+    void Update()
     {
-        if (stockLives > 0)
-        {
-            stockLives--;
+        if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
+        if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
 
-            if (GameModeManager.IsStoryMode)
+        // 【VJT実行中のリアルタイム毎フレーム制御】
+        if (isSpellCardActive)
+        {
+            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
+
+            spellTimer -= Time.deltaTime;
+            float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration);
+
+            _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio;
+
+            if (spellTimer <= 0f)
             {
-                life = stockLives;
-                UpdateUI();
-                return true; // ストーリーは残機がある限り復活可能
+                spellTimer = 0f;
+                _playerMove.ultimateEnergy = 0f;
+                DeactivateSpellCard(false);
+            }
+
+            if (isAnimatingSpellBar)
+            {
+                appearanceElapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(appearanceElapsed / SPELL_BAR_ANIM_DURATION);
+                float easedT = t * t * (3f - 2f * t);
+                animatedSpellHP = Mathf.Lerp(0f, spellHP, easedT);
+
+                if (t >= 1f) isAnimatingSpellBar = false;
             }
             else
             {
-                // =========================================================================
-                // 🌟【VSモード：勝星加算 ＆ 2勝先取の完全決着ジャッジ】
-                // =========================================================================
-                if (_playerMove != null && _playerMove.Opponent != null)
-                {
-                    PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
-                    if (oppStatus != null)
-                    {
-                        // 1. 勝った側（対戦相手）の星を増やす
-                        oppStatus.life++;
-                        oppStatus.UpdateUI();
-
-                        // 2. 🚨【超重要】：もし相手が「2勝」に達したら、この瞬間に試合完全決着！
-                        if (oppStatus.life >= 2)
-                        {
-                            UpdateUI(); // 自分のUIも最終同期（自分の全敗が確定）
-                            return false; // ❌ 復活を「拒否」して、完全なる爆散ゲームセットへ落とす
-                        }
-                    }
-                }
-
-                UpdateUI();
-                return true; // まだ相手が2勝未満（1勝目など）なら、次のラウンドへ仕切り直し（復活）
+                animatedSpellHP = spellHP;
             }
         }
+
+        // 術式焼き切れデバフのタイマー処理
+        if (isOverheated)
+        {
+            overheatTimer -= Time.deltaTime;
+            if (overheatTimer <= 0f)
+            {
+                isOverheated = false;
+                Debug.Log("<color=green>⏳【VJT】術式冷却完了。通常状態へ復帰しました。</color>");
+            }
+        }
+
+        // ゲージの滑らかな減衰補間
+        float targetSliderValue = isSpellCardActive ? animatedSpellHP : currentHP;
+        if (orangeBar != null && orangeBar.value > targetSliderValue)
+        {
+            orangeBar.value = Mathf.Lerp(orangeBar.value, targetSliderValue, Time.deltaTime * lerpSpeed);
+            if (orangeBar.value - targetSliderValue < 0.1f) orangeBar.value = targetSliderValue;
+        }
+
+        UpdateUI();
+    }
+
+    public void ActivateSpellCard()
+    {
+        if (isSpellCardActive || _playerMove.ultimateEnergy < 200f) return;
+
+        if (SpellCardManager.Instance != null && !SpellCardManager.Instance.TryRequestVJT(this))
+        {
+            return;
+        }
+
+        Debug.Log($"<color=cyan>🔥【聖少女領域 - VJT展開】現在のゲージ残量: {_playerMove.ultimateEnergy}%</color>");
+
+        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 0.5f);
+
+        isSpellCardActive = true;
+        isOverheated = false;
+
+        initialUltimateEnergy = _playerMove.ultimateEnergy;
+
+        // 🌟通常HPを別腹ロック固定保存
+        preSpellHP = currentHP;
+
+        float fullArmorHP = maxHP * 30f;
+
+        float t = Mathf.InverseLerp(200f, 300f, initialUltimateEnergy);
+        totalSpellDuration = Mathf.Lerp(minSpellDuration, maxSpellDuration, t);
+        spellTimer = totalSpellDuration;
+
+        float spawnHPRatio = Mathf.Lerp(0.75f, 1.0f, t);
+
+        spellMaxHP = fullArmorHP;
+        spellHP = fullArmorHP * spawnHPRatio;
+
+        isAnimatingSpellBar = true;
+        appearanceElapsed = 0f;
+        animatedSpellHP = 0f;
+
+        if (playerCollider != null)
+        {
+            playerCollider.transform.localScale = originalColliderScale * 30f;
+        }
+        if (spellBarrier != null)
+        {
+            spellBarrier.SetBarrierActive(true);
+        }
+        UpdateUI();
+        SyncBarsImmediately();
+    }
+
+    public void DeactivateSpellCard(bool isDefeatedByDamage)
+    {
+        if (!isSpellCardActive) return;
+        isSpellCardActive = false;
+
+        // 🌟 破砕時のみ1.0秒間の無敵保護を発動、時間切れやULT時はスキップしてクールダウンへ
+        if (isDefeatedByDamage)
+        {
+            SetInvincible(1.0f);
+        }
+
+        if (spellBarrier != null)
+        {
+            spellBarrier.SetBarrierActive(false);
+        }
+
+        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.5f);
+
+        if (SpellCardManager.Instance != null)
+        {
+            SpellCardManager.Instance.ReleaseVJT(this);
+        }
+
+        if (playerCollider != null)
+        {
+            playerCollider.transform.localScale = originalColliderScale;
+        }
+
+        // 通常ライフを無傷復元
+        currentHP = preSpellHP;
+
+        spellHP = 0f;
+        spellMaxHP = 0f;
+        spellTimer = 0f;
+        totalSpellDuration = 0f;
+        initialUltimateEnergy = 0f;
+
+        isOverheated = true;
+        overheatTimer = overheatDuration;
+
+        if (MatchTimerUI.Instance != null)
+        {
+            MatchTimerUI.Instance.ResumeTimer();
+        }
+
+        UpdateUI();
+        SyncBarsImmediately();
+    }
+
+    public bool ApplyDamage(int amount)
+    {
+        if (isSpellCardActive)
+        {
+            spellHP -= amount;
+            UpdateUI();
+
+            if (spellHP <= 0)
+            {
+                spellHP = 0;
+                DeactivateSpellCard(true);
+                return false;
+            }
+            return false;
+        }
+
+        currentHP -= amount;
+        UpdateUI();
+
+        if (currentHP <= 0)
+        {
+            currentHP = 0;
+            return true;
+        }
         return false;
+    }
+
+    public bool SubtractLifeAndCheckRebirth()
+    {
+        if (GameModeManager.IsStoryMode)
+        {
+            if (stockLives > 0)
+            {
+                stockLives--;
+                life = stockLives;
+                UpdateUI();
+                return true;
+            }
+            return false;
+        }
+        else
+        {
+            if (_playerMove != null && _playerMove.Opponent != null)
+            {
+                PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                if (oppStatus != null)
+                {
+                    oppStatus.life++;
+                    oppStatus.UpdateUI();
+
+                    if (oppStatus.life >= 2)
+                    {
+                        UpdateUI();
+                        return false;
+                    }
+                }
+            }
+
+            UpdateUI();
+            return true;
+        }
     }
 
     public IEnumerator GradualHealthRecovery(float duration)
@@ -188,8 +372,6 @@ public class PlayerStatusManager : MonoBehaviour
         float startHP = currentHP;
         float elapsed = 0;
 
-        // 🌟【最重要】：回復が始まる瞬間に、背面のオレンジバーを現在の低いHP（startHP）にガチッと合わせる！
-        // これにより、減少補完ロジックのバッティングや取り残しを完璧に防ぎます。
         if (orangeBar != null)
         {
             orangeBar.maxValue = maxHP;
@@ -200,16 +382,12 @@ public class PlayerStatusManager : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             currentHP = Mathf.Lerp(startHP, maxHP, elapsed / duration);
-
-            // 毎フレームUIを更新し、裏のバーも一緒に引き上げます
             UpdateUI();
             yield return null;
         }
-
         currentHP = maxHP;
         UpdateUI();
 
-        // 🌟【念押し】：回復完了時に、双方のバーが完全に満タン（maxHP）で一致するように完全ホールド
         if (orangeBar != null) orangeBar.value = maxHP;
     }
 
@@ -227,65 +405,135 @@ public class PlayerStatusManager : MonoBehaviour
         screenFader.alpha = targetAlpha;
     }
 
-    void Update()
+    private void UpdateUI()
     {
-        if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
-        if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
+        if (winText != null && !winText.gameObject.activeSelf) winText.gameObject.SetActive(false);
+        if (koText != null && !koText.gameObject.activeSelf) koText.gameObject.SetActive(false);
 
-        if (orangeBar != null && orangeBar.value > currentHP)
+        bool isVs = !GameModeManager.IsStoryMode;
+
+        if (lifeUI != null)
         {
-            orangeBar.value = Mathf.Lerp(orangeBar.value, currentHP, Time.deltaTime * lerpSpeed);
-            if (orangeBar.value - currentHP < 0.1f) orangeBar.value = currentHP;
+            lifeUI.SetCountVsVariant(life, lifePieces, lifePiecesRequired, isVs);
+        }
+
+        if (isSpellCardActive)
+        {
+            if (spellHpBar != null)
+            {
+                spellHpBar.gameObject.SetActive(true);
+                spellHpBar.maxValue = spellMaxHP;
+                spellHpBar.value = animatedSpellHP;
+            }
+
+            if (hpBar != null)
+            {
+                hpBar.gameObject.SetActive(true);
+                hpBar.maxValue = maxHP;
+                hpBar.value = preSpellHP; // 🌟通常HPを満タン100の位置でフリーズ固定ロック！
+                SetSliderAlpha(hpBar, 0.3f);
+            }
+        }
+        else
+        {
+            if (hpBar != null)
+            {
+                hpBar.gameObject.SetActive(true);
+                hpBar.maxValue = maxHP;
+                hpBar.value = currentHP;
+                SetSliderAlpha(hpBar, 1.0f);
+            }
+
+            if (spellHpBar != null)
+            {
+                spellHpBar.gameObject.SetActive(false);
+            }
+        }
+
+        if (orangeBar != null)
+        {
+            orangeBar.maxValue = isSpellCardActive ? spellMaxHP : maxHP;
+            float currentTargetValue = isSpellCardActive ? animatedSpellHP : currentHP;
+            if (currentTargetValue >= (isSpellCardActive ? spellMaxHP : maxHP))
+            {
+                orangeBar.value = isSpellCardActive ? spellMaxHP : maxHP;
+            }
         }
     }
 
     public void SyncBarsImmediately()
     {
-        currentHP = maxHP;
         if (hpBar != null)
         {
-            hpBar.maxValue = maxHP;
-            hpBar.value = currentHP;
+            hpBar.maxValue = isSpellCardActive ? spellMaxHP : maxHP;
+            hpBar.value = isSpellCardActive ? animatedSpellHP : currentHP;
         }
         if (orangeBar != null)
         {
-            orangeBar.maxValue = maxHP;
-            orangeBar.value = currentHP;
+            orangeBar.maxValue = isSpellCardActive ? spellMaxHP : maxHP;
+            orangeBar.value = isSpellCardActive ? animatedSpellHP : currentHP;
         }
     }
 
-    public bool ApplyDamage(int amount)
+    private void SetSliderAlpha(UnityEngine.UI.Slider slider, float alpha)
     {
-        currentHP -= amount;
-        UpdateUI();
-
-        if (currentHP <= 0)
+        UnityEngine.UI.Image[] images = slider.GetComponentsInChildren<UnityEngine.UI.Image>(true);
+        foreach (var img in images)
         {
-            currentHP = 0;
-            return true;
+            Color c = img.color;
+            c.a = alpha;
+            img.color = c;
         }
-        return false;
     }
 
+    // =========================================================================
+    // 🌟【修復・完全溶接】：外部クラスから呼び出される中枢関数群
+    // =========================================================================
+
+    /// <summary>
+    /// 一時停止メニュー等からリトライ（コンティニュー）を確定した際の初期化処理
+    /// </summary>
     public void PerformContinue()
     {
         continueCount++;
         currentHP = maxHP;
-        stockLives = initialLife;
-        bomb = initialSpell;
+        isSpellCardActive = false;
+        isOverheated = false;
+        spellHP = 0f;
+        spellMaxHP = 0f;
+        spellTimer = 0f;
+        totalSpellDuration = 0f;
+        initialUltimateEnergy = 0f;
         UpdateUI();
 
         PlayerHitHandler hitHandler = GetComponentInChildren<PlayerHitHandler>();
         if (hitHandler != null) hitHandler.StartRebirthFromContinue();
     }
 
-    public void ResetContinueCount() => continueCount = 0;
-
-    public bool AddPower(int amount)
+    /// <summary>
+    /// コンティニュー回数のカウンタを完全にリセットする
+    /// </summary>
+    public void ResetContinueCount()
     {
-        if (power >= maxPower) return false;
-        power = Mathf.Min(power + amount, maxPower);
-        return true;
+        continueCount = 0;
+    }
+
+    /// <summary>
+    /// 完全に勝敗が決したリザルト画面（ゲームオーバー画面）をトリガーする
+    /// </summary>
+    public void TriggerGameOver()
+    {
+        if (pauseManager == null) return;
+
+        if (BossPracticeManager.IsPracticeMode)
+        {
+            pauseManager.SetPracticeResultMode(true, false);
+        }
+        else
+        {
+            pauseManager.SetGameOverMode(true);
+            pauseManager.PauseGame();
+        }
     }
 
     public void AddLife(int amount)
@@ -293,24 +541,6 @@ public class PlayerStatusManager : MonoBehaviour
         life = Mathf.Min(life + amount, 8);
         UpdateUI();
         if (extendUI != null) extendUI.Show("Extend!!", new Color(1f, 0.4f, 0.7f));
-    }
-
-    public void AddBomb(int amount)
-    {
-        bomb = Mathf.Min(bomb + amount, 8);
-        if (extendUI != null) extendUI.Show("Bomb Up!!", new Color(0.5f, 1f, 0.5f));
-        UpdateUI();
-    }
-
-    public bool UseSpell()
-    {
-        if (bomb > 0)
-        {
-            bomb--;
-            UpdateUI();
-            return true;
-        }
-        return false;
     }
 
     public void AddLifePiece(int amount)
@@ -324,68 +554,6 @@ public class PlayerStatusManager : MonoBehaviour
         }
         UpdateUI();
     }
-
-    public void AddBombPiece(int amount)
-    {
-        bombPieces += amount;
-        if (bombPieces >= bombPiecesRequired)
-        {
-            bombPieces -= bombPiecesRequired;
-            AddBomb(1);
-            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.GETSPELLCARD);
-        }
-        UpdateUI();
-    }
-
-    public void TriggerGameOver()
-    {
-        if (pauseManager == null) return;
-        if (BossPracticeManager.IsPracticeMode)
-        {
-            pauseManager.SetPracticeResultMode(true, false);
-        }
-        else
-        {
-            pauseManager.SetGameOverMode(true);
-            pauseManager.PauseGame();
-        }
-    }
-
-    private void UpdateUI()
-    {
-        if (winText != null) winText.gameObject.SetActive(false);
-        if (koText != null) koText.gameObject.SetActive(false);
-
-        bool isVs = !GameModeManager.IsStoryMode;
-
-        if (lifeUI != null)
-        {
-            lifeUI.SetCountVsVariant(life, lifePieces, lifePiecesRequired, isVs);
-        }
-
-        if (spellUI != null)
-        {
-            spellUI.SetCountVsVariant(bomb, bombPieces, bombPiecesRequired, false);
-        }
-
-        if (hpBar != null)
-        {
-            hpBar.maxValue = maxHP;
-            hpBar.value = currentHP;
-        }
-
-        // 🌟【修正】：裏のオレンジバーの最大値を保証しつつ、
-        // 🌟もし現在値が満タンをオーバーしていたり、回復完了直後であれば安全弁として上限クリップします。
-        if (orangeBar != null)
-        {
-            orangeBar.maxValue = maxHP;
-            if (currentHP >= maxHP)
-            {
-                orangeBar.value = maxHP;
-            }
-        }
-    }
-
     public IEnumerator PlayKOAnimation()
     {
         if (koText == null) yield break;
