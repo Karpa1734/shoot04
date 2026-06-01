@@ -81,11 +81,11 @@ public class PlayerHitHandler : MonoBehaviour
         // 無敵中や既にスタン中の場合は判定を無視
         if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
 
-        // 🌟【バグ修正句】：全体のガード句を撤廃し、
-        // 🌟 バリアが全壊・解除されたまさにその瞬間（同じUnityフレーム内）に重なっていた弾のみをピンポイントで消音処理
-        if (myStatusManager != null && myStatusManager.isOverheated && Time.frameCount == lastProcessedFrame)
+        // 🌟【バグ修正ガード句】：フレーム番号の厳密一致チェックを排除
+        // バリアが終了（非アクティブ）し、術式焼き切れデバフ（isOverheated）に突入した直後のフレームは、
+        // コライダー上に残存していた敵弾の擦れによる不自然な通常被弾音・爆発の発生を完全にスキップ（早期リターン）させます！
+        if (myStatusManager != null && myStatusManager.isOverheated && !myStatusManager.isSpellCardActive)
         {
-            // 解除されたフレームの残弾は、スタンの二重発生や余計なノイズを防ぐため、ダメージ計算をせずにここで弾き飛ばす
             return;
         }
 
@@ -124,12 +124,13 @@ public class PlayerHitHandler : MonoBehaviour
         {
             if (SEManager.Instance != null)
             {
-                SEManager.Instance.Play(SEPath.SE_DAMAGE00, 0.2f);
+                // バリア耐久中のガード音のみを鳴らす
+                SEManager.Instance.Play(SEPath.SE_DAMAGE00, 0.5f);
             }
             return;
         }
 
-        // 🔷 プレーンな通常時（およびクールダウンデバフ中）：通常の被弾演出をしっかりと実行！
+        // 🔷 プレーンな通常時（およびバリア終了の完全にデバフ期間中）：通常の被弾演出をしっかりと実行！
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
         if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
 
@@ -157,36 +158,14 @@ public class PlayerHitHandler : MonoBehaviour
         currentState = PlayerState.Normal;
     }
 
-    IEnumerator SmallHitRoutine()
-    {
-        playerMove.SetInvincible(0.5f);
-        yield return null;
-    }
-
-    IEnumerator CheckDeathBombRoutine()
-    {
-        SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
-        playerMove.StartDeathBombWindow(deathBombWindow);
-
-        while (playerMove.IsInDeathBombWindow)
-        {
-            yield return null;
-        }
-
-        if (playerMove.IsInvincible)
-        {
-            currentState = PlayerState.Normal;
-            yield break;
-        }
-
-        StartCoroutine(ExplosionAndStunRoutine());
-    }
 
     IEnumerator ExplosionAndStunRoutine()
     {
         Vector3 hitPos = transform.position;
 
-        if (playerMove.IsInvincible) yield break;
+        // 🌟【バグ修正】：すでに撃墜スタン演出中、または無敵中の場合は処理を即座に破棄（ yield break ）
+        // これにより、スローモーション中に裏で多段被弾音が「バリバリッ」と重なって鳴り響くバグを100%遮断します
+        if (playerMove.IsInvincible || currentState == PlayerState.Hit) yield break;
 
         if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
         Time.timeScale = 0.3f;

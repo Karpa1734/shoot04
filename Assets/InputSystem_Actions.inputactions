@@ -466,7 +466,7 @@
                 {
                     "name": "",
                     "id": "db4bceda-7409-4633-91da-95d27f55ced2",
-                    "path": "<Gamepad>/leftShoulder",
+                    "path": "<Gamepad>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -477,7 +477,7 @@
                 {
                     "name": "",
                     "id": "11c350bf-1f5a-4c75-8cc0-bea499516b71",
-                    "path": "<XInputController>/leftShoulder",
+                    "path": "<XInputController>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -830,7 +830,18 @@
                 {
                     "name": "",
                     "id": "dc93439a-7326-49c8-82d5-0eeb0c24b66d",
-                    "path": "",
+                    "path": "<Gamepad>/leftShoulder",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Skill_EX",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "7e2fef76-fc08-4977-9349-d0fd1a3a0a10",
+                    "path": "<XInputController>/leftShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": "",
@@ -1006,7 +1017,7 @@
                 {
                     "name": "",
                     "id": "bcd9f917-5b8c-4504-8260-a48d2b9deb84",
-                    "path": "<Gamepad>/leftShoulder",
+                    "path": "<Gamepad>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
@@ -1017,7 +1028,7 @@
                 {
                     "name": "",
                     "id": "80edec69-2f91-43c3-8192-cd50bba5717c",
-                    "path": "<XInputController>/leftShoulder",
+                    "path": "<XInputController>/rightShoulder",
                     "interactions": "",
                     "processors": "",
                     "groups": ";Gamepad",
