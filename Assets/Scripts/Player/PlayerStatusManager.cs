@@ -331,6 +331,14 @@ public class PlayerStatusManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// 被弾時に残機または星の計算を行い、【このダウンで完全に勝負（マッチ）が決着するか】を論理評価する
+    /// </summary>
+    /// <returns>完全に決着・ゲームオーバーなら true、まだ次ラウンドや残機で復活できるなら false</returns>
+    /// <summary>
+    /// 被弾時に残機または星の計算を行い、【このダウンで完全に勝負（マッチ）が決着するか】を論理評価する
+    /// </summary>
+    /// <returns>完全に決着・2勝先取されたら true、まだ次ラウンドへ移行できるなら false</returns>
     public bool SubtractLifeAndCheckRebirth()
     {
         if (GameModeManager.IsStoryMode)
@@ -340,30 +348,39 @@ public class PlayerStatusManager : MonoBehaviour
                 stockLives--;
                 life = stockLives;
                 UpdateUI();
-                return true;
+                return false;
             }
-            return false;
+            return true;
         }
         else
         {
+            // 🔷 VSモード（対戦モード）時：2ラウンド先取制（2つの星が点灯したら終了）
             if (_playerMove != null && _playerMove.Opponent != null)
             {
                 PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
                 if (oppStatus != null)
                 {
-                    oppStatus.life++;
-                    oppStatus.UpdateUI();
-
-                    if (oppStatus.life >= 2)
+                    // 🌟 相手の現在の星（life）が既に 1 だった場合、今回の勝利で 2 に到達するため【マッチ終了】
+                    if (oppStatus.life >= 1)
                     {
+                        oppStatus.life = 2;
+                        oppStatus.UpdateUI();
                         UpdateUI();
-                        return false;
+                        return true; // 2ラウンド先取したため、ゲームセット確定！ (true)
+                    }
+                    else
+                    {
+                        // 🌟 相手の現在の星が 0 だった場合は、今回で 1 個目が灯るので【ラウンド継続】
+                        oppStatus.life = 1;
+                        oppStatus.UpdateUI();
+                        UpdateUI();
+                        return false; // まだ1本目なので、次のラウンドへ進む (false)
                     }
                 }
             }
 
             UpdateUI();
-            return true;
+            return false;
         }
     }
 
@@ -554,10 +571,11 @@ public class PlayerStatusManager : MonoBehaviour
         }
         UpdateUI();
     }
+    // 🌟【修正】：文字の強制上書きロジック（koText.text = "Game Set !!";）を排除！
+    // ヒットハンドラー側でセットされた文字列をそのままアニメーションさせます。
     public IEnumerator PlayKOAnimation()
     {
         if (koText == null) yield break;
-        koText.text = "Game Set !!";
         koText.gameObject.SetActive(true);
 
         koText.transform.localScale = Vector3.zero;
@@ -578,6 +596,8 @@ public class PlayerStatusManager : MonoBehaviour
         koText.transform.localScale = Vector3.one;
     }
 
+    // 🌟【修正】：フェードアウト終了時に koText 自体は非アクティブにしますが、
+    // 次回の判定への影響を防ぐため、元のテキスト内容を無理にリセットしない形に変更。
     public IEnumerator FadeOutKOAnimation(float duration)
     {
         if (koText == null) yield break;
@@ -586,7 +606,7 @@ public class PlayerStatusManager : MonoBehaviour
 
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;
+            elapsed += Time.deltaTime; // タイムスケール等倍復帰後のため通常のdeltaTimeで安全稼働
             float alpha = Mathf.Lerp(1, 0, elapsed / duration);
             koText.color = new Color(startColor.r, startColor.g, startColor.b, alpha);
             yield return null;

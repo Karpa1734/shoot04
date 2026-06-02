@@ -32,6 +32,9 @@ public class PlayerHitHandler : MonoBehaviour
     [Header("Multiplayer Support")]
     public PlayerStatusManager myStatusManager;
 
+    // 🌟【新規管理フラグ】：時間切れによる強制爆発コルーチン呼び出しであるかを判別する
+    [HideInInspector] public bool isTriggeredByTimeUp = false;
+
     private SpriteRenderer characterRenderer;
     private ItemEffectHandler itemHandler;
 
@@ -78,18 +81,13 @@ public class PlayerHitHandler : MonoBehaviour
     {
         Vector3 hitPos = transform.position;
 
-        // 無敵中や既にスタン中の場合は判定を無視
-        if (playerMove.IsInvincible || currentState != PlayerState.Normal) return;
+        if (playerMove.IsInvincible || currentState == PlayerState.Down || currentState == PlayerState.Rebirth) return;
 
-        // 🌟【バグ修正ガード句】：フレーム番号の厳密一致チェックを排除
-        // バリアが終了（非アクティブ）し、術式焼き切れデバフ（isOverheated）に突入した直後のフレームは、
-        // コライダー上に残存していた敵弾の擦れによる不自然な通常被弾音・爆発の発生を完全にスキップ（早期リターン）させます！
-        if (myStatusManager != null && myStatusManager.isOverheated && !myStatusManager.isSpellCardActive)
+        if (myStatusManager != null && myStatusManager.isOverheated && !myStatusManager.isSpellCardActive && Time.frameCount == lastProcessedFrame)
         {
             return;
         }
 
-        // フレーム内多段ヒット上限のインターセプト判定
         if (Time.frameCount == lastProcessedFrame)
         {
             currentHitsInThisFrame++;
@@ -107,6 +105,10 @@ public class PlayerHitHandler : MonoBehaviour
 
         bool isDown = false;
 
+        // 事前に今回のダメージで通常HPが全損（0以下）するか、あるいはスペルカード破砕かをシミュレート先読み
+        bool willSpellCardEnd = myStatusManager != null && myStatusManager.isSpellCardActive && (myStatusManager.spellHP - damage <= 0);
+        bool isLastHitOnNormalHP = myStatusManager != null && !myStatusManager.isSpellCardActive && (myStatusManager.currentHP - damage <= 0);
+
         if (myStatusManager != null)
         {
             DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
@@ -115,27 +117,48 @@ public class PlayerHitHandler : MonoBehaviour
                 agent.GiveHitPenalty();
             }
 
-            // ダメージを適用
+            // ダメージの実際の適用
             isDown = myStatusManager.ApplyDamage(damage);
         }
 
-        // 🌟 聖少女領域（VJT）発動中の演出＆SE専用排他スイッチ（常時アーマー維持）
+        // 【音響条件3】：スペルカード（VJT）が被弾ダメージによって破砕終了した瞬間は、被弾音を100%カットして早期リターン
+        if (willSpellCardEnd)
+        {
+            return;
+        }
+
+        // VJTバリア持続中の通常ガード音（アーマー耐久音）
         if (myStatusManager != null && myStatusManager.isSpellCardActive)
         {
             if (SEManager.Instance != null)
             {
-                // バリア耐久中のガード音のみを鳴らす
                 SEManager.Instance.Play(SEPath.SE_DAMAGE00, 0.5f);
             }
             return;
         }
 
-        // 🔷 プレーンな通常時（およびバリア終了の完全にデバフ期間中）：通常の被弾演出をしっかりと実行！
+        // 【音響条件2】：この被弾が「ゲームセットが決まる最後の一発（2勝先取）」の時は、BOSS_END_ENDを最優先させるため被弾音（SE_PLAYER_COLLISION）を強制ミュート！
+        bool isMatchGameOverPreCheck = false;
+        if (myStatusManager != null && !GameModeManager.IsStoryMode && playerMove != null && playerMove.Opponent != null)
+        {
+            PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null && oppStatus.life >= 1 && isLastHitOnNormalHP)
+            {
+                isMatchGameOverPreCheck = true;
+            }
+        }
+
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
-        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
+
+        // 最後の一発でなければ通常の被弾音を綺麗に再生
+        if (!isMatchGameOverPreCheck)
+        {
+            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.3f);
+        }
 
         if (isDown)
         {
+            isTriggeredByTimeUp = false;
             currentState = PlayerState.Hit;
             StartCoroutine(ExplosionAndStunRoutine());
         }
@@ -158,20 +181,24 @@ public class PlayerHitHandler : MonoBehaviour
         currentState = PlayerState.Normal;
     }
 
-
     IEnumerator ExplosionAndStunRoutine()
     {
         Vector3 hitPos = transform.position;
 
-        // 🌟【バグ修正】：すでに撃墜スタン演出中、または無敵中の場合は処理を即座に破棄（ yield break ）
-        // これにより、スローモーション中に裏で多段被弾音が「バリバリッ」と重なって鳴り響くバグを100%遮断します
-        if (playerMove.IsInvincible || currentState == PlayerState.Hit) yield break;
+        if (playerMove.IsInvincible) yield break;
+
+        currentState = PlayerState.Down;
 
         if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
-        Time.timeScale = 0.3f;
+        Time.timeScale = 0.3f; // 🌟スローモーション開始
 
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = false;
+
+        if (myStatusManager != null && myStatusManager.currentHP > 0f)
+        {
+            isTriggeredByTimeUp = true;
+        }
 
         if (myStatusManager != null)
         {
@@ -179,12 +206,27 @@ public class PlayerHitHandler : MonoBehaviour
             myStatusManager.SendMessage("UpdateUI", SendMessageOptions.DontRequireReceiver);
         }
 
-        bool canContinueMatch = myStatusManager != null && myStatusManager.SubtractLifeAndCheckRebirth();
+        // 星の計算の事前評価
+        bool isMatchGameOver = false;
+        if (myStatusManager != null && !GameModeManager.IsStoryMode && playerMove != null && playerMove.Opponent != null)
+        {
+            PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null && oppStatus.life >= 1)
+            {
+                isMatchGameOver = true;
+            }
+        }
+
+        if (myStatusManager != null)
+        {
+            myStatusManager.SubtractLifeAndCheckRebirth();
+        }
         ClearAllBullets();
 
-        if (!canContinueMatch)
+        // 2勝決着時のみ、この爆散の瞬間にSEを最優先再生
+        if (isMatchGameOver)
         {
-            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.BOSS_END_END, 0.3f);
+            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.BOSS_END_END, 0.6f);
         }
 
         if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
@@ -201,14 +243,14 @@ public class PlayerHitHandler : MonoBehaviour
 
         yield return null;
 
-        if (canContinueMatch)
+        if (GameModeManager.IsStoryMode && !isMatchGameOver)
         {
             currentState = PlayerState.Hit;
             if (playerMove != null) playerMove.enabled = false;
 
             bool isHumanPlayer = (myStatusManager != null && myStatusManager.playerId == 1);
 
-            if (GameModeManager.IsStoryMode && isHumanPlayer)
+            if (isHumanPlayer)
             {
                 yield return new WaitForSecondsRealtime(2.0f);
                 Time.timeScale = 1.0f;
@@ -236,15 +278,22 @@ public class PlayerHitHandler : MonoBehaviour
             {
                 yield return new WaitForSecondsRealtime(2.0f);
                 Time.timeScale = 1.0f;
-
                 yield return new WaitForSecondsRealtime(1.0f);
                 yield return StartCoroutine(RoundResetSequence());
             }
         }
         else
         {
-            SetPlayerActiveState(false);
-            yield return StartCoroutine(PerformKORoundEndRoutine());
+            if (isMatchGameOver)
+            {
+                SetPlayerActiveState(false);
+            }
+            else
+            {
+                if (playerMove != null) playerMove.enabled = false;
+            }
+
+            yield return StartCoroutine(PerformKORoundEndRoutine(isMatchGameOver));
         }
     }
 
@@ -267,27 +316,38 @@ public class PlayerHitHandler : MonoBehaviour
         yield return StartCoroutine(RoundResetSequence());
     }
 
+    /// <summary>
+    /// 🌟【人間操作100%完全除外】：AI操作のキャラクターのみを初期位置へ自動巡航させます。
+    /// 人間が操作しているキャラクターは自動移動も、最終フィックス（ワープ）も完全に「ノータッチ」にします。
+    /// </summary>
     IEnumerator RoundResetSequence()
     {
+        // 🌟【スローモーション解除の確実化】：自動移動開始のファーストフレームで確実に等倍復帰
         Time.timeScale = 1.0f;
 
+        // 全員の当たり判定やスプライトを復元
         foreach (var p in PlayerMove.AllPlayers)
         {
             if (p == null) continue;
-
             PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
             if (hh != null)
             {
                 hh.SetPlayerActiveState(true);
                 hh.currentState = PlayerState.Normal;
             }
+
+            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+            if (ps != null)
+            {
+                StartCoroutine(ps.GradualHealthRecovery(1.0f));
+            }
         }
 
-        int playerCount = 0;
-        foreach (var p in PlayerMove.AllPlayers) if (p != null) playerCount++;
+        float moveDuration = 1.8f;
+        float elapsed = 0f;
 
-        Coroutine[] recoveryCoroutines = new Coroutine[playerCount];
-        int idx = 0;
+        System.Collections.Generic.Dictionary<GameObject, Vector3> startPositions = new System.Collections.Generic.Dictionary<GameObject, Vector3>();
+        System.Collections.Generic.Dictionary<GameObject, Vector3> targetPositions = new System.Collections.Generic.Dictionary<GameObject, Vector3>();
 
         foreach (var p in PlayerMove.AllPlayers)
         {
@@ -295,14 +355,83 @@ public class PlayerHitHandler : MonoBehaviour
             PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
             if (ps != null)
             {
-                recoveryCoroutines[idx] = StartCoroutine(ps.GradualHealthRecovery(1.0f));
-                idx++;
+                startPositions[p.gameObject] = p.transform.position;
+                float targetX = (ps.playerId == 2) ? 3.5f : -3.5f;
+                targetPositions[p.gameObject] = new Vector3(targetX, 0f, 0f);
             }
         }
 
-        for (int i = 0; i < idx; i++)
+        while (elapsed < moveDuration)
         {
-            if (recoveryCoroutines[i] != null) yield return recoveryCoroutines[i];
+            elapsed += Time.deltaTime;
+            float rawPercent = Mathf.Clamp01(elapsed / moveDuration);
+            float smoothPercent = rawPercent * rawPercent * (3f - 2f * rawPercent);
+
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null || !startPositions.ContainsKey(p.gameObject)) continue;
+
+                // 🌟【大バグ修正】：対戦相手が人間操作プレイヤーである場合はAIフラグを100%「偽(false)」にロック！
+                bool isAIControlled = false;
+
+                // ストーリーモードで、かつ自分以外のオブジェクト（敵のボスなど）である場合のみをAI操作として正しく検出
+                if (GameModeManager.IsStoryMode)
+                {
+                    PlayerStatusManager currentPs = p.GetComponent<PlayerStatusManager>();
+                    if (currentPs != null && currentPs.playerId == 2)
+                    {
+                        isAIControlled = true;
+                    }
+                    else if (p.name.Contains("AI") || p.name.Contains("Enemy") || p.name.Contains("CPU"))
+                    {
+                        isAIControlled = true;
+                    }
+                }
+
+                if (isAIControlled)
+                {
+                    // 🔷 AI（CPU）操作キャラクターのみ、最高速度を活かした滑らかな加減速で定位置に引き戻す
+                    Vector3 nextPos = Vector3.Lerp(startPositions[p.gameObject], targetPositions[p.gameObject], smoothPercent);
+                    p.transform.position = nextPos;
+
+                    float clampedX = Mathf.Clamp(p.transform.position.x, -8.5f, 8.5f);
+                    float clampedY = Mathf.Clamp(p.transform.position.y, -4.5f, 4.5f);
+                    p.transform.position = new Vector3(clampedX, clampedY, 0f);
+                }
+                else
+                {
+                    // 🟢【人間操作プレイヤー】：座標の書き換えを一切行わず、100%ノータッチ。
+                    // その場に完全に維持させ、被弾アニメーションの物理挙動を邪魔しません。
+                }
+            }
+            yield return null;
+        }
+
+        // 🌟【大修正】：ラウンド開始直前の最終位置固定処理でも、人間操作プレイヤーのワープを鉄壁ガード！
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p == null) continue;
+
+            bool isAIControlled = false;
+            if (GameModeManager.IsStoryMode)
+            {
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                if (ps != null && ps.playerId == 2) isAIControlled = true;
+                else if (p.name.Contains("AI") || p.name.Contains("Enemy") || p.name.Contains("CPU")) isAIControlled = true;
+            }
+
+            if (isAIControlled)
+            {
+                // AIキャラのみ目標位置（±3.5）にジャストフィット
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                float targetX = (ps != null && ps.playerId == 2) ? 3.5f : -3.5f;
+                p.transform.position = new Vector3(targetX, 0f, 0f);
+            }
+            else
+            {
+                // 🟢 人間操作プレイヤーは位置の強制ワープ移動を完全に禁止（ノータッチ）！！
+                // 前のラウンドで撃墜された、あるいは生き残ったそのポジションから滑らかに第2ラウンドを開始させます。
+            }
         }
 
         if (MatchTimerUI.Instance != null)
@@ -310,6 +439,7 @@ public class PlayerHitHandler : MonoBehaviour
             MatchTimerUI.Instance.ResetRoundTimer(99f);
         }
 
+        // 移動完了後にカウントダウンをキックして開始
         if (GameStartCountdown.Instance != null)
         {
             GameStartCountdown.Instance.StartCountdown();
@@ -319,37 +449,67 @@ public class PlayerHitHandler : MonoBehaviour
             PlayerMove.CanInput = true;
         }
 
+        isTriggeredByTimeUp = false;
         yield return null;
     }
 
-    IEnumerator PerformKORoundEndRoutine()
+    /// <summary>
+    /// 🌟【大修正】：スローモーションの持続時間を格ゲー準拠の心地いいタイムラインに調整
+    /// </summary>
+    IEnumerator PerformKORoundEndRoutine(bool isMatchGameOver)
     {
-        Time.timeScale = 0.2f;
-
-        if (myStatusManager != null)
+        if (myStatusManager != null && myStatusManager.koText != null)
         {
+            myStatusManager.koText.text = isMatchGameOver ? "Game Set !!" : "Down !!";
             yield return myStatusManager.StartCoroutine(myStatusManager.PlayKOAnimation());
         }
 
-        yield return new WaitForSecondsRealtime(0.8f);
-
-        Time.timeScale = 1.0f;
-
-        if (myStatusManager != null && myStatusManager.koText != null)
+        if (isMatchGameOver)
         {
-            yield return myStatusManager.StartCoroutine(myStatusManager.FadeOutKOAnimation(0.5f));
+            // 👑 決着時：1.5秒スローを見せたら等速に復帰
+            yield return new WaitForSecondsRealtime(1.5f);
+            Time.timeScale = 1.0f;
+
+            if (myStatusManager != null && myStatusManager.koText != null)
+            {
+                yield return myStatusManager.StartCoroutine(myStatusManager.FadeOutKOAnimation(0.4f));
+            }
+
+            yield return new WaitForSeconds(0.2f);
+
+            ShowWinMessage();
+            yield return new WaitForSecondsRealtime(3.5f);
+
+            if (myStatusManager != null) myStatusManager.TriggerGameOver();
         }
+        else
+        {
+            // 🔷 1本目のダウン時：
+            // 🌟【スローモーションフリーズの根治】：
+            // ダウンしたその場で「1.2秒間」だけリアルタイム基準で余韻を見せたら、
+            // 文字のフェードアウトを待たずに、ここで即座にタイムスケールを等速（1.0f）に叩き戻します！
+            yield return new WaitForSecondsRealtime(1.2f);
+            Time.timeScale = 1.0f; // 🌟ここで素早くスローモーションを解除！
 
-        yield return new WaitForSeconds(1.0f);
+            if (myStatusManager != null && myStatusManager.koText != null)
+            {
+                // 等速の心地いいスピードの中で「Down !!」の文字がサラサラと消えていきます
+                yield return myStatusManager.StartCoroutine(myStatusManager.FadeOutKOAnimation(0.4f));
+            }
 
-        ShowWinMessage();
+            yield return new WaitForSeconds(0.1f);
 
-        yield return new WaitForSecondsRealtime(4.0f);
+            if (myStatusManager != null && myStatusManager.winText != null)
+            {
+                myStatusManager.winText.gameObject.SetActive(false);
+            }
 
-        if (myStatusManager != null) myStatusManager.TriggerGameOver();
+            // 自動リセットコルーチン（この内部はもう等速で快適に動きます）へ進行
+            yield return StartCoroutine(RoundResetSequence());
+        }
     }
 
-    private void SetPlayerActiveState(bool active)
+    public void SetPlayerActiveState(bool active)
     {
         Renderer[] renderers = transform.parent.GetComponentsInChildren<Renderer>();
         foreach (var r in renderers) r.enabled = active;
@@ -357,7 +517,7 @@ public class PlayerHitHandler : MonoBehaviour
         Collider2D[] colliders = transform.parent.GetComponentsInChildren<Collider2D>();
         foreach (var c in colliders) c.enabled = active;
 
-        playerMove.enabled = active;
+        if (playerMove != null) playerMove.enabled = active;
     }
 
     private void ClearAllBullets()
@@ -404,7 +564,7 @@ public class PlayerHitHandler : MonoBehaviour
         }
 
         currentState = PlayerState.Normal;
-        playerMove.SetInvincible(invincibilityTime);
+        if (playerMove != null) playerMove.SetInvincible(invincibilityTime);
 
         if (MatchTimerUI.Instance != null)
         {
@@ -421,7 +581,6 @@ public class PlayerHitHandler : MonoBehaviour
             if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
         }
     }
-
     private void ShowWinMessage()
     {
         PlayerMove winner = playerMove.Opponent;

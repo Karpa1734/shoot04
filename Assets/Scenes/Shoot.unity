@@ -5887,11 +5887,13 @@ MonoBehaviour:
   invincibilityTime: 1.5
   downTime: 1
   stunTime: 2
+  maxHitsPerFrame: 2
   explosionEffectPrefab: {fileID: 929855270756853021, guid: c823dad6bca2590478a8e1965bc1b395, type: 3}
   playerAnim: {fileID: 0}
   playerMove: {fileID: 695556678}
   bulletClearPrefab: {fileID: 6575740104421894055, guid: f24413bf391b54e41a2768d690b51a76, type: 3}
   myStatusManager: {fileID: 695556694}
+  isTriggeredByTimeUp: 0
 --- !u!114 &423304660
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9991,8 +9993,8 @@ MonoBehaviour:
   playerId: 1
   characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
   life: 3
-  currentHP: 100
-  maxHP: 100
+  currentHP: 50
+  maxHP: 50
   stockLives: 0
   lifePieces: 0
   lifePiecesRequired: 3
@@ -15972,11 +15974,13 @@ MonoBehaviour:
   invincibilityTime: 1.5
   downTime: 1
   stunTime: 2
+  maxHitsPerFrame: 2
   explosionEffectPrefab: {fileID: 929855270756853021, guid: c823dad6bca2590478a8e1965bc1b395, type: 3}
   playerAnim: {fileID: 0}
   playerMove: {fileID: 1872656870}
   bulletClearPrefab: {fileID: 6575740104421894055, guid: f24413bf391b54e41a2768d690b51a76, type: 3}
   myStatusManager: {fileID: 1872656874}
+  isTriggeredByTimeUp: 0
 --- !u!58 &1131429879
 CircleCollider2D:
   m_ObjectHideFlags: 0
