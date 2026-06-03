@@ -192,6 +192,21 @@ public class PlayerHitHandler : MonoBehaviour
         if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
         Time.timeScale = 0.3f; // 🌟スローモーション開始
 
+        // =========================================================================
+        // 🌟【新規追加】：決着の瞬間に、展開されているVJT領域を強制終了（通常背景へ復帰）
+        // =========================================================================
+        // 画面内の全プレイヤー（1P, 2P両方）のStatusManagerに対して、領域終了を即座に命令
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p == null) continue;
+            PlayerStatusManager status = p.GetComponent<PlayerStatusManager>();
+            if (status != null && status.isSpellCardActive)
+            {
+                // falseを渡すことで、自然消滅と同じ扱いで安全に魔法陣・バリア・専用2D背景をパージします
+                status.DeactivateSpellCard(false);
+            }
+        }
+
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = false;
 

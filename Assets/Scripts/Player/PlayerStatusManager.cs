@@ -59,7 +59,9 @@ public class PlayerStatusManager : MonoBehaviour
     public UnityEngine.UI.Slider orangeBar;
     public UnityEngine.UI.Slider spellHpBar;
     public float lerpSpeed = 2.0f;
-
+    // 🌟【新規追加】：スリップダメージの小数を毎フレーム蓄積しておくためのプール
+    private float _hpDrainAccumulator = 0f;
+    private float _actionTaxAccumulator = 0f; // 🪙 強欲の重税用プール
     // =========================================================================
     // 🌟 聖少女領域（VJT）独立上乗せライフ ＆ デバフ管理ステート
     // =========================================================================
@@ -193,37 +195,55 @@ public class PlayerStatusManager : MonoBehaviour
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
 
         // 【VJT実行中のリアルタイム毎フレーム制御】
+        // 【VJT実行中のリアルタイム毎フレーム制御】
         if (isSpellCardActive)
         {
-            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
+            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer(); 
 
-            spellTimer -= Time.deltaTime;
+            // =========================================================================
+            // 🌟【新規追加】：決着（KO）時はアルカナゲージおよび維持タイマーをその場で完全停止！
+            // =========================================================================
+            PlayerHitHandler hitHandler = GetComponentInChildren<PlayerHitHandler>();
+            PlayerMove oppMove = _playerMove != null ? _playerMove.Opponent : null;
+            PlayerHitHandler oppHitHandler = oppMove != null ? oppMove.GetComponentInChildren<PlayerHitHandler>() : null;
 
-            // 🌟【大修正】：残り時間の割合（1.0 から 0.0 へ減衰）を厳密に抽出
-            float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration);
+            // 自分、または対戦相手のどちらかが「通常状態（Normal）」でなくなった＝決着演出が始まったら、
+            // このフレームのタイマーおよびゲージの減少計算を完全スキップ（フリーズ）させます。
+            bool isRoundEnded = (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) ||
+                                (oppHitHandler != null && oppHitHandler.currentState != PlayerHitHandler.PlayerState.Normal);
 
-            // 🌟 発動時のアルカナゲージ残量から、残り時間に合わせて 0% へ向かって寸分の狂いもなく完全比例減少！
-            _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio;
-
-            if (spellTimer <= 0f)
+            if (!isRoundEnded)
             {
-                spellTimer = 0f;
-                _playerMove.ultimateEnergy = 0f;
-                DeactivateSpellCard(false);
+                // 💡 通常プレイ中のみ、時間とゲージを減衰させる
+                spellTimer -= Time.deltaTime; 
+
+                float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration); 
+                _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio; 
+
+                // キャラクター固有の領域効果（フィールド・デバフ）の執行
+                ExecuteFieldEffectToOpponent(); 
+
+                if (spellTimer <= 0f) 
+                {
+                    spellTimer = 0f;
+                    _playerMove.ultimateEnergy = 0f; 
+                    DeactivateSpellCard(false); 
+                }
             }
 
-            if (isAnimatingSpellBar)
+            // ライフバーのアニメーションはフリーズ中も滑らかに追従させるため、ifの外側に配置
+            if (isAnimatingSpellBar) 
             {
-                appearanceElapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(appearanceElapsed / SPELL_BAR_ANIM_DURATION);
-                float easedT = t * t * (3f - 2f * t);
-                animatedSpellHP = Mathf.Lerp(0f, spellHP, easedT);
+                appearanceElapsed += Time.deltaTime; 
+                float t = Mathf.Clamp01(appearanceElapsed / SPELL_BAR_ANIM_DURATION); 
+                float easedT = t * t * (3f - 2f * t); 
+                animatedSpellHP = Mathf.Lerp(0f, spellHP, easedT); 
 
-                if (t >= 1f) isAnimatingSpellBar = false;
+                if (t >= 1f) isAnimatingSpellBar = false; 
             }
-            else
+            else 
             {
-                animatedSpellHP = spellHP;
+                animatedSpellHP = spellHP; 
             }
         }
 
@@ -251,32 +271,74 @@ public class PlayerStatusManager : MonoBehaviour
 
     public void ActivateSpellCard()
     {
-        // 既にいずれかのプレイヤーが領域を展開している場合、または自分が焼き切れ(デバフ)中、ゲージ不足なら鉄壁ガード
-        if (isSpellCardActive || isAnyVJTActive || _playerMove.ultimateEnergy < 200f) return;
-
-        if (SpellCardManager.Instance != null && !SpellCardManager.Instance.TryRequestVJT(this))
-        {
-            return;
-        }
+        // 自分が既に展開中、または自分が焼き切れ(冷却デバフ)中、最低発動ゲージ（200%）未満なら鉄壁ガード
+        if (isSpellCardActive || isOverheated || _playerMove.ultimateEnergy < 200f) return; 
 
         // =========================================================================
-        // 🌟【1フレーム同時発動ジャッジシステム】
+        // ⚔️【新システム】：領域返し（カウンターVJT）の割り込みジャッジ
         // =========================================================================
-        if (Time.frameCount != lastRequestFrame)
+        if (isAnyVJTActive && !isSpellCardActive) 
         {
-            // 新しいフレームの最初の申請なので、要求バッファを初期化して自分を登録
-            lastRequestFrame = Time.frameCount;
-            p1Requester = (playerId == 1) ? this : null;
-            p2Requester = (playerId == 2) ? this : null;
+            PlayerMove oppMove = _playerMove != null ? _playerMove.Opponent : null; 
+            PlayerStatusManager oppStatus = oppMove != null ? oppMove.GetComponent<PlayerStatusManager>() : null; 
 
-            // 1フレーム（1メソッド内）だけ処理を遅らせて、相方の同時入力を待つためにコルーチンへバイパス
-            StartCoroutine(ExecuteSpellCardWithFrameCheck());
+            // 相手が本物のVJT主導権を握っているか確認
+            if (oppStatus != null && oppStatus.isSpellCardActive) 
+            {
+                // ① 自分の現在のゲージから予定持続時間を算出（既存の発動時数式と完全同期）
+                float myProgress = Mathf.InverseLerp(200f, 300f, _playerMove.ultimateEnergy); 
+                float myExpectedDuration = Mathf.Lerp(minSpellDuration, maxSpellDuration, myProgress); 
+
+                // ② 相手の残り持続時間を取得
+                float oppRemainingTime = oppStatus.spellTimer; 
+
+                // 🚨 条件評価：「自分の予定時間 - 相手の残り時間 > 10.0秒」か
+                float timeDifference = myExpectedDuration - oppRemainingTime;
+
+                if (timeDifference > 10f)
+                {
+                    // ➔ 【領域返し成立！】
+                    Debug.Log($"<color=red>💥💥【領域返し(カウンターVJT)成立!!】時間差: {timeDifference:F2}秒</color>");
+
+                    // 1. 相手のペナルティ：領域を即座に強制シャットダウン（自然消滅扱いで安全パージ）
+                    oppStatus.DeactivateSpellCard(false); 
+
+                    // 2. 相手のアルカナゲージ残量を現在の半分（50%）にカットして叩き割る！
+                    oppMove.ultimateEnergy *= 0.5f;
+
+                    // 3. 自分のリターン：超過した時間（timeDifference - 10秒）のみを持続時間として上書きして発動！
+                    float counterVJTDuration = timeDifference;
+
+                    ExecuteCounterActivationSequence(counterVJTDuration);
+                    return;
+                }
+                else
+                {
+                    // 条件（10秒以上の圧倒的エネルギー差）を満たしていなければ、領域展開を不発として弾く
+                    Debug.Log($"<color=yellow>🛡️【領域返し不発】エネルギー差が足りません。必要差分: 10秒以上 / 現在: {timeDifference:F2}秒</color>");
+                    if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.4f); // 弾かれ音
+                    return;
+                }
+            }
         }
-        else
+
+        // --- 以下は通常発動時（誰も領域を展開していない平和な時）の早い者勝ち処理 ---
+        if (SpellCardManager.Instance != null && !SpellCardManager.Instance.TryRequestVJT(this)) 
         {
-            // 🚨【完全同時押し検知】：前の申請と同じフレーム内に、もう片方のプレイヤーからも要求が来た場合
-            if (playerId == 1) p1Requester = this;
-            if (playerId == 2) p2Requester = this;
+            return; 
+        }
+
+        if (Time.frameCount != lastRequestFrame) 
+        {
+            lastRequestFrame = Time.frameCount; 
+            p1Requester = (playerId == 1) ? this : null; 
+            p2Requester = (playerId == 2) ? this : null; 
+            StartCoroutine(ExecuteSpellCardWithFrameCheck()); 
+        }
+        else 
+        {
+            if (playerId == 1) p1Requester = this; 
+            if (playerId == 2) p2Requester = this; 
         }
     }
 
@@ -312,6 +374,7 @@ public class PlayerStatusManager : MonoBehaviour
     /// </summary>
     private void ExecuteActivationSequence()
     {
+        ClearAllBulletsOnField();
         Debug.Log($"<color=cyan>🔥【聖少女領域 - VJT展開】現在のゲージ残量: {_playerMove.ultimateEnergy}%</color>");
 
         if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 1.0f);
@@ -564,6 +627,89 @@ public class PlayerStatusManager : MonoBehaviour
         if (VJTSpellBackgroundManager2D.Instance != null)
         {
             VJTSpellBackgroundManager2D.Instance.SetSpellBackgroundActive(false);
+        }
+    }
+
+    /// <summary>
+    /// 🌟【新規追加】：領域返し成功者のみがトリガーする、制限時間変調型・領域展開シークエンス
+    /// </summary>
+    private void ExecuteCounterActivationSequence(float overrideDuration)
+    {
+        ClearAllBulletsOnField(); 
+        
+        // 領域返し専用のド派手なシステムアナウンスログ
+        Debug.Log($"<color=lime>👑【COUNTER VJT FLUSH】超過時間 {overrideDuration:F2} 秒で世界を再定義します！</color>");
+
+        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 1.2f); // やや強めに再生
+
+        isSpellCardActive = true; 
+        isAnyVJTActive = true;    // 世界ロックを即座に再取得
+        isOverheated = false; 
+
+        initialUltimateEnergy = _playerMove.ultimateEnergy; 
+        preSpellHP = currentHP; 
+
+        float fullArmorHP = maxHP * 30f; 
+
+        // 🌟【ここが核心】：通常計算を無視し、引数で渡された「超過時間」を今回の総持続時間として強制適用！
+        totalSpellDuration = overrideDuration;
+        spellTimer = totalSpellDuration; 
+
+        // バリア体力は自分の現在のゲージ割合（進行度）に応じて適正配分
+        float progress = Mathf.InverseLerp(200f, 300f, initialUltimateEnergy); 
+        float spawnHPRatio = Mathf.Lerp(0.6f, 1.0f, progress); 
+        spellMaxHP = fullArmorHP; 
+        spellHP = fullArmorHP * spawnHPRatio; 
+
+        isAnimatingSpellBar = true; 
+        appearanceElapsed = 0f; 
+        animatedSpellHP = 0f; 
+
+        if (playerCollider != null) 
+        {
+            playerCollider.transform.localScale = originalColliderScale * 30f; 
+        }
+
+        // バリアのカラー同調適用
+        if (spellBarrier != null) 
+        {
+            Color charColor = (characterData != null) ? characterData.imageColor : Color.white; 
+            spellBarrier.SetBarrierActive(true); 
+            Renderer[] barrierRenderers = spellBarrier.GetComponentsInChildren<Renderer>(true); 
+            foreach (var r in barrierRenderers) 
+            {
+                if (r is SpriteRenderer sr) sr.color = charColor; 
+                else if (r is LineRenderer lr) { lr.startColor = charColor; lr.endColor = charColor; }
+                
+                else if (r.material != null) r.material.color = charColor; 
+            }
+        }
+
+        UpdateUI(); 
+        SyncBarsImmediately(); 
+
+        // 各種魔法陣・看板UI・2D専用背景の動的バインド処理（通常シーエンスと完全同期）
+        if (spellRingPrefab != null && spawnedRingInstance == null) 
+        {
+            spawnedRingInstance = Instantiate(spellRingPrefab, transform.position, Quaternion.identity); 
+            PlayerSpellRing_Line ringScript = spawnedRingInstance.GetComponent<PlayerSpellRing_Line>(); 
+            if (ringScript != null) { ringScript.targetStatus = this; ringScript.Activate(totalSpellDuration); }
+            
+        }
+        if (spellCirclePrefab != null && spawnedCircleInstance == null) 
+        {
+            spawnedCircleInstance = Instantiate(spellCirclePrefab, transform.position, Quaternion.identity); 
+            PlayerSpellCircle circleScript = spawnedCircleInstance.GetComponent<PlayerSpellCircle>(); 
+            if (circleScript != null) circleScript.Activate(this, totalSpellDuration); 
+        }
+        if (EnemySpellCardUI.Instance != null && characterData != null) 
+        {
+            string displayName = string.IsNullOrEmpty(characterData.spellCardName) ? characterData.characterName : characterData.spellCardName; 
+            EnemySpellCardUI.Instance.DisplaySpell(displayName, 0, 0, 1000000f, false, this.playerId); 
+        }
+        if (VJTSpellBackgroundManager2D.Instance != null) 
+        {
+            VJTSpellBackgroundManager2D.Instance.SetSpellBackgroundActive(true, this.characterData); 
         }
     }
 
@@ -883,5 +1029,113 @@ public class PlayerStatusManager : MonoBehaviour
         invincibleTimer = duration;
         deathBombTimer = 0;
         if (_playerMove != null) _playerMove.SetInvincible(duration);
+    }
+    /// <summary>
+    /// 🌟 画面上に存在しているすべてのプレイヤー弾および敵弾をスキャンして安全に完全パージする
+    /// </summary>
+    private void ClearAllBulletsOnField()
+    {
+        DanmakuBullet[] pBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
+        foreach (var b in pBullets) b.Deactivate(true);
+
+        EnemyBullet[] eBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
+        foreach (var b in eBullets) b.Deactivate(true);
+    }
+    /// <summary>
+    /// 🌟【コンパイルエラー修正版】：領域を展開している側から、対戦相手に対して固有のデバフを毎フレーム流し込む
+    /// </summary>
+    private void ExecuteFieldEffectToOpponent()
+    {
+        // 🚨【修正】：_playerMove.Opponent の型に適合させるため、直接 null チェックを行います
+        if (characterData == null || _playerMove == null || _playerMove.Opponent == null) return;
+
+        // 🚨【修正】：Opponent (PlayerMove) から .gameObject を経由して安全にコンポーネントを相互参照します
+        PlayerMove oppMove = _playerMove.Opponent;
+        GameObject oppObj = oppMove.gameObject;
+        PlayerStatusManager oppStatus = oppObj.GetComponent<PlayerStatusManager>();
+
+        if (oppStatus == null) return;
+
+        // 💡 相手が無敵状態（IsInvincible）なら領域効果を完全ガード
+        if (oppStatus.IsInvincible) return;
+
+        float value = characterData.vjtEffectValue;
+
+        switch (characterData.vjtEffectType)
+        {
+            // =========================================================================
+            // 🔥 1. 憤怒：【命の摩耗】（小数点蓄積型スリップダメージ）
+            // =========================================================================
+            case VJTEffectType.HpDrain:
+                // 1秒間に value 分だけ削る純粋な小数ダメージ（例: 20 * 0.016 = 0.32）をプールに加算
+                _hpDrainAccumulator += value * Time.deltaTime;
+
+                // プールされたダメージが「1.0（1ダメージ分）」を超えたかジャッジ
+                if (_hpDrainAccumulator >= 1f)
+                {
+                    // 貯まった分から整数部分（1や2など）を安全に引っこ抜く
+                    int damageToApply = Mathf.FloorToInt(_hpDrainAccumulator);
+
+                    // 整数ダメージを確定させて相手に与える！
+                    oppStatus.ApplyDamage(damageToApply);
+
+                    // 適用した分の数値をプールから減算し、余った小数（0.32など）は次のフレームへキャリーオーバー
+                    _hpDrainAccumulator -= damageToApply;
+                }
+                break;
+
+            // =========================================================================
+            // ❤️ 2. 色欲：【肉体の無防備化】（当たり判定の巨大化）
+            // =========================================================================
+            case VJTEffectType.SizeUp:
+                if (oppStatus.playerCollider != null)
+                {
+                    oppStatus.playerCollider.transform.localScale = oppStatus.originalColliderScale * value;
+                }
+                break;
+            // =========================================================================
+            // 🪙 3. 強欲：【行動への重税】（攻撃フレーム持続型・確定徴税システム）
+            // =========================================================================
+            case VJTEffectType.ActionTax:
+                SkillManager oppSkill = oppObj.GetComponentInChildren<SkillManager>();
+                if (oppSkill != null)
+                {
+                    // 相手の入力フレームから、何らかの攻撃行動をトリガーしているかを判定
+                    bool isOpponentAttacking = oppMove.currentFrameInput.shotZ ||
+                                               oppMove.currentFrameInput.shotX ||
+                                               oppMove.currentFrameInput.shotC ||
+                                               oppMove.currentFrameInput.shotV ||
+                                               oppMove.currentFrameInput.ultimate;
+
+                    // 🚨 相手が能動的に攻撃中で、かつシステム的に射撃が許可されている場合
+                    if (isOpponentAttacking && PlayerMove.CanShoot)
+                    {
+                        // 💡【タイムベース徴税アルゴリズム】：
+                        // value を「1秒間押しっぱなしにした時の総税率（総ダメージ）」として扱います。
+                        // 例：value = 40f なら、攻撃ボタンを1秒間ホールドし続けると合計40ダメージ。
+                        // これを毎フレームの経過時間（Time.deltaTime）で割ってプールに加算します。
+                        _actionTaxAccumulator += value * Time.deltaTime;
+
+                        // 蓄積された税金が 1.0 (1ダメージ分) を超えた瞬間に、安全に徴税を執行！
+                        if (_actionTaxAccumulator >= 1f)
+                        {
+                            int taxToApply = Mathf.FloorToInt(_actionTaxAccumulator);
+
+                            oppStatus.ApplyDamage(taxToApply);
+
+                            _actionTaxAccumulator -= taxToApply;
+
+                            Debug.Log($"<color=gold>🪙【強欲の重税】相手の攻撃ホールドを検知。税金プールから {taxToApply} ダメージを確定徴税しました！</color>");
+                        }
+                    }
+                    else
+                    {
+                        // 💡 相手が攻撃をやめた（指を離した）ら、プール内の端数は綺麗にリセットしてあげる親切設計
+                        // これにより、単発撃ちの瞬間に中途半端な端数ダメージが残るのを防ぎます
+                        _actionTaxAccumulator = 0f;
+                    }
+                }
+                break;
+        }
     }
 }

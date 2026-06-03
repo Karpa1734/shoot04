@@ -13,6 +13,14 @@ public enum SkillPatternType
     RotatingAccelRound,
     GreedTaxPossession
 }
+public enum VJTEffectType
+{
+    None,
+    HpDrain,       // 🔷 憤怒：【命の摩耗】（時間経過でじわじわスリップダメージ）
+    SlowDown,      // 🟢 相手の移動速度を低下させる（既存の鈍化用）
+    SizeUp,        // 🔶 色欲：【肉体の無防備化】（相手の当たり判定を巨大化させる）
+    ActionTax      // 🪙 強欲：【行動への重税】（相手が攻撃スキルを撃つたびに自傷ダメージ）
+}
 
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]
 public class PlayerSkillData : ScriptableObject
@@ -48,9 +56,13 @@ public class PlayerSkillData : ScriptableObject
 
     [Tooltip("【加算上画像】の回転速度（1秒間に回転する度数。マイナスで逆回転）")]
     public float additiveRotateSpeed = 25f;
-
-    [Tooltip("【加算上画像】のスクロール速度（X, Y）を設定します")]
-    public Vector2 additiveScrollSpeed = new Vector2(0.2f, 0.2f);
+            [Tooltip("【加算上画像】のスクロール速度（X, Y）を設定します")]
+    public Vector2 additiveScrollSpeed = new Vector2(0.2f, 0.2f);  
+    [Header("--- VJT Spell Field Effects ---")]
+    [Tooltip("このキャラクターがVJTを展開した際に相手に与える領域効果の種類")]
+    public VJTEffectType vjtEffectType = VJTEffectType.None;
+    [Tooltip("効果の強度（例：HpDrainなら1秒間のダメージ、SizeUpならコライダースケール倍率）")]
+    public float vjtEffectValue = 10f;
     [Header("Character Energy Settings")]
     public float maxEnergy = 100f;
     public float energyRegenRate = 15f;

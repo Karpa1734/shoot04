@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 
 public class VJTSpellBackgroundManager2D : MonoBehaviour
 {
@@ -7,14 +8,15 @@ public class VJTSpellBackgroundManager2D : MonoBehaviour
     [System.Serializable]
     public class SpellLayer2D
     {
-        public SpriteRenderer spriteRenderer; // 2D画像スプライト
+        public RawImage rawImage; // 2D画像スプライト
 
-        [HideInInspector] public Vector2 runtimeScrollSpeed;  // キャラごとに実行時上書きされるスクロール速度
-        [HideInInspector] public float runtimeRotateSpeed;    // キャラごとに実行時上書きされる回転速度
+        [HideInInspector] public Vector2 runtimeScrollSpeed;
+        [HideInInspector] public float runtimeRotateSpeed;
         [HideInInspector] public Vector2 currentOffset;
+        [HideInInspector] public float maxAlpha;              // スクリプト側から個別に設定されるアルファ上限
     }
 
-    [Header("2D Spell Background Layers")]
+    [Header("2D Spell Background Layers (UI RawImage Version)")]
     [Tooltip("Layer 0 (土台背景) は Element 0、Layer 1 (加算上画像) は Element 1 に登録してください")]
     public SpellLayer2D[] spellLayers;
 
@@ -39,54 +41,67 @@ public class VJTSpellBackgroundManager2D : MonoBehaviour
     private bool currentAdditiveRotate = true;
     private bool currentAdditiveScroll = true;
 
-    private Sprite defaultBaseSprite;
-    private Sprite defaultAdditiveSprite;
-    private bool isDefaultSpritesCached = false;
+    private Texture defaultBaseTexture;
+    private Texture defaultAdditiveTexture;
+    private bool isDefaultTexturesCached = false;
 
     void Awake()
     {
         Instance = this;
         if (spellBGGroup != null) spellBGGroup.SetActive(false);
         if (mainCameraTransform != null) originalCameraRotation = mainCameraTransform.localRotation;
+
+        // 🌟【最重要リファクタリング】：インスペクターからの不安定な自動取得を廃止し、
+        // 🌟 スクリプト側から確実なアルファ上限値をダイレクトにセット！
+        SetupHardcodedMaxAlpha();
+
         SetLayersAlpha(0f);
-
-        // 🌟【最速記憶】：Awakeの時点でインスペクターの初期スプライトを即座に記憶してNone化を予防
-        CacheDefaultSprites();
-    }
-
-    private void CacheDefaultSprites()
-    {
-        if (isDefaultSpritesCached) return;
-
-        // インスペクターのコンポーネントにアタッチされている初期画像をがっちりバックアップ
-        if (spellLayers.Length > 0 && spellLayers[0].spriteRenderer != null)
-            defaultBaseSprite = spellLayers[0].spriteRenderer.sprite;
-
-        if (spellLayers.Length > 1 && spellLayers[1].spriteRenderer != null)
-            defaultAdditiveSprite = spellLayers[1].spriteRenderer.sprite;
-
-        isDefaultSpritesCached = true;
+        CacheDefaultTextures();
     }
 
     /// <summary>
-    /// 🌟【鉄壁ガード版】：データが万が一 null で飛んできても、Noneによる上書きを完全にシャットアウト
+    /// 🌟【新規上書き】：土台と加算レイヤーのアルファ上限値をスクリプト側から完全強制固定
     /// </summary>
+    private void SetupHardcodedMaxAlpha()
+    {
+        // --- 🔷 Layer 0 (土台のステージ背景背景) ---
+        if (spellLayers.Length > 0)
+        {
+            // 土台背景は後ろを隠すために「しっかり不透明（1.0f = 255）」に固定
+            spellLayers[0].maxAlpha = 1.0f;
+        }
+
+        // --- 🔶 Layer 1 (上にかぶせる加算魔法陣) ---
+        if (spellLayers.Length > 1)
+        {
+            // 🚨 高橋さん指定仕様：インスペクターの「32」をデジタル数値に完全一発変換！
+            // 32f / 255f = 約 0.125f を上限として強制ロックします。
+            spellLayers[1].maxAlpha = 64f / 255f;
+        }
+    }
+
+    private void CacheDefaultTextures()
+    {
+        if (isDefaultTexturesCached) return;
+        if (spellLayers.Length > 0 && spellLayers[0].rawImage != null) defaultBaseTexture = spellLayers[0].rawImage.texture;
+        if (spellLayers.Length > 1 && spellLayers[1].rawImage != null) defaultAdditiveTexture = spellLayers[1].rawImage.texture;
+        isDefaultTexturesCached = true;
+    }
+
     public void SetSpellBackgroundActive(bool active, PlayerSkillData charData = null)
     {
         isSpellActive = active;
         if (active)
         {
             timer = 0f;
-            CacheDefaultSprites();
+            CacheDefaultTextures();
 
             if (charData != null)
             {
-                // 1. アニメーションON/OFFトグルの同期
                 currentBaseScroll = charData.isBaseScrollActive;
                 currentAdditiveRotate = charData.isAdditiveRotateActive;
                 currentAdditiveScroll = charData.isAdditiveScrollActive;
 
-                // 2. 速度パラメータの動的インジェクション
                 if (spellLayers.Length > 0) spellLayers[0].runtimeScrollSpeed = charData.baseScrollSpeed;
                 if (spellLayers.Length > 1)
                 {
@@ -94,19 +109,17 @@ public class VJTSpellBackgroundManager2D : MonoBehaviour
                     spellLayers[1].runtimeScrollSpeed = charData.additiveScrollSpeed;
                 }
 
-                // 3. スプライトアセットの動的バインド（Data側が未設定なら初期画像をフォールバック維持）
-                if (spellLayers.Length > 0 && spellLayers[0].spriteRenderer != null)
+                if (spellLayers.Length > 0 && spellLayers[0].rawImage != null)
                 {
-                    spellLayers[0].spriteRenderer.sprite = (charData.characterSpellBGBase != null) ? charData.characterSpellBGBase : defaultBaseSprite;
+                    spellLayers[0].rawImage.texture = (charData.characterSpellBGBase != null) ? charData.characterSpellBGBase.texture : defaultBaseTexture;
                 }
-                if (spellLayers.Length > 1 && spellLayers[1].spriteRenderer != null)
+                if (spellLayers.Length > 1 && spellLayers[1].rawImage != null)
                 {
-                    spellLayers[1].spriteRenderer.sprite = (charData.characterSpellBGAdditive != null) ? charData.characterSpellBGAdditive : defaultAdditiveSprite;
+                    spellLayers[1].rawImage.texture = (charData.characterSpellBGAdditive != null) ? charData.characterSpellBGAdditive.texture : defaultAdditiveTexture;
                 }
             }
             else
             {
-                // 🚨 外部からデータなし（null）で呼ばれた場合でも、インスペクターに元々貼ってある画像を死守！！
                 currentBaseScroll = false;
                 currentAdditiveRotate = true;
                 currentAdditiveScroll = true;
@@ -114,13 +127,13 @@ public class VJTSpellBackgroundManager2D : MonoBehaviour
                 if (spellLayers.Length > 0)
                 {
                     spellLayers[0].runtimeScrollSpeed = new Vector2(0f, -0.4f);
-                    if (spellLayers[0].spriteRenderer != null) spellLayers[0].spriteRenderer.sprite = defaultBaseSprite;
+                    if (spellLayers[0].rawImage != null) spellLayers[0].rawImage.texture = defaultBaseTexture;
                 }
                 if (spellLayers.Length > 1)
                 {
                     spellLayers[1].runtimeRotateSpeed = 25f;
                     spellLayers[1].runtimeScrollSpeed = new Vector2(0.2f, 0.2f);
-                    if (spellLayers[1].spriteRenderer != null) spellLayers[1].spriteRenderer.sprite = defaultAdditiveSprite;
+                    if (spellLayers[1].rawImage != null) spellLayers[1].rawImage.texture = defaultAdditiveTexture;
                 }
             }
         }
@@ -145,32 +158,35 @@ public class VJTSpellBackgroundManager2D : MonoBehaviour
 
         timer += Time.deltaTime;
 
-        // --- Layer 0：下敷き土台背景のスピード制御 ---
-        if (spellLayers.Length > 0 && spellLayers[0].spriteRenderer != null)
+        // --- 🔷 1. Layer 0：下敷き土台背景のスピード制御 ---
+        if (spellLayers.Length > 0 && spellLayers[0].rawImage != null)
         {
-            if (currentBaseScroll && spellLayers[0].spriteRenderer.material != null)
+            if (currentBaseScroll)
             {
                 spellLayers[0].currentOffset += spellLayers[0].runtimeScrollSpeed * Time.deltaTime;
-                spellLayers[0].spriteRenderer.material.mainTextureOffset = spellLayers[0].currentOffset;
+                float offsetX = Mathf.Repeat(spellLayers[0].currentOffset.x, 1f);
+                float offsetY = Mathf.Repeat(spellLayers[0].currentOffset.y, 1f);
+                spellLayers[0].rawImage.uvRect = new Rect(offsetX, offsetY, 1f, 1f);
             }
         }
 
-        // --- Layer 1：加算合成の上画像のスピード制御 ---
-        if (spellLayers.Length > 1 && spellLayers[1].spriteRenderer != null)
+        // --- 🔶 2. Layer 1：加算合成の上画像のスピード制御 ---
+        if (spellLayers.Length > 1 && spellLayers[1].rawImage != null)
         {
             if (currentAdditiveRotate && !Mathf.Approximately(spellLayers[1].runtimeRotateSpeed, 0f))
             {
-                spellLayers[1].spriteRenderer.transform.Rotate(0f, 0f, spellLayers[1].runtimeRotateSpeed * Time.deltaTime);
+                spellLayers[1].rawImage.rectTransform.Rotate(0f, 0f, spellLayers[1].runtimeRotateSpeed * Time.deltaTime);
             }
 
-            if (currentAdditiveScroll && spellLayers[1].spriteRenderer.material != null)
+            if (currentAdditiveScroll)
             {
                 spellLayers[1].currentOffset += spellLayers[1].runtimeScrollSpeed * Time.deltaTime;
-                spellLayers[1].spriteRenderer.material.mainTextureOffset = spellLayers[1].currentOffset;
+                float offsetX = Mathf.Repeat(spellLayers[1].currentOffset.x, 1f);
+                float offsetY = Mathf.Repeat(spellLayers[1].currentOffset.y, 1f);
+                spellLayers[1].rawImage.uvRect = new Rect(offsetX, offsetY, 1f, 1f);
             }
         }
 
-        // カメラ揺れ演出
         if (useCameraSway && mainCameraTransform != null)
         {
             float yaw = maxYaw * Mathf.Sin(timer * swaySpeed);
@@ -183,10 +199,13 @@ public class VJTSpellBackgroundManager2D : MonoBehaviour
     {
         foreach (var layer in spellLayers)
         {
-            if (layer.spriteRenderer == null) continue;
-            Color c = layer.spriteRenderer.color;
-            c.a = alpha;
-            layer.spriteRenderer.color = c;
+            if (layer.rawImage == null) continue;
+            Color c = layer.rawImage.color;
+
+            // 🌟 記憶された固定上限値（Layer 1なら 32/255）に対して、フェードの割合を掛け算！
+            c.a = layer.maxAlpha * alpha;
+
+            layer.rawImage.color = c;
         }
     }
 }

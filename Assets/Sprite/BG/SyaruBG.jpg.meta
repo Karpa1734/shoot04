@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 7f7367ef290652a40ad79294346ff851
+guid: f1d0c95c39292994eb137aa55737abab
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 6358040702757662528
-    second: Yellow_0
+      213: -998729692562890376
+    second: NA_Background image_Simple_258_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Yellow_0
+      name: NA_Background image_Simple_258_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 256
-        height: 256
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 04f6853355c4c3850800000000000000
-      internalID: 6358040702757662528
+      spriteID: 8716728d2acc322f0800000000000000
+      internalID: -998729692562890376
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Yellow_0: 6358040702757662528
+      NA_Background image_Simple_258_0: -998729692562890376
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
