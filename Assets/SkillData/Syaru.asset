@@ -12,8 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
   m_Name: Syaru
   m_EditorClassIdentifier: 
-  characterName: Koganeyama Syaru
+  characterName: Player2
   imageColor: {r: 1, g: 1, b: 0, a: 1}
+  spellCardName: "\u25A1\u7B26\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
+  spellCircleSprite: {fileID: 21300000, guid: 7f7367ef290652a40ad79294346ff851, type: 3}
   maxEnergy: 100
   energyRegenRate: 90
   skillZ:
@@ -45,7 +47,7 @@ MonoBehaviour:
     moveSpeedMultiplier: 0
     delay: 1
     cost: 30
-    ultimateGain: 7
+    ultimateGain: 70
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}

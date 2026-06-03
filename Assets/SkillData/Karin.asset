@@ -12,8 +12,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
   m_Name: Karin
   m_EditorClassIdentifier: 
-  characterName: Takekuma Karin
+  characterName: Player1
   imageColor: {r: 1, g: 0, b: 0, a: 1}
+  spellCardName: "\u25CB\u7B26\u300C\u25CB\u25CB\u25CB\u25CB\u300D"
+  spellCircleSprite: {fileID: 21300000, guid: a2ff8ddc4f635d94d8238129b1b43534, type: 3}
+  characterSpellBGBase: {fileID: 1347053365634234965, guid: 820cf570efbe30b4cbdb1645fb096fc3, type: 3}
+  characterSpellBGAdditive: {fileID: -5592885077890052731, guid: 6ec564f9abcede445bb4c9fee5b51b2b, type: 3}
+  isBaseScrollActive: 0
+  isAdditiveRotateActive: 0
+  isAdditiveScrollActive: 1
+  baseScrollSpeed: {x: 0, y: -0.4}
+  additiveRotateSpeed: 25
+  additiveScrollSpeed: {x: 0.2, y: 0.2}
   maxEnergy: 100
   energyRegenRate: 90
   skillZ:

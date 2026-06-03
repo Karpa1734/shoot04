@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6038373137995327490}
   - component: {fileID: 8946307678081036916}
-  - component: {fileID: 3766700215578314641}
+  - component: {fileID: 3824734379002679447}
   m_Layer: 0
   m_Name: MagicCircle
   m_TagString: Untagged
@@ -88,7 +88,7 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
---- !u!114 &3766700215578314641
+--- !u!114 &3824734379002679447
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -97,9 +97,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 7303085696703686799}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 39a21442faafa3946a7157e8b8017dd0, type: 3}
+  m_Script: {fileID: 11500000, guid: 6813e4d62fccb7f44ab9e2cb0a287480, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sr: {fileID: 8946307678081036916}
   spinSpeed: 0.8
   lean: 28

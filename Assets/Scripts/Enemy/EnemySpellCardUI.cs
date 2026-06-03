@@ -1,4 +1,4 @@
-using KanKikuchi.AudioManager;
+ï»¿using KanKikuchi.AudioManager;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -14,88 +14,141 @@ public class EnemySpellCardUI : MonoBehaviour
     public TextMeshProUGUI bonusText;
     public TextMeshProUGUI historyText;
 
-    [Header("Position Settings")]
+    // ğŸŒŸã€åå‰ä¿®æ­£ã€‘ï¼šã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼ä¸Šã§åˆ†ã‹ã‚Šã‚„ã™ã„ã‚ˆã†ã« spellNameBG ã«å¤‰æ›´
+    [Header("--- VJT Mirror Visual Settings ---")]
+    [Tooltip("Textã®èƒŒæ™¯ã«ã‚ã‚‹ã€SpellNameBGã€ã® RectTransform ã‚’ã“ã“ã«ã‚¢ã‚¿ãƒƒãƒã—ã¦ãã ã•ã„")]
+    public RectTransform spellNameBG;
+
+    [Header("Position Settings (Base For Right Side / 2P)")]
     public Vector2 startPos = new Vector2(400, -450);
     public Vector2 targetPos = new Vector2(400, 400);
 
     [Header("Result UI Elements")]
     public GameObject resultRoot;
-    public CanvasGroup resultCanvasGroup; // ’Ç‰ÁFƒŠƒUƒ‹ƒg—p‚ÌCanvasGroup
-    public TextMeshProUGUI resultHeaderText; // "GET SPELL CARD BONUS!!" ‚Ü‚½‚Í "BONUS FAILED"
+    public CanvasGroup resultCanvasGroup;
+    public TextMeshProUGUI resultHeaderText;
     public TextMeshProUGUI resultScoreText;
     public TextMeshProUGUI clearTimeText;
     public TextMeshProUGUI realTimeText;
-    // ƒŠƒUƒ‹ƒg•\¦—pƒRƒ‹[ƒ`ƒ“‚ÌQÆ‚ğ•Û
+
     private Coroutine resultCoroutine;
-    // --- …F‚ÌƒJƒ‰[ƒR[ƒhİ’è ---
     private readonly string cyanColorTag = "<color=#00FFFF>";
     private readonly string colorEndTag = "</color>";
-    private bool isExiting = false; // ‘ŞêƒAƒjƒ[ƒVƒ‡ƒ“’†‚©‚Ç‚¤‚©‚Ìƒtƒ‰ƒO
+    private bool isExiting = false;
     private Coroutine currentAnimation;
+
+    private int currentActivePlayerId = 1;
+    private Vector2 actualStartPos;
+    private Vector2 actualTargetPos;
 
     void Awake()
     {
         Instance = this;
-        // ‰Šúó‘Ô‚Í“§–¾‚É‚µ‚Ä‚¨‚­
         if (canvasGroup != null) canvasGroup.alpha = 0f;
     }
 
-    // ƒXƒyƒ‹ƒJ[ƒhŠJn‚É EnemyStatus.cs ‚©‚çŒÄ‚Î‚ê‚é
-    public void DisplaySpell(string spellName, int getCount, int challengeCount, float initialBonus, bool isFailed)
+    /// <summary>
+    /// ğŸŒŸã€ä»•æ§˜å®Œå…¨é©åˆã€‘ï¼šã‚¹ãƒšã‚«ç™ºå‹•æ™‚ã«å‘¼ã³å‡ºã•ã‚Œã€1P/2Pã«å¿œã˜ã¦èƒŒæ™¯ã®åè»¢ã¨ãƒ†ã‚­ã‚¹ãƒˆã®å·¦å³è©°ã‚ã‚’è‡ªå‹•åˆ¤å®š
+    /// </summary>
+    public void DisplaySpell(string spellName, int getCount, int challengeCount, float initialBonus, bool isFailed, int playerId)
     {
         gameObject.SetActive(true);
-        isExiting = false; // oŒ»‚Íƒtƒ‰ƒO‚ğƒŠƒZƒbƒg
+        isExiting = false;
+        currentActivePlayerId = playerId;
+
+        // ğŸŒŸã€1P (å·¦å´ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼) ç™ºå‹•æ™‚ã®å‡¦ç†ã€‘
+        if (currentActivePlayerId == 1)
+        {
+            // 1. åº§æ¨™ã‚’ç”»é¢å·¦å´ã¸ãƒŸãƒ©ãƒ¼åè»¢
+            actualStartPos = new Vector2(-Mathf.Abs(startPos.x), startPos.y);
+            actualTargetPos = new Vector2(-Mathf.Abs(targetPos.x), targetPos.y);
+
+            // 2. ãƒ†ã‚­ã‚¹ãƒˆè¡¨ç¤ºã‚’ã€Œå·¦è©°ã‚ï¼ˆLeftï¼‰ã€ã«ã‚«ãƒãƒƒã¨çµ±ä¸€
+            spellNameText.alignment = TextAlignmentOptions.Left;
+            bonusText.alignment = TextAlignmentOptions.Left;
+            historyText.alignment = TextAlignmentOptions.Left;
+
+            // 3. ğŸŒŸã€åè»¢å‡¦ç†ã€‘ï¼šèƒŒæ™¯ï¼ˆSpellNameBGï¼‰ã®Xã‚¹ã‚±ãƒ¼ãƒ«ã‚’ã€Œ-1ã€ã«ã—ã¦å·¦å´ç”¨ã«åè»¢ï¼
+            if (spellNameBG != null)
+            {
+                spellNameBG.localScale = new Vector3(-3.5f, 3.5f, 1f);
+            }
+        }
+        // ğŸŒŸã€2P (å³å´ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ / ã‚¹ãƒˆãƒ¼ãƒªãƒ¼ãƒœã‚¹) ç™ºå‹•æ™‚ã®é€šå¸¸å‡¦ç†ã€‘
+        else
+        {
+            // 1. åº§æ¨™ã‚’å¾“æ¥é€šã‚Šç”»é¢å³å´ã¸é…ç½®
+            actualStartPos = new Vector2(Mathf.Abs(startPos.x), startPos.y);
+            actualTargetPos = new Vector2(Mathf.Abs(targetPos.x), targetPos.y);
+
+            // 2. ãƒ†ã‚­ã‚¹ãƒˆè¡¨ç¤ºã‚’å¾“æ¥é€šã‚Šã€Œå³è©°ã‚ï¼ˆRightï¼‰ã€ã«çµ±ä¸€
+            spellNameText.alignment = TextAlignmentOptions.Right;
+            bonusText.alignment = TextAlignmentOptions.Right;
+            historyText.alignment = TextAlignmentOptions.Right;
+
+            // 3. ğŸŒŸã€é€šå¸¸å¾©å¸°ã€‘ï¼šèƒŒæ™¯ï¼ˆSpellNameBGï¼‰ã®ã‚¹ã‚±ãƒ¼ãƒ«ã‚’é€šå¸¸ã®ã€Œ1ã€ã«æˆ»ã™
+            if (spellNameBG != null)
+            {
+                spellNameBG.localScale = new Vector3(3.5f, 3.5f, 1f);
+            }
+        }
 
         if (currentAnimation != null) StopCoroutine(currentAnimation);
         currentAnimation = StartCoroutine(SpellInRoutine(spellName, getCount, challengeCount, initialBonus, isFailed));
 
-        SEManager.Instance.Play(SEPath.CARDCALL, 0.5f);
+        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 0.5f);
+    }
+
+    public void DisplaySpell(string spellName, int getCount, int challengeCount, float initialBonus, bool isFailed)
+    {
+        DisplaySpell(spellName, getCount, challengeCount, initialBonus, isFailed, 2);
     }
 
     public void HideSpell()
     {
-        // C³FŠù‚É‘Şê’†A‚Ü‚½‚ÍƒIƒuƒWƒFƒNƒg‚ª”ñƒAƒNƒeƒBƒuA‚Ü‚½‚ÍŠù‚ÉÁ‚¦‚Ä‚¢‚éê‡‚Í‰½‚à‚µ‚È‚¢
         if (!gameObject.activeInHierarchy || isExiting || (canvasGroup != null && canvasGroup.alpha <= 0))
         {
             return;
         }
 
         if (currentAnimation != null) StopCoroutine(currentAnimation);
-        isExiting = true; // ‘ŞêŠJn
+        isExiting = true;
         currentAnimation = StartCoroutine(SpellOutRoutine());
     }
 
-    // ƒ{[ƒiƒX’l‚ğŠO•”iEnemyStatus ‚Ì Update “™j‚©‚çXV‚·‚é—p
     public void UpdateBonusText(int currentBonus, bool isFailed = false)
     {
         if (isFailed)
         {
-            // Failed ‚Ì‚Í <mspace> ‚ğŠO‚µ‚Ä•\¦‚·‚é
-            // ‚±‚ê‚Å•¶š‚ÌŠÔŠu‚ª©‘R‚ÈŒ©‚½–Ú‚É‚È‚è‚Ü‚·
-            // ‰E’[‚ğ‡‚í‚¹‚½‚¢ê‡‚ÍAæ“ª‚É”¼ŠpƒXƒy[ƒX‚ğ“ü‚ê‚Ä’²®‚µ‚Ü‚·
             bonusText.text = $"{cyanColorTag}Bonus{colorEndTag}  Failed";
         }
         else
         {
-            // ”’l‚Ì‚Í <mspace> ‚ğg‚¢A”š‚Ì•‚ğŒÅ’è‚µ‚ÄƒKƒ^‚Â‚«‚ğ–h‚¬‚Ü‚·
-            // ‘O‰ñ‚Ìu6•¶š•ªv‚Æ‚¢‚¤w’è‚É‡‚í‚¹‚Ä PadLeft(6) ‚É‚µ‚Ä‚¢‚Ü‚·
             string scoreStr = currentBonus.ToString().PadLeft(6, ' ');
-            bonusText.text = $"{cyanColorTag}Bonus{colorEndTag}  <mspace=0.5em>{scoreStr}</mspace>";
+
+            // 1P(å·¦è©°ã‚)ã®æ™‚ã€mspaceã®å³å´ã«å¯„ã£ã¦ã—ã¾ã†ã‚¬ã‚¿ã¤ãã‚’é˜²ãèª¿æ•´
+            if (currentActivePlayerId == 1)
+            {
+                string scoreStrLeft = currentBonus.ToString();
+                bonusText.text = $"{cyanColorTag}Bonus{colorEndTag}  <mspace=0.5em>{scoreStrLeft}</mspace>";
+            }
+            else
+            {
+                bonusText.text = $"{cyanColorTag}Bonus{colorEndTag}  <mspace=0.5em>{scoreStr}</mspace>";
+            }
         }
     }
-    // ˆø”‚É initialBonus ‚ğ’Ç‰Á
+
     IEnumerator SpellInRoutine(string name, int get, int challenge, float initialBonus, bool isFailed)
     {
         spellNameText.text = name;
         historyText.text = $"{cyanColorTag}History{colorEndTag}  {get:D3}/{challenge:D3}";
 
-        // --- C³Fí‚É false ‚Å‚Í‚È‚­AŒ»İ‚Ìó‘Ô‚ğ•\¦‚·‚é ---
         UpdateBonusText((int)initialBonus, isFailed);
-        // --- C³ƒ|ƒCƒ“ƒgFoŒ»EˆÚ“®’†‚Íƒ{[ƒiƒX‚Æ—š—ğ‚ğ‰B‚· ---
         bonusText.gameObject.SetActive(false);
         historyText.gameObject.SetActive(false);
-        // 1. ‰E‰º‚ÉoŒ»
-        rectTransform.anchoredPosition = startPos;
+
+        rectTransform.anchoredPosition = actualStartPos;
         rectTransform.localScale = Vector3.one * 1.5f;
         canvasGroup.alpha = 0f;
 
@@ -109,7 +162,6 @@ public class EnemySpellCardUI : MonoBehaviour
             yield return null;
         }
 
-        // 2. ‰Eã‚ÖˆÚ“®
         yield return new WaitForSeconds(0.6f);
         elapsed = 0f;
         while (elapsed < 0.67f)
@@ -117,87 +169,97 @@ public class EnemySpellCardUI : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / 0.67f;
             float easedT = Mathf.Sin(t * Mathf.PI * 0.5f);
-            rectTransform.anchoredPosition = Vector2.Lerp(startPos, targetPos, easedT);
+
+            rectTransform.anchoredPosition = Vector2.Lerp(actualStartPos, actualTargetPos, easedT);
             yield return null;
         }
-        bonusText.gameObject.SetActive(true);
-        historyText.gameObject.SetActive(true);
+        //bonusText.gameObject.SetActive(true);
+        //historyText.gameObject.SetActive(true);
     }
 
     IEnumerator SpellOutRoutine()
     {
         float elapsed = 0f;
-        Vector2 startPosition = rectTransform.anchoredPosition; // Œ»İ‚ÌÀ•W‚©‚çŠJn
-        Vector2 exitPos = targetPos + new Vector2(600f, 0f);
+        Vector2 startPosition = rectTransform.anchoredPosition;
 
-        // Œ»İ‚ÌƒAƒ‹ƒtƒ@’l‚ğ•Ûi“r’†‚©‚ç‚Å‚àŠŠ‚ç‚©‚ÉÁ‚¦‚é‚æ‚¤‚É‚·‚éj
+        float exitXOffset = (currentActivePlayerId == 1) ? -600f : 600f;
+        Vector2 exitPos = actualTargetPos + new Vector2(exitXOffset, 0f);
+
         float startAlpha = canvasGroup.alpha;
 
         while (elapsed < 0.33f)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / 0.33f;
-            // targetPosŒÅ’è‚Å‚Í‚È‚­AŒ»İ‚ÌˆÊ’u(startPosition)‚©‚ç“¦‚°‚é‚æ‚¤‚É•ÏX‚·‚é‚Æ‚æ‚èŠŠ‚ç‚©‚Å‚·
             rectTransform.anchoredPosition = Vector2.Lerp(startPosition, exitPos, t);
             canvasGroup.alpha = Mathf.Lerp(startAlpha, 0f, t);
             yield return null;
         }
 
         canvasGroup.alpha = 0f;
-        // isExiting ‚ÍƒŠƒZƒbƒg‚¹‚¸AŸ‚Ì DisplaySpell ‚Ü‚ÅˆÛ‚·‚é‚±‚Æ‚Å2dŒÄ‚Ño‚µ‚ğ–h‚¬‚Ü‚·
-
         CheckAndDisableAll();
-    
     }
 
-    // ‘æ5ˆø”‚É isTimeUp ‚ğ’Ç‰ÁiƒfƒtƒHƒ‹ƒg‚Í falsej
     public void ShowSpellResult(int bonus, float clearTime, float realTime, bool isSuccess, bool isTimeUp = false)
-    {// š ’Ç‰ÁFƒRƒ‹[ƒ`ƒ“‚ğŠJn‚·‚é‚½‚ß‚ÉA‚Ü‚¸ƒIƒuƒWƒFƒNƒg‚ğƒAƒNƒeƒBƒu‚É‚·‚é
+    {
         gameObject.SetActive(true);
         if (resultCoroutine != null) StopCoroutine(resultCoroutine);
 
         resultRoot.SetActive(true);
         if (resultCanvasGroup != null) resultCanvasGroup.alpha = 1f;
 
+        RectTransform resultRect = resultRoot.GetComponent<RectTransform>();
+        if (resultRect != null)
+        {
+            float resultX = (currentActivePlayerId == 1) ? -Mathf.Abs(targetPos.x) : Mathf.Abs(targetPos.x);
+            resultRect.anchoredPosition = new Vector2(resultX, resultRect.anchoredPosition.y);
+
+            if (currentActivePlayerId == 1)
+            {
+                resultHeaderText.alignment = TextAlignmentOptions.Left;
+                clearTimeText.alignment = TextAlignmentOptions.Left;
+                realTimeText.alignment = TextAlignmentOptions.Left;
+            }
+            else
+            {
+                resultHeaderText.alignment = TextAlignmentOptions.Right;
+                clearTimeText.alignment = TextAlignmentOptions.Right;
+                realTimeText.alignment = TextAlignmentOptions.Right;
+            }
+        }
+
         if (isSuccess)
         {
             resultHeaderText.text = "<color=#00FFFF>GET SPELL CARD BONUS!!</color>";
             resultScoreText.text = bonus.ToString("N0");
             resultScoreText.gameObject.SetActive(true);
-            // æ“¾¬Œ÷‚ÌSE
-            SEManager.Instance.Play(SEPath.GETSPELLCARD, 0.6f);
+            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.GETSPELLCARD, 0.6f);
         }
         else
         {
-            // --- C³F¸”s——Riƒ^ƒCƒ€ƒAƒbƒv‚©‚»‚êˆÈŠO‚©j‚Å‰¹‚ğo‚µ•ª‚¯‚é ---
             if (isTimeUp)
             {
-                // ƒ^ƒCƒ€ƒAƒbƒv¸”s‚ÌSEiŠÂ‹«‚É‡‚í‚¹‚Ä SEPath ‚ğ’²®‚µ‚Ä‚­‚¾‚³‚¢j
-                SEManager.Instance.Play(SEPath.FAIL, 0.6f);
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.FAIL, 0.6f);
             }
             else
             {
-                // ”í’eEƒ{ƒ€‚Å‚Ì¸”s‚ÌSE
-                SEManager.Instance.Play(SEPath.SHOT1, 0.6f);
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT1, 0.6f);
             }
 
             resultHeaderText.text = "<color=#808080>BONUS FAILED...</color>";
             resultScoreText.gameObject.SetActive(false);
         }
 
-        clearTimeText.text = $"Œ‚”jŠÔ  {clearTime:F2}s";
-        // ‚±‚±‚Å“n‚³‚ê‚½ÀŠÔ‚ğ•\¦
-        realTimeText.text = $"ÀŠÔ    {realTime:F2}s";
+        clearTimeText.text = $"æ’ƒç ´æ™‚é–“  {clearTime:F2}s";
+        realTimeText.text = $"å®Ÿæ™‚é–“    {realTime:F2}s";
 
         resultCoroutine = StartCoroutine(ResultDisplayRoutine());
     }
 
     IEnumerator ResultDisplayRoutine()
     {
-        // 1. 3•bŠÔ‚Í•s“§–¾‚È‚Ü‚Ü•\¦‚ğˆÛ
         yield return new WaitForSeconds(3.0f);
 
-        // 2. 1•b‚©‚¯‚ÄƒtƒF[ƒhƒAƒEƒg
         if (resultCanvasGroup != null)
         {
             float fadeDuration = 1.0f;
@@ -205,7 +267,6 @@ public class EnemySpellCardUI : MonoBehaviour
             while (elapsed < fadeDuration)
             {
                 elapsed += Time.deltaTime;
-                // 1.0 ‚©‚ç 0.0 ‚ÖŠÉ‚â‚©‚É•Ï‰»
                 resultCanvasGroup.alpha = Mathf.Lerp(1f, 0f, elapsed / fadeDuration);
                 yield return null;
             }
@@ -218,16 +279,12 @@ public class EnemySpellCardUI : MonoBehaviour
 
         CheckAndDisableAll();
     }
-    // —¼•û‚Ì‰‰o‚ªI‚í‚Á‚Ä‚¢‚éê‡‚Ì‚İAƒIƒuƒWƒFƒNƒg‘S‘Ì‚ğƒIƒt‚É‚·‚é
+
     private void CheckAndDisableAll()
     {
-        // 1. ƒXƒyƒ‹–¼•\¦‚ªÁ‚¦‚Ä‚¢‚éialpha‚ª0j
-        // 2. ƒŠƒUƒ‹ƒg•\¦‚ªÁ‚¦‚Ä‚¢‚éiresultRoot‚ª”ñƒAƒNƒeƒBƒuj
-        // ‚±‚Ì2‚Â‚ÌğŒ‚ª‘µ‚Á‚½‚Æ‚«‚¾‚¯‘S‘Ì‚ğ”ñƒAƒNƒeƒBƒu‚É‚·‚é
         if (canvasGroup.alpha <= 0 && !resultRoot.activeInHierarchy)
         {
             gameObject.SetActive(false);
         }
     }
-
 }

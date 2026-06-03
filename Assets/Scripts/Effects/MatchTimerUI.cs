@@ -1,4 +1,4 @@
-using KanKikuchi.AudioManager;
+ï»¿using KanKikuchi.AudioManager;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -9,12 +9,12 @@ public class MatchTimerUI : MonoBehaviour
     public static MatchTimerUI Instance;
 
     [Header("Match Settings")]
-    public float currentMatchTime = 99f; // Œ»İ‚Ìc‚èŠÔ
+    public float currentMatchTime = 99f; // ç¾åœ¨ã®æ®‹ã‚Šæ™‚é–“
     private bool isTimerRunning = false;
-    private bool isTimerStopped = false; // š ’Ç‰ÁFƒ^ƒCƒ}[’â~ƒtƒ‰ƒO
-    // š’Ç‰ÁF–³ŒÀƒ^ƒCƒ}[ƒtƒ‰ƒO
+    private bool isTimerStopped = false; // â˜… è¿½åŠ ï¼šã‚¿ã‚¤ãƒãƒ¼åœæ­¢ãƒ•ãƒ©ã‚°
+    // â˜…è¿½åŠ ï¼šç„¡é™ã‚¿ã‚¤ãƒãƒ¼ãƒ•ãƒ©ã‚°
     public bool isInfiniteTimer = false;
-    // š’Ç‰ÁF“ñdÀs‚ğŠmÀ‚É–h‚®ƒtƒ‰ƒO
+    // â˜…è¿½åŠ ï¼šäºŒé‡å®Ÿè¡Œã‚’ç¢ºå®Ÿã«é˜²ããƒ•ãƒ©ã‚°
     private bool isTimeUpHandled = false;
     [Header("References")]
     public TextMeshProUGUI timerText;
@@ -29,12 +29,36 @@ public class MatchTimerUI : MonoBehaviour
     private int lastIntSecond = -1;
     private Vector3 originalScale;
 
+    // =========================================================================
+    // ğŸŒŸã€æ–°è¦è¿½åŠ ã€‘ï¼šå…ƒã®ãƒ‡ãƒ¼ã‚¿ã‚’å£Šã•ãªã„ãŸã‚ã®VJTå°‚ç”¨ãƒ„ã‚¤ãƒ³ã‚¿ã‚¤ãƒãƒ¼æ‹¡å¼µã‚¹ãƒ­ãƒƒãƒˆ
+    // =========================================================================
+    [Header("--- VJT Spell Timer Expansion Slots ---")]
+    [Tooltip("Unityã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼ã‹ã‚‰ã€æ–°è¨­ã—ãŸVJTå°‚ç”¨ã®TextMeshProUGUIã‚’ã“ã“ã«ãƒ‰ãƒ©ãƒƒã‚°ï¼†ãƒ‰ãƒ­ãƒƒãƒ—ã—ã¦ãã ã•ã„")]
+    public TextMeshProUGUI vjtTimerText;
+
+    private Coroutine vjtTimerCoroutine = null;
+
+    // ğŸŒŸ è‰²å‘³ã®æŒ‡å®šï¼šå¾®å¦™ãªç°è‰²ï¼ˆ64/255 = ç´„0.25fï¼‰ã‚’ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã‚«ãƒ©ãƒ¼ã«è¨­å®š
+    private Color vjtDefaultColor = new Color(1,1,1, 1f);
+
+    // ğŸŒŸ VJTã‚¿ã‚¤ãƒãƒ¼å°‚ç”¨ã®Popã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³é€£å‹•ãƒ¯ãƒ¼ã‚¯ã‚¢ã‚»ãƒƒãƒˆ
+    private RectTransform vjtRectTransform;
+    private Vector3 vjtOriginalScale = Vector3.one;
+    private int vjtLastIntSecond = -1;
+
     void Awake()
     {
         if (Instance == null) Instance = this;
         rectTransform = GetComponent<RectTransform>();
         canvasGroup.alpha = 1f;
         originalScale = rectTransform.localScale;
+
+        if (vjtTimerText != null)
+        {
+            vjtTimerText.gameObject.SetActive(false);
+            vjtRectTransform = vjtTimerText.GetComponent<RectTransform>();
+            vjtOriginalScale = vjtRectTransform.localScale;
+        }
     }
 
     public void ResetRoundTimer(float duration)
@@ -42,23 +66,64 @@ public class MatchTimerUI : MonoBehaviour
         currentMatchTime = duration;
         isTimerRunning = false;
         isTimerStopped = false;
-        isTimeUpHandled = false; // šƒ‰ƒEƒ“ƒhŠJn‚Éƒtƒ‰ƒO‚ğƒŠƒZƒbƒg
+        isTimeUpHandled = false; // â˜…ãƒ©ã‚¦ãƒ³ãƒ‰é–‹å§‹æ™‚ã«ãƒ•ãƒ©ã‚°ã‚’ãƒªã‚»ãƒƒãƒˆ
         lastIntSecond = Mathf.CeilToInt(currentMatchTime);
+        vjtLastIntSecond = -1; // ğŸŒŸVJTç”¨SEã‚«ã‚¦ãƒ³ãƒˆãƒªã‚»ãƒƒãƒˆ
+
+        if (canvasGroup != null) canvasGroup.alpha = 1f;
         UpdateUI(currentMatchTime);
+
+        // VJTãƒ„ã‚¤ãƒ³ã‚¿ã‚¤ãƒãƒ¼ã‚’å®‰å…¨ã«å¼·åˆ¶çµ‚äº†ã—ã¦éè¡¨ç¤ºåŒ–
+        StopVJTVisualTimer();
     }
-    // š ’Ç‰ÁFŠO•”‚©‚çƒ^ƒCƒ}[‚ğ~‚ß‚é‚½‚ß‚Ìƒƒ\ƒbƒh
+
+    // â˜… ä¿®æ­£ï¼šå¤–éƒ¨ã‹ã‚‰ã‚¿ã‚¤ãƒãƒ¼ã‚’æ­¢ã‚ã‚‹ãŸã‚ã®ãƒ¡ã‚½ãƒƒãƒ‰ï¼ˆã‚¿ã‚¤ãƒ ã‚¢ãƒƒãƒ—æ™‚ã¯æ¨ªæ£’ã‚’å®Œå…¨ã‚¬ãƒ¼ãƒ‰ï¼‰
     public void StopTimer()
     {
+        // ğŸš¨ã€ã‚¿ã‚¤ãƒ ã‚¢ãƒƒãƒ—æœ€å„ªå…ˆã‚¬ãƒ¼ãƒ‰ã€‘ï¼šè©¦åˆæ™‚é–“ãŒæ—¢ã« 0 ä»¥ä¸‹ã€ã¾ãŸã¯ã‚¿ã‚¤ãƒ ã‚¢ãƒƒãƒ—å‡¦ç†ãŒå®Œäº†ã—ã¦ã„ã‚‹å ´åˆã¯ã€
+        // ğŸš¨ VJTä¸­ã® Update ã‹ã‚‰ã®ä¸Šæ›¸ãå‘¼ã³å‡ºã—ã‚’å®Œå…¨ã«ã‚·ãƒ£ãƒƒãƒˆã‚¢ã‚¦ãƒˆï¼ˆç„¡è¦–ï¼‰ã—ã¦ã€é€šå¸¸æ•°å­—ã‚’æ­»å®ˆã—ã¾ã™ï¼
+        if (currentMatchTime <= 0f || isTimeUpHandled) return;
+
+        // å¤šé‡å®Ÿè¡Œé˜²æ­¢
+        if (isTimerStopped) return;
+
         isTimerStopped = true;
-    }// ƒ^ƒCƒ}[‚ğ“r’†‚ÅÄŠJ‚³‚¹‚éiƒXƒg[ƒŠ[ƒ‚[ƒh‚Ì•œ‹A—pj
+
+        // ğŸŒŸã€ä»•æ§˜é©åˆã€‘ï¼šãƒ¡ã‚¤ãƒ³ã‚¿ã‚¤ãƒãƒ¼ã‚’åŠé€æ˜(ã‚¢ãƒ«ãƒ•ã‚¡0.4)ã«ã—ã€TMPã®<s>ã‚¿ã‚°ã§ç¾ã—ã„æ¨ªæ£’ã‚’æç”»ï¼
+        if (canvasGroup != null) canvasGroup.alpha = 0.4f;
+
+        if (!isInfiniteTimer && timerText != null)
+        {
+            int displaySec = Mathf.CeilToInt(currentMatchTime);
+            timerText.text = $"<s>{displaySec}</s>"; // <s>ã¯TextMeshProã®å–ã‚Šæ¶ˆã—ç·šã‚¿ã‚°
+        }
+
+        // ğŸŒŸã€ãƒ„ã‚¤ãƒ³ã‚¿ã‚¤ãƒãƒ¼èµ·å‹•ã€‘ï¼šç¾åœ¨ç™ºå‹•ã—ãŸãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å†…éƒ¨ã‚¿ã‚¤ãƒãƒ¼ã‚’è‡ªå‹•ã‚¹ã‚­ãƒ£ãƒ³ã—ã¦ãƒŸãƒªç§’åŒæœŸé–‹å§‹
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p == null) continue;
+            var status = p.GetComponent<PlayerStatusManager>();
+            if (status != null && status.isSpellCardActive)
+            {
+                StartVJTVisualTimer(status);
+                break;
+            }
+        }
+    }
     public void ResumeTimer()
     {
         isTimerStopped = false;
+
+        if (canvasGroup != null) canvasGroup.alpha = 1f;
+        UpdateUI(currentMatchTime);
+
+        StopVJTVisualTimer();
     }
+
     void Update()
     {
-        // š C³FisTimerStopped ‚ª false ‚Ì‚¾‚¯ƒJƒEƒ“ƒgƒ_ƒEƒ“‚·‚é
-        // šC³F!isInfiniteTimer ‚©‚Â !isTimerStopped ‚Ì‚¾‚¯ƒJƒEƒ“ƒg‚ğŒ¸‚ç‚·
+        // â˜… ä¿®æ­£ï¼šisTimerStopped ãŒ false ã®æ™‚ã ã‘ã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³ã™ã‚‹
+        // â˜…ä¿®æ­£ï¼š!isInfiniteTimer ã‹ã¤ !isTimerStopped ã®æ™‚ã ã‘ã‚«ã‚¦ãƒ³ãƒˆã‚’æ¸›ã‚‰ã™
         if (PlayerMove.CanShoot && currentMatchTime > 0 && !isTimerStopped && !isInfiniteTimer)
         {
             isTimerRunning = true;
@@ -74,29 +139,29 @@ public class MatchTimerUI : MonoBehaviour
                     HandleTimeUp();
                 }
             }
+            UpdateUI(currentMatchTime);
         }
-        UpdateUI(currentMatchTime);
 
-        // šC³F–³ŒÀƒ^ƒCƒ}[‚ÍSE‚âPop‰‰o‚ğs‚í‚È‚¢‚æ‚¤‚É‚·‚é
-        if (!isInfiniteTimer)
+        // é€šå¸¸ãƒ¡ã‚¤ãƒ³ã‚¿ã‚¤ãƒãƒ¼ã®ã‚«ã‚¦ãƒ³ãƒˆéŸ³ï¼ˆVJTåœæ­¢ä¸­ã¯ãƒŸãƒ¥ãƒ¼ãƒˆã•ã‚Œã‚‹ãŸã‚å¹²æ¸‰ã—ã¾ã›ã‚“ï¼‰
+        if (!isInfiniteTimer && !isTimerStopped)
         {
             int displaySec = Mathf.CeilToInt(currentMatchTime);
             if (displaySec <= 10 && displaySec != lastIntSecond && currentMatchTime > 0)
             {
-                StartCoroutine(PopRoutine());
+                StartCoroutine(PopRoutine(rectTransform, originalScale));
                 PlayCountSE(displaySec);
                 lastIntSecond = displaySec;
             }
         }
-
     }
 
     void UpdateUI(float time)
     {
-        // š’Ç‰ÁF–³ŒÀƒ^ƒCƒ}[‚Ì•\¦Ø‚è‘Ö‚¦
+        if (isTimerStopped) return;
+
         if (isInfiniteTimer)
         {
-            timerText.text = "‡";
+            timerText.text = "âˆ";
             timerText.color = normalColor;
             return;
         }
@@ -108,31 +173,106 @@ public class MatchTimerUI : MonoBehaviour
         else if (time < 10f) timerText.color = warningColor;
         else timerText.color = normalColor;
     }
-    // š’Ç‰ÁFƒXƒg[ƒŠ[ƒ‚[ƒhŠJn‚È‚Ç‚ÉŠO•”‚©‚çŒÄ‚Ô‚½‚ß‚Ìƒƒ\ƒbƒh
+
+    // =========================================================================
+    // ğŸŒŸã€ãƒ„ã‚¤ãƒ³ã‚¿ã‚¤ãƒãƒ¼åˆ¶å¾¡ã‚³ã‚¢ ï¼† å°æ•°ç‚¹ãƒªãƒƒãƒãƒ†ã‚­ã‚¹ãƒˆå‹•çš„ç¸®å°ã‚¨ãƒ³ã‚¸ãƒ³ã€‘
+    // =========================================================================
+    private void StartVJTVisualTimer(PlayerStatusManager activeVJTPlayer)
+    {
+        if (vjtTimerCoroutine != null) StopCoroutine(vjtTimerCoroutine);
+        vjtTimerCoroutine = StartCoroutine(VJTSpeelTimerRoutine(activeVJTPlayer));
+    }
+
+    private void StopVJTVisualTimer()
+    {
+        if (vjtTimerCoroutine != null)
+        {
+            StopCoroutine(vjtTimerCoroutine);
+            vjtTimerCoroutine = null;
+        }
+        if (vjtTimerText != null)
+        {
+            vjtTimerText.gameObject.SetActive(false);
+        }
+        vjtLastIntSecond = -1;
+    }
+
+    private IEnumerator VJTSpeelTimerRoutine(PlayerStatusManager activeVJTPlayer)
+    {
+        if (vjtTimerText == null) yield break;
+
+        vjtTimerText.color = vjtDefaultColor;
+        vjtTimerText.gameObject.SetActive(true);
+        vjtLastIntSecond = -1;
+
+        while (activeVJTPlayer != null && activeVJTPlayer.isSpellCardActive && activeVJTPlayer.spellHP > 0f)
+        {
+            // ğŸŒŸã€è¶…è»½é‡åŒ–ã€‘ï¼špublicåŒ–ã•ã‚ŒãŸã®ã§ã€ãƒªãƒ•ãƒ¬ã‚¯ã‚·ãƒ§ãƒ³ã‚’ä¸€åˆ‡ä½¿ã‚ãšç›´æ¥1ç™ºã§ç§’æ•°ã‚’å–å¾—ï¼
+            float remainingTime = activeVJTPlayer.spellTimer;
+
+            int seconds = Mathf.FloorToInt(remainingTime);
+            int fraction = Mathf.FloorToInt((remainingTime - seconds) * 100f);
+
+            // å°æ•°ç‚¹ä»¥ä¸‹2æ¡ã‚’70%ã«ç¸®å°è¡¨ç¤ºã™ã‚‹ç¾ã—ã„ãƒªãƒƒãƒãƒ†ã‚­ã‚¹ãƒˆ
+            vjtTimerText.text = $"{seconds}.<size=70%>{fraction:D2}</size>";
+
+            // æ®‹ã‚Šæ™‚é–“ãŒ10ç§’ä»¥ä¸‹ã«ãªã£ãŸæ™‚ã®æ¼”å‡ºåŒæœŸ
+            int displayVjtSec = Mathf.CeilToInt(remainingTime);
+            if (displayVjtSec <= 10 && remainingTime > 0f)
+            {
+                // 1. è‰²ã®å¤‰æ›´ï¼ˆ10ç§’æœªæº€ã§é»„è‰²ã€5ç§’æœªæº€ã§èµ¤è‰²ï¼‰
+                if (remainingTime < 5f) vjtTimerText.color = dangerColor;
+                else if (remainingTime < 10f) vjtTimerText.color = warningColor;
+
+                // 2. SEéŸ³ ã¨ Pop(æ‹¡ç¸®)ã®ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³é€£å‹•
+                if (displayVjtSec != vjtLastIntSecond)
+                {
+                    if (vjtRectTransform != null)
+                    {
+                        StartCoroutine(PopRoutine(vjtRectTransform, vjtOriginalScale));
+                    }
+                    PlayCountSE(displayVjtSec);
+                    vjtLastIntSecond = displayVjtSec;
+                }
+            }
+            else
+            {
+                vjtTimerText.color = vjtDefaultColor;
+            }
+
+            yield return null;
+        }
+
+        vjtTimerText.gameObject.SetActive(false);
+        vjtTimerCoroutine = null;
+    }
+
     public void SetInfiniteMode(bool infinite)
     {
         isInfiniteTimer = infinite;
         UpdateUI(currentMatchTime);
     }
+
     void PlayCountSE(int sec)
     {
-        // 4•bˆÈ‰º‚Å‰¹‚ª‹Ù”—‚µ‚½‚à‚Ì‚É•Ï‚í‚é
         string clipPath = (sec > 4) ? SEPath.TIMER1 : SEPath.TIMER2;
         SEManager.Instance.Play(clipPath, 0.5f);
     }
 
-    IEnumerator PopRoutine()
+    // ğŸŒŸ æ±ç”¨åŒ–ã—ãŸPopæ‹¡ç¸®ã‚³ãƒ«ãƒ¼ãƒãƒ³ï¼ˆãƒ¡ã‚¤ãƒ³ãƒ»VJTã®åŒæ–¹ã§å®‰å…¨ã«ä½¿ã„å›ã—ã¾ã™ï¼‰
+    IEnumerator PopRoutine(RectTransform targetRect, Vector3 origScale)
     {
+        if (targetRect == null) yield break;
         float duration = 0.15f;
         float elapsed = 0f;
-        Vector3 popScale = originalScale * 1.3f;
+        Vector3 popScale = origScale * 1.3f;
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            rectTransform.localScale = Vector3.Lerp(originalScale, popScale, elapsed / duration);
+            targetRect.localScale = Vector3.Lerp(origScale, popScale, elapsed / duration);
             yield return null;
         }
-        rectTransform.localScale = originalScale;
+        targetRect.localScale = origScale;
     }
 
     private void HandleTimeUp()
@@ -140,7 +280,6 @@ public class MatchTimerUI : MonoBehaviour
         PlayerMove.CanInput = false;
         ClearAllBulletsOnField();
 
-        // ƒXƒg[ƒŠ[ƒ‚[ƒh‚Ìê‡
         if (GameModeManager.IsStoryMode)
         {
             HandleStoryTimeUp();
@@ -171,38 +310,31 @@ public class MatchTimerUI : MonoBehaviour
             }
             else
             {
-                // š ’Ç‰ÁFˆø‚«•ª‚¯iHP‚ª“¯‚¶j
-                // P1‘¤‚ÌHitHandler‚ğ‘‹Œû‚É‚µ‚Äˆø‚«•ª‚¯‰‰o‚ğŠJn‚·‚é
                 PlayerHitHandler h1 = p1.GetComponentInChildren<PlayerHitHandler>();
                 if (h1 != null) h1.StartCoroutine("TriggerDrawSequence");
             }
         }
     }
+
     private void HandleStoryTimeUp()
     {
-        // 1. ‘S“ü—ÍEËŒ‚‚ğ‘¦À‚É’â~
         PlayerMove.CanInput = false;
         PlayerMove.CanShoot = false;
         ClearAllBulletsOnField();
 
-        // 2. ƒ{ƒXi“Gj‚Ìî•ñ‚ğæ“¾
-        // ’ÊíAƒXƒg[ƒŠ[ƒ‚[ƒh‚Ì“G‚Í playerId = 2 ‚Ü‚½‚Í BossTimerUI ‚Ìƒ^[ƒQƒbƒg‚Æ‚µ‚Ä‘¶İ‚µ‚Ü‚·
         EnemyStatus boss = BossTimerUI.Instance != null ? BossTimerUI.Instance.targetStatus : null;
 
         if (boss != null)
         {
-            // š C³FHP‚Ì‘½‰Ç‚ÉŠÖ‚í‚ç‚¸Aƒ^ƒCƒ€ƒAƒbƒv‚Íƒ{ƒX‚Ì•‰‚¯‚Æ‚·‚é
             PlayerHitHandler bossHandler = boss.GetComponentInChildren<PlayerHitHandler>();
             if (bossHandler != null)
             {
-                // ƒ{ƒX‚ÌŒ‚’Äƒ‹[ƒ`ƒ“‚ğŠJni‚±‚ê‚É‚æ‚èƒ{ƒX‚Ìc‹@‚ªŒ¸‚èAŸ‚ÌƒXƒyƒ‹‚ÖˆÚs‚·‚éj
                 bossHandler.currentState = PlayerHitHandler.PlayerState.Hit;
                 bossHandler.StartCoroutine("ExplosionAndStunRoutine");
             }
         }
         else
         {
-            // ƒ{ƒX‚ªŒ©‚Â‚©‚ç‚È‚¢ê‡‚Ì•ÛŒ¯F‘SƒvƒŒƒCƒ„[‚©‚ç playerId 2 ‚ğ’T‚·
             foreach (var p in PlayerMove.AllPlayers)
             {
                 if (p == null) continue;
@@ -220,9 +352,7 @@ public class MatchTimerUI : MonoBehaviour
             }
         }
     }
-    /// <summary>
-    /// ‰æ–Ê“à‚Ì‘S’eŠÛ‚ğˆêŠ‡Á‹‚·‚é
-    /// </summary>
+
     private void ClearAllBulletsOnField()
     {
         DanmakuBullet[] pBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
@@ -237,7 +367,6 @@ public class MatchTimerUI : MonoBehaviour
         PlayerHitHandler loserHandler = loserStatus.GetComponentInChildren<PlayerHitHandler>();
         if (loserHandler != null)
         {
-            // ó‘Ô‚ğHit‚É‚µ‚Ä”š”­ƒ‹[ƒ`ƒ“ŠJn
             loserHandler.currentState = PlayerHitHandler.PlayerState.Hit;
             loserHandler.StartCoroutine("ExplosionAndStunRoutine");
         }
