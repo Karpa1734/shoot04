@@ -18,7 +18,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     private bool _isArcReversed = false;
     // 現在アクティブなコルーチンの数をカウント[cite: 7]
     private int _activeSkillCoroutines = 0;
-
+    private bool _isXLineReversed; // ⚔️ カリン専用Xの往復切り替え用フラグ
     // スキル使用中（コルーチンが1つ以上動いている）かどうかを返すプロパティ
     public bool IsAnySkillActive => _activeSkillCoroutines > 0;
     private void Awake()
@@ -199,6 +199,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 break;
             case SkillPatternType.KarinScalesSlash:
                 StartCoroutine(ExecuteKarinScalesSlashRoutine(s));
+                break;
+            case SkillPatternType.KarinFireSlash:
+                StartCoroutine(ExecuteKarinCrossSlashRoutine(s));
                 break;
         }
     }
@@ -1258,130 +1261,238 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
 
     }
-
     /// <summary>
-    /// 🐉 カリン専用Z：「しの字」のアーク軌道において、
-    /// 🌟 【仕様適合】：出始め(t=0)は完全な接線方向（直角）に放ち、後半にかけて徐々に「接線に垂直な方向（軌道の進む向き）」へと射角を滑らかに旋回・収束させる完全調停版アルゴリズム
+    /// 🐉 カリン専用Z：「しの字」アークの【最も盛り上がっている部分】が完璧に敵機正面を捉える完全対称化アルゴリズム
+    /// 🌟 【仕様確定版】：2連装速度差（高速・低速ペア）にスリム化し、キレのある二連斬撃を表現。
     /// </summary>
     private IEnumerator ExecuteKarinScalesSlashRoutine(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++; // 実行中カウント加算（コスト回復停止と同期）
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); 
-        PlayerMove myMove = GetComponentInParent<PlayerMove>(); 
-        
-        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; 
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        // =========================================================================
+        // 🎛️ 【カリン専用・抜刀射角微調整デザイナーズカウンター】（ご指定の数値）
+        // =========================================================================
+        float startAngleFromTangent = 10f;
+        float totalRotationAmount = 20f;
 
         // -------------------------------------------------------------------------
         // 🔮 「しの字」の空間パラメータ基礎設計
         // -------------------------------------------------------------------------
         float baseRadiusX = 2.5f;
-        float baseRadiusY = 1.2f;
-
+        float baseRadiusY = 0.8f;
         int wayCount = 1; // 1way固定
 
         // 🌟【交互反転制御】：偶奇数回目の反転スイッチ
         bool currentDirectionReversed = _isArcReversed;
         _isArcReversed = !_isArcReversed;
 
-        // 「しの長い直線部分」の開始位置と終端位置の制御（調整できるよう変数維持）
-        float startAngleOffset = currentDirectionReversed ? 120f : -120f;
-        float endAngleOffset = currentDirectionReversed ? -60f : 60f;
-        float angleStep = currentDirectionReversed ? -15f : 15f;
+        // 💡【往復スイングの完全調停】（ご指定の数値：±139度スイング）
+        float startLocalAngle = currentDirectionReversed ? 150f : -150f;
+        float localAngleStep = currentDirectionReversed ? -15f : 15f;
 
         // 自機から見た敵機の絶対ターゲット角度を基準軸としてキャプチャ
-        float absoluteCenterAngle = GetAngleToTarget(transform.position); 
+        float absoluteCenterAngle = GetAngleToTarget(transform.position);
+        float baseRad = absoluteCenterAngle * Mathf.Deg2Rad;
+        float cosRot = Mathf.Cos(baseRad);
+        float sinRot = Mathf.Sin(baseRad);
 
-        // ループ全体の総ステップ数に対する進捗（0.0 〜 1.0）を測るワーク変数
-        float currentStepCount = 0f;
-        float totalSteps = Mathf.Abs((endAngleOffset - startAngleOffset) / angleStep);
+        // 総連射ステップ数を確定
+        int totalStepsCount = 13;
 
-        // 🔄 角度ブレンド型「しの字」連射ループ
-        for (float offset = startAngleOffset;
-             (angleStep > 0 ? offset <= endAngleOffset : offset >= endAngleOffset);
-             offset += angleStep)
+        // =========================================================================
+        // 🎯 核心：1発目の接線角度（ベースの向き）をローカル座標から先読みしてロック
+        // =========================================================================
+        float f_t = 0f;
+        float f_radiusMod = Mathf.Lerp(1.3f, 0.6f, f_t);
+        float f_localAngRad = startLocalAngle * Mathf.Deg2Rad;
+
+        float f_localX = Mathf.Cos(f_localAngRad) * baseRadiusX * f_radiusMod;
+        float f_localY = Mathf.Sin(f_localAngRad) * baseRadiusY * f_radiusMod;
+
+        Vector3 firstSpawnPos = transform.position + new Vector3(
+            f_localX * cosRot - f_localY * sinRot,
+            f_localX * sinRot + f_localY * cosRot,
+            0
+        );
+
+        float f_nextLocalAngRad = (startLocalAngle + (localAngleStep * 0.01f)) * Mathf.Deg2Rad;
+        float f_nextRadiusMod = Mathf.Lerp(1.3f, 0.6f, 0.01f / (totalStepsCount - 1));
+        float f_nextLocalX = Mathf.Cos(f_nextLocalAngRad) * baseRadiusX * f_nextRadiusMod;
+        float f_nextLocalY = Mathf.Sin(f_nextLocalAngRad) * baseRadiusY * f_nextRadiusMod;
+        Vector3 firstNextSpawnPos = transform.position + new Vector3(
+            f_nextLocalX * cosRot - f_nextLocalY * sinRot,
+            f_nextLocalX * sinRot + f_nextLocalY * cosRot,
+            0
+        );
+
+        // 1発目の進行方向の純粋な接線角をホールド
+        Vector3 firstTangentDir = firstNextSpawnPos - firstSpawnPos;
+        float lockedInitialTangentAngle = Mathf.Atan2(firstTangentDir.y, firstTangentDir.x) * Mathf.Rad2Deg;
+        PlaySkillSE(s.sePath);
+        // 🔄 頂点完全固定・双方向往復「しの字」連射ループ
+        for (int step = 0; step < totalStepsCount; step++)
         {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) 
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
                 break;
 
             // 進行割合 t (0.0 = 出始めの直線 / 1.0 = 終端の丸まり)
-            float t = currentStepCount / totalSteps;
+            float t = (float)step / (totalStepsCount - 1);
 
-            // 歪な可変半径（出始めは 1.3倍に引き伸ばし、後半は 0.6倍にすぼめる）
+            // 現在のステップにおけるローカル角度の展開
+            float localAngle = startLocalAngle + (localAngleStep * step);
+
+            // 歪な可変半径
             float radiusModifier = Mathf.Lerp(1.3f, 0.6f, t);
 
-            // 現在フレームの弾源位置（spawnPos）の算出
-            float spawnAngleRad = (absoluteCenterAngle + offset) * Mathf.Deg2Rad;
-            Vector3 ellipseOffset = new Vector3(
-                Mathf.Cos(spawnAngleRad) * baseRadiusX * radiusModifier,
-                Mathf.Sin(spawnAngleRad) * baseRadiusY * radiusModifier,
+            // 🔮 純粋ローカル空間での楕円座標計算
+            float localAngleRad = localAngle * Mathf.Deg2Rad;
+            float localX = Mathf.Cos(localAngleRad) * baseRadiusX * radiusModifier;
+            float localY = Mathf.Sin(localAngleRad) * baseRadiusY * radiusModifier;
+
+            // 🌟【2D回転行列】：敵機の絶対角度に合わせて、歪みなくワールド座標へ展開
+            Vector3 worldOffset = new Vector3(
+                localX * cosRot - localY * sinRot,
+                localX * sinRot + localY * cosRot,
                 0
             );
-            Vector3 spawnPos = transform.position + ellipseOffset;
+            Vector3 spawnPos = transform.position + worldOffset;
 
             // =========================================================================
-            // 🎯 接線（Tangent）および 軌道正面（Orbit）の２つの角度を算出
+            // 🌟 角度制御（初期構え・旋回量を完全鏡面同期）
             // =========================================================================
-            float nextOffset = offset + (angleStep * 0.01f);
-            float nextT = (currentStepCount + 0.01f) / totalSteps;
-            float nextRadiusModifier = Mathf.Lerp(1.3f, 0.6f, nextT);
+            float rotationSign = currentDirectionReversed ? -1f : 1f;
 
-            float nextSpawnAngleRad = (absoluteCenterAngle + nextOffset) * Mathf.Deg2Rad;
-            Vector3 nextEllipseOffset = new Vector3(
-                Mathf.Cos(nextSpawnAngleRad) * baseRadiusX * nextRadiusModifier,
-                Mathf.Sin(nextSpawnAngleRad) * baseRadiusY * nextRadiusModifier,
-                0
-            );
-            Vector3 nextSpawnPos = transform.position + nextEllipseOffset;
+            // 初期の構え角度そのものを偶奇で上下反転させる
+            float baseStartAngle = lockedInitialTangentAngle + (startAngleFromTangent * rotationSign);
 
-            // 線の流れに沿った「基本接線ベクトル」
-            Vector3 tangentDir = nextSpawnPos - spawnPos;
-            float rawTangentAngle = Mathf.Atan2(tangentDir.y, tangentDir.x) * Mathf.Rad2Deg;
+            // そこからの旋回量も同期して反転させる
+            float currentMoveAngle = baseStartAngle + (totalRotationAmount * t * rotationSign);
+            float finalBulletAngle = currentMoveAngle + s.angleOffset;
 
-            // 🔷 【角度A】完全な接線方向（軌道に対して真横に放つ外側への法線角）
-            float sideMultiplier = currentDirectionReversed ? 0f : 0f;
-            float targetTangentAngle = rawTangentAngle + sideMultiplier;
-
-            // 🔶 【角度B】接線に垂直な方向（＝軌道の進む向きそのもの。ラインに吸い込まれる直進角）
-            float targetOrbitAngle = rawTangentAngle;
-            if (currentDirectionReversed) targetOrbitAngle += 90f; // 反転時の前方補正
+            
 
             // =========================================================================
-            // 🌟【核心の反転】：Mathf.LerpAngle による「接線 ➔ 接線に垂直（軌道沿い）」への滑らか旋回
+            // 🌟 多段速度差レイヤーの射出【3つから2つへ最適化】
             // =========================================================================
-            // 💡 高橋さんのご要望通り、第1引数と第2引数をスワップ！
-            // t = 0 (開始)の時は 100% 横向きの接線方向（targetTangentAngle）へダイナミックに薙ぎ払い、
-            // t = 1 (最終)に近づくにつれて、ジワジワと角度が閉じていき、100% 軌道方向（targetOrbitAngle）へ美しく収束します！
-            float blendedAngle = Mathf.LerpAngle(targetTangentAngle, targetOrbitAngle, t);
-
-            // インスペクターからの微調整オフセットを最終結合
-            float finalAngle = blendedAngle + s.angleOffset;
-
-            PlaySkillSE(s.sePath); 
-
-            // =========================================================================
-            // 🌟 多段速度差レイヤーの射出
-            // =========================================================================
-            int layerCount = 3;
+            // 💡 layerCount を 2 にしたことで、i=0（1.4倍の超高速弾）と i=1（0.6倍の低速残響弾）が
+            // 💡 絶妙な一対のペア（追撃ブレード）として美しく並行射出されます。
+            int layerCount = 2;
             for (int i = 0; i < layerCount; i++)
             {
-                float speedPercent = Mathf.Lerp(1.4f, 0.6f, (float)i / (layerCount - 1));
+                float speedPercent = Mathf.Lerp(1.1f, 0.8f, (float)i / (layerCount - 1));
                 float randomizedSpeed = s.speed * speedPercent;
 
                 randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
 
-                // 射出！
-                CreateShot(s.bulletData, spawnPos, randomizedSpeed, finalAngle, s.delay); 
+                // 射出
+                CreateShot(s.bulletData, spawnPos, randomizedSpeed, finalBulletAngle, s.delay);
             }
 
-            // ループカウンタの更新とウェイト
-            currentStepCount += 1f;
-            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate(); 
+            yield return new WaitForFixedUpdate();
         }
 
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f; 
-        _activeSkillCoroutines--; 
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+        _activeSkillCoroutines--;
     }
+    /// <summary>
+    /// ⚔️ カリン専用X：空間一閃・自機外し双極ブレード
+    /// 🌟 【仕様適合】：一直線上の各弾源から「敵機（ターゲット）がいる方向」をリアルタイムスキャンして0度基準とし、
+    /// 🌟 そこから左右30度（合計60度）に美しく開く、敵機一点収束型の自機外し2way扇弾を射出する完全調停版アルゴリズム
+    /// </summary>
+    private IEnumerator ExecuteKarinCrossSlashRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        // -------------------------------------------------------------------------
+        // 🔮 一直線ラインの空間パラメータ設計
+        // -------------------------------------------------------------------------
+        float lineLengthY = 4.0f; // 剣跡の上下の長さ
+        int totalStepsCount = 12; // 剣跡を構成する弾源の密度
+
+        // 🌟【交互反転制御】：使うたびに真偽値が入れ替わります
+        bool currentDirectionReversed = _isXLineReversed;
+        _isXLineReversed = !_isXLineReversed;
+
+        // 💡【往復生成の調停】
+        // 奇数回目（false）：下から上へ走るライン
+        // 偶数回目（true） ：上から下へ走るライン
+        float startLocalY = currentDirectionReversed ? lineLengthY : -lineLengthY;
+        float endLocalY = currentDirectionReversed ? -lineLengthY : lineLengthY;
+
+        // 自機から見た敵機の絶対ターゲット角度を基準軸としてキャプチャ
+        float absoluteCenterAngle = GetAngleToTarget(transform.position);
+        float baseRad = absoluteCenterAngle * Mathf.Deg2Rad;
+        float cosRot = Mathf.Cos(baseRad);
+        float sinRot = Mathf.Sin(baseRad);
+
+        PlaySkillSE(s.sePath);
+
+        // 🔄 一閃ライン連射ループ（空間を縦に引き裂くスピード感）
+        for (int step = 0; step < totalStepsCount; step++)
+        {
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                break;
+
+            float t = (float)step / (totalStepsCount - 1);
+
+            // 💡 ターゲットとの直線に対して「垂直な一直線」上の座標を計算
+            float localX = 1.0f; // 自機から少し前方に離れた位置に一閃のラインを生成
+            float localY = Mathf.Lerp(startLocalY, endLocalY, t);
+
+            // 🌟【2D回転行列】：敵機の絶対角度に合わせてワールド座標へ展開
+            Vector3 worldOffset = new Vector3(
+                localX * cosRot - localY * sinRot,
+                localX * sinRot + localY * cosRot,
+                0
+            );
+            Vector3 spawnPos = transform.position + worldOffset;
+
+            // =========================================================================
+            // 🎯 核心：各弾源（spawnPos）から見た「敵機へのリアルタイム角度」の抽出
+            // =========================================================================
+            // 自機の中心基準ではなく、「今弾が出ているその座標」から敵機を見据える角度を
+            // GetAngleToTarget(spawnPos) を用いて個別に完全スクリーニングします！
+            float angleToEnemyFromSpawnPoint = GetAngleToTarget(spawnPos);
+
+            // =========================================================================
+            // 🌟【仕様調停】：各弾源から敵機を基準とした自機外し2way（60度サイズ）
+            // =========================================================================
+            // 弾源ごとに割り出された敵機へのジャスト直進角から、左右にぴったり30度ずつ開きます。
+            float fanSize = 60f;
+            float halfFan = fanSize / 2f;
+
+            float leftWayAngle = angleToEnemyFromSpawnPoint + halfFan + s.angleOffset;
+            float rightWayAngle = angleToEnemyFromSpawnPoint - halfFan + s.angleOffset;
+
+            // 🌟 多段速度差（ツインブレード仕様）の射出
+            int layerCount = 2;
+            for (int i = 0; i < layerCount; i++)
+            {
+                float speedPercent = Mathf.Lerp(1.2f, 0.9f, (float)i / (layerCount - 1));
+                float randomizedSpeed = s.speed * speedPercent;
+                randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
+
+                // 各弾源から敵を見据えて、左側30度ルートへ射出
+                CreateShot(s.bulletData, spawnPos, randomizedSpeed, leftWayAngle, s.delay);
+
+                // 各弾源から敵を見据えて、右側30度ルートへ射出
+                CreateShot(s.bulletData, spawnPos, randomizedSpeed, rightWayAngle, s.delay);
+            }
+
+            yield return new WaitForFixedUpdate();
+        }
+
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+        _activeSkillCoroutines--;
+    }
     // 拡張した内部データ管理クラス
     private class ExOrbTrackData
     {

@@ -12,7 +12,8 @@ public enum SkillPatternType
     RotatingAllWayLaser,
     RotatingAccelRound,
     GreedTaxPossession,
-    KarinScalesSlash
+    KarinScalesSlash,
+    KarinFireSlash
 }
 public enum VJTEffectType
 {

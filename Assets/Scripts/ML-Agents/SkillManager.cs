@@ -103,7 +103,7 @@ public class SkillManager : MonoBehaviour
         }
 
         // 💡 通常は0.5秒の猶予。上記の消化スピード変調により、焼き切れ中はきっちり「1.0秒」の完全な硬直に変化します
-        if (_recoveryDelayTimer >= 0.5f)
+        if (_recoveryDelayTimer >= 1.0f)
         {
             // 🌟【回復速度マルチプライヤー】：通常1.0f、焼き切れ0.5f、領域バフ2.0f
             float regenMultiplier = 1.0f;
