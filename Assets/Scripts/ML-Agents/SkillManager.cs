@@ -1,4 +1,4 @@
-﻿// --- SkillManager.cs 【Skill_VJTインプット完全溶接版】 ---
+﻿// --- SkillManager.cs 【Skill_VJTインプット完全溶接版・リキャスト1.5倍型ペナルティ適合版】 ---
 using KanKikuchi.AudioManager;
 using UnityEngine;
 
@@ -78,19 +78,37 @@ public class SkillManager : MonoBehaviour
     {
         if (playerMove == null || skillData == null || statusManager == null) return;
 
-        // 1. エネルギーの自然回復処理（焼き切れデバフ連動）
+        // 1. エネルギーの自然回復処理（焼き切れデバフ・領域バフ連動型）
         if (emitter.IsAnySkillActive)
         {
             _recoveryDelayTimer = 0f;
         }
         else
         {
-            _recoveryDelayTimer += Time.deltaTime;
+            // =========================================================================
+            // ⏳【新機能】：術式焼き切れ中は次の回復が始まるまでのディレイ消化スピードを「半分」に遅延！
+            // =========================================================================
+            float delaySpeedMultiplier = 1.0f;
+
+            if (statusManager.isSpellCardActive)
+            {
+                delaySpeedMultiplier = 2.0f; // 🟢 領域展開中：2倍の速さでディレイが解ける（実質0.25秒で回復開始）
+            }
+            else if (statusManager.isOverheated)
+            {
+                delaySpeedMultiplier = 0.5f; // 🚨 術式焼き切れ中：1/2の遅さでしかディレイが溜まらない（実質1.0秒待つまで回復が始まらない！）
+            }
+
+            _recoveryDelayTimer += Time.deltaTime * delaySpeedMultiplier;
         }
 
+        // 💡 通常は0.5秒の猶予。上記の消化スピード変調により、焼き切れ中はきっちり「1.0秒」の完全な硬直に変化します
         if (_recoveryDelayTimer >= 0.5f)
         {
-            float regenMultiplier = statusManager.isOverheated ? 0.5f : 1.0f;
+            // 🌟【回復速度マルチプライヤー】：通常1.0f、焼き切れ0.5f、領域バフ2.0f
+            float regenMultiplier = 1.0f;
+            if (statusManager.isOverheated) regenMultiplier = 0.5f;
+            else if (statusManager.isSpellCardActive) regenMultiplier = 2.0f;
 
             playerMove.currentEnergy = Mathf.Min(
                 skillData.maxEnergy,
@@ -111,7 +129,7 @@ public class SkillManager : MonoBehaviour
         bool cPressed = false;
         bool vPressed = false;
         bool exPressed = false;
-        bool vjtPressed = false; // 🌟 追加：VJT発動ボタンフラグ
+        bool vjtPressed = false;
 
         DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
 
@@ -123,8 +141,6 @@ public class SkillManager : MonoBehaviour
             cPressed = input.shotC;
             vPressed = input.shotV;
             exPressed = input.ultimate;
-            // ※必要に応じて ReplayFrame 構造体に vjt 項目の追加拡張が可能ですが、
-            // 現在は手動・AI双方から安全にインターセプトできるよう、以下で共通ボタン検知を走らせます
         }
         else
         {
@@ -146,14 +162,12 @@ public class SkillManager : MonoBehaviour
                     exPressed = (cPressed && vPressed);
                 }
 
-                // 🌟【新設】InputManager に追加した Skill_VJT の入力をフレーム検知
                 if (inputSet.skillVJT != null && inputSet.skillVJT.action != null)
                 {
                     vjtPressed = inputSet.skillVJT.action.WasPressedThisFrame();
                 }
                 else
                 {
-                    // フォールバック（念のためのZ+Xキーボード直押し同時入力判定）
                     vjtPressed = (Input.GetKeyDown(KeyCode.Z) && Input.GetKey(KeyCode.X)) || (Input.GetKeyDown(KeyCode.X) && Input.GetKey(KeyCode.Z));
                 }
             }
@@ -164,11 +178,7 @@ public class SkillManager : MonoBehaviour
         // =========================================================================
         if (vjtPressed && !statusManager.isSpellCardActive)
         {
-            // PlayerStatusManager 内部の「アルカナゲージ200%以上チェック」および
-            // 「相手が発動していないかどうかの排他処理（早い者勝ちルール）」を実行して領域を展開！
             statusManager.ActivateSpellCard();
-
-            // 発動フレームは他の通常スキル入力をカットして即座にリターン
             return;
         }
 
@@ -179,7 +189,6 @@ public class SkillManager : MonoBehaviour
         {
             if (statusManager.isSpellCardActive)
             {
-                // 🚨【領域展開中】➔ 完全無敵のアルティメットスキル（ULT）発動！
                 if (timerEX <= 0f)
                 {
                     statusManager.SetInvincible(2.0f);
@@ -194,17 +203,10 @@ public class SkillManager : MonoBehaviour
             }
             else
             {
-                // 通常時の通常Exボム（1ストック消費）
                 if (timerEX <= 0f && playerMove.ultimateEnergy >= 100f)
                 {
-                    // アルカナゲージを1ストック(100f)消費して
                     playerMove.ultimateEnergy -= 100f;
-
-                    // 🌟【修正】：statusManager.UseSpell(); の行を完全に削除しました
-
-                    // 弾幕エミッターから技を射出
                     emitter.FireEX(skillData.skillEX);
-
                     timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
                     Debug.Log("<color=orange>★★ 1ストック通常Exスキルを発動しました ★★</color>");
                 }
@@ -214,22 +216,17 @@ public class SkillManager : MonoBehaviour
         }
 
         // =========================================================================
-        // ③ 通常スキルの実行判定
+        // ③ 通常スキルの実行判定（🚨古いC/V封印のif文を撤廃し、全スキルを等価に解放！）
         // =========================================================================
         HandleSkillInput(zPressed, ref timerZ, skillData.skillZ);
         HandleSkillInput(xPressed, ref timerX, skillData.skillX);
-
-        // 術式焼き切れ（isOverheated）中のC/V封印処理
-        if (statusManager.isOverheated)
-        {
-            cPressed = false;
-            vPressed = false;
-        }
-
         HandleSkillInput(cPressed, ref timerC, skillData.skillC);
         HandleSkillInput(vPressed, ref timerV, skillData.skillV);
     }
 
+    /// <summary>
+    /// 🌟【最新仕様溶接】：スキル発動時に術式焼き切れ状態をフックし、リキャストを1.5倍に延長する
+    /// </summary>
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
         if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)
@@ -237,7 +234,10 @@ public class SkillManager : MonoBehaviour
             _recoveryDelayTimer = 0f;
             playerMove.currentEnergy -= settings.cost;
             emitter.Fire(settings);
-            timer = settings.cooldown;
+
+            // 🚨 仕様適合：術式焼き切れ（isOverheated）中に放ったスキルは、クールダウンを「1.5倍」へ強制遅延ペナルティ加算！
+            float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f;
+            timer = settings.cooldown * cooldownMultiplier;
         }
     }
 
@@ -261,10 +261,10 @@ public class SkillManager : MonoBehaviour
     private void UpdateAllCooldownUI()
     {
         if (skillData == null) return;
-        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown);
-        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown);
-        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown);
-        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown);
+        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
+        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
+        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
+        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
     }
 
     public void InstantFullRecovery()

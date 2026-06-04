@@ -49,6 +49,12 @@ public class PlayerStatusManager : MonoBehaviour
     private GameObject spawnedCircleInstance;
     private PlayerMove _playerMove;
 
+    [Header("--- VJT Overheat Settings ---")]
+    [Tooltip("このキャラクターがVJTを解除・破砕された後の【術式焼き切れ（冷却期間）】の持続時間（秒）")]
+    public float characterOverheatDuration = 20f; // 🚨 デフォルトを20秒に設定
+    // 🌟【新規追加】：SEの重複再生を防止し、条件達成の「瞬間」だけを捉えるためのステート記憶フラグ
+    private bool _wasVJTReadyLastFrame = false;
+    private bool _wasCounterReadyLastFrame = false;
     public bool IsInvincible => invincibleTimer > 0;
     public bool IsDeathBombWindow => deathBombTimer > 0;
 
@@ -265,8 +271,89 @@ public class PlayerStatusManager : MonoBehaviour
             orangeBar.value = Mathf.Lerp(orangeBar.value, targetSliderValue, Time.deltaTime * lerpSpeed);
             if (orangeBar.value - targetSliderValue < 0.1f) orangeBar.value = targetSliderValue;
         }
+        // =========================================================================
+        // 🌟【新機能】：領域発動可能 ＆ 領域返し成立の「瞬間」限定SEトリガーシステム
+        // =========================================================================
+        if (_playerMove != null && !isSpellCardActive && PlayerMove.CanShoot)
+        {
+            // --- 🔮 1. 領域返し（カウンターVJT）の成立条件リアルタイム先読み ---
+            bool isCounterCurrentlyReady = false;
 
-        UpdateUI();
+            // 相手が領域展開中、自分が焼き切れ状態でなく、200%以上のエネルギーを保持している場合
+            if (isAnyVJTActive && !isOverheated && _playerMove.ultimateEnergy >= 200f)
+            {
+                PlayerMove oppMove = _playerMove.Opponent;
+                PlayerStatusManager oppStatus = oppMove != null ? oppMove.GetComponent<PlayerStatusManager>() : null;
+
+                if (oppStatus != null && oppStatus.isSpellCardActive)
+                {
+                    // 領域返しの持続時間差分をシミュレート計算
+                    float myProgress = Mathf.InverseLerp(200f, 300f, _playerMove.ultimateEnergy);
+                    float myExpectedDuration = Mathf.Lerp(minSpellDuration, maxSpellDuration, myProgress);
+                    float oppRemainingTime = oppStatus.spellTimer;
+
+                    if (myExpectedDuration - oppRemainingTime > 10f)
+                    {
+                        isCounterCurrentlyReady = true; // 領域返し条件完全成立！
+                    }
+                }
+            }
+
+            // --- 🔷 2. 通常VJTの発動可能条件 ---
+            // 条件：200%以上、かつ焼き切れデバフ中でなく、世界に誰も領域を展開していない平和な時
+            bool isVJTCurrentlyReady = _playerMove.ultimateEnergy >= 200f && !isOverheated && !isAnyVJTActive;
+
+
+            // --- 🔊 3. 領域返し可能になった【瞬間】のSE再生 ---
+            if (isCounterCurrentlyReady && !_wasCounterReadyLastFrame)
+            {
+                // 🚨 ここにお好みの「カウンター成立警告音」のSEパスを指定してください！
+                // 例として、より緊迫感のある高音や警告系のSEを割り当てると最高に盛り上がります。
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.GETSPELLCARD, 1.0f);
+                Debug.Log("<color=red>🔔【VJT UI】💥領域返し（カウンターVJT）が完全成立しました！チャンス音再生！</color>");
+            }
+
+            // --- 🔊 4. 通常VJT発動可能になった【瞬間】のSE再生 ---
+            // 💡 領域返し可能時はそちらの警告音を最優先させるため、!isCounterCurrentlyReady を挟みます
+            if (isVJTCurrentlyReady && !_wasVJTReadyLastFrame && !isCounterCurrentlyReady)
+            {
+                // 🚨 ここにお好みの「通常発動可能音（チャージ完了音）」のSEパスを指定してください！
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.GETSPELLCARD, 1.0f);
+                Debug.Log("<color=cyan>🔔【VJT UI】🔮通常領域（VJT）が発動可能になりました！チャージ音再生！</color>");
+            }
+
+            // --- 💾 5. 次のフレームのために現在のステートを厳密にバックアップ記憶 ---
+            _wasCounterReadyLastFrame = isCounterCurrentlyReady;
+            _wasVJTReadyLastFrame = isVJTCurrentlyReady;
+        }
+        else
+        {
+            // 自分がVJTを発動した、あるいはゲームセット時はフラグをクリーンにリセットし、次回に備える
+            _wasCounterReadyLastFrame = false;
+            _wasVJTReadyLastFrame = false;
+        }
+        // =========================================================================
+        // 🌟【新機能】：術式焼き切れ（Overheat）中の自機赤色パルス明滅制御
+        // =========================================================================
+        // Awakeでキャッシュされている「playerCollider」の親や子供から、自機のメインSpriteRendererを安全にスキャン
+        SpriteRenderer myRenderer = playerCollider != null ? playerCollider.GetComponentInParent<SpriteRenderer>() : GetComponentInChildren<SpriteRenderer>();
+
+        if (myRenderer != null)
+        {
+            if (isOverheated)
+            {
+                // 💡 焼き切れ中：通常の白（1,1,1）から、G（緑）とB（青）の成分だけをサイン波で周期的に減算することで、
+                // 💡 元のキャラドット絵の質感を100%残したまま、妖しく美しく「赤くカチカチと明滅」させます。
+                float pulse = Mathf.Lerp(0.3f, 1.0f, Mathf.Abs(Mathf.Sin(Time.time * 12f))); // 高速パルス
+                myRenderer.color = new Color(1.0f, pulse, pulse, 1.0f);
+            }
+            else
+            {
+                // 通常時、および領域展開中はカラーを標準（真っ白＝元のドット絵そのまま）に安全復元
+                myRenderer.color = Color.white;
+            }
+        }
+        UpdateUI(); // 👈 元々あったこの行の直前に割り込ませる形になります
     }
 
     public void ActivateSpellCard()
@@ -577,7 +664,10 @@ public class PlayerStatusManager : MonoBehaviour
         initialUltimateEnergy = 0f;
 
         isOverheated = true; // 術式焼き切れ（冷却期間デバフ）へ移行
-        overheatTimer = overheatDuration;
+
+        // 🌟【修正】：固定の「overheatDuration (5秒)」ではなく、
+        // 🌟 キャラクターデータアセット（Data）から固有の時間を引き抜いて適用！未設定なら20秒でフォールバック。
+        overheatTimer = (characterData != null) ? characterData.characterOverheatDuration : 20f;
 
         if (MatchTimerUI.Instance != null)
         {

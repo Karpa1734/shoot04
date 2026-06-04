@@ -10088,6 +10088,7 @@ MonoBehaviour:
   spellBarrier: {fileID: 626260297}
   spellRingPrefab: {fileID: 831134243051062860, guid: 2df28037751394b40a530674297d9481, type: 3}
   spellCirclePrefab: {fileID: 7303085696703686799, guid: c7f24fd582b6d4448977e93b821418ff, type: 3}
+  characterOverheatDuration: 20
   characterNameText: {fileID: 1523547701}
   winText: {fileID: 1156281031}
   koText: {fileID: 1851834070}
@@ -18725,6 +18726,7 @@ GameObject:
   - component: {fileID: 1263652150}
   - component: {fileID: 1263652151}
   - component: {fileID: 1263652152}
+  - component: {fileID: 1263652153}
   m_Layer: 0
   m_Name: ArBar
   m_TagString: Untagged
@@ -18774,7 +18776,7 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
+  m_Transition: 0
   m_Colors:
     m_NormalColor: {r: 0.59607846, g: 1, b: 0, a: 1}
     m_HighlightedColor: {r: 0.59607846, g: 1, b: 0, a: 1}
@@ -18820,6 +18822,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _slider: {fileID: 1263652151}
   _stockText: {fileID: 1203845327}
+--- !u!114 &1263652153
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1263652149}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 588aa2086a2a71945951991914ffa1d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _gaugeImage: {fileID: 45975496}
+  _normalColor: {r: 0.59607846, g: 1, b: 0, a: 1}
+  _vjtReadyColor: {r: 0.8627451, g: 1, b: 0.1882353, a: 1}
+  _counterReadyColor: {r: 0.8117647, g: 0.24313726, b: 0, a: 1}
+  _pulseSpeed: 8
+  _minPulseAlpha: 0.5
+  _myPlayerMove: {fileID: 1872656870}
+  _myStatus: {fileID: 1872656874}
 --- !u!1 &1265641734
 GameObject:
   m_ObjectHideFlags: 0
@@ -21501,6 +21523,7 @@ GameObject:
   - component: {fileID: 1391820325}
   - component: {fileID: 1391820326}
   - component: {fileID: 1391820327}
+  - component: {fileID: 1391820328}
   m_Layer: 0
   m_Name: ArBar
   m_TagString: Untagged
@@ -21550,7 +21573,7 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
+  m_Transition: 0
   m_Colors:
     m_NormalColor: {r: 0.59498787, g: 1, b: 0, a: 1}
     m_HighlightedColor: {r: 0.59607846, g: 1, b: 0, a: 1}
@@ -21596,6 +21619,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _slider: {fileID: 1391820326}
   _stockText: {fileID: 2119516571}
+--- !u!114 &1391820328
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1391820324}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 588aa2086a2a71945951991914ffa1d5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _gaugeImage: {fileID: 705518598}
+  _normalColor: {r: 0.59607846, g: 1, b: 0, a: 1}
+  _vjtReadyColor: {r: 0.8627451, g: 1, b: 0.1882353, a: 1}
+  _counterReadyColor: {r: 0.8117647, g: 0.24313726, b: 0, a: 1}
+  _pulseSpeed: 8
+  _minPulseAlpha: 0.5
+  _myPlayerMove: {fileID: 695556678}
+  _myStatus: {fileID: 695556694}
 --- !u!1 &1400765403
 GameObject:
   m_ObjectHideFlags: 0
@@ -28319,6 +28362,7 @@ MonoBehaviour:
   spellBarrier: {fileID: 1041383763}
   spellRingPrefab: {fileID: 831134243051062860, guid: 2df28037751394b40a530674297d9481, type: 3}
   spellCirclePrefab: {fileID: 7303085696703686799, guid: c7f24fd582b6d4448977e93b821418ff, type: 3}
+  characterOverheatDuration: 20
   characterNameText: {fileID: 471975658}
   winText: {fileID: 1156281031}
   koText: {fileID: 1851834070}

@@ -465,6 +465,17 @@
                 },
                 {
                     "name": "",
+                    "id": "61a1e82e-cc5e-4fbe-944b-8a7f9d12fc42",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Skill_VJT",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
                     "id": "db4bceda-7409-4633-91da-95d27f55ced2",
                     "path": "<Gamepad>/rightShoulder",
                     "interactions": "",

@@ -75,11 +75,24 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
         // ★ 追加：スキル使用時に超必殺技ゲージを溜める
+        // =========================================================================
+        // ⏳【術式焼き切れ連動】：焼き切れ（Overheat）中はアルカナゲージ増加量を半分にする
+        // =========================================================================
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
         if (myMove != null)
         {
-            // インスペクターで設定した ultimateGain 分だけ加算
-            myMove.AddUltimateEnergy(s.ultimateGain);
+            float finalGain = s.ultimateGain; // インスペクターで設定した基礎増加量
+
+            // 💡 自分自身にアタッチされている PlayerStatusManager の術式焼き切れフラグをチェック
+            PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+            if (myStatus != null && myStatus.isOverheated)
+            {
+                // 🚨 術式焼き切れ中（冷却デバフ期間）は獲得エネルギーを強制的に半分（0.5倍）にカット！
+                finalGain *= 0.5f;
+            }
+
+            // 最終計算された効率でゲージへチャージ！
+            myMove.AddUltimateEnergy(finalGain);
         }
         // ★ 修正：DefensiveField も SE再生を遅延させるため、ここでの再生対象から外す
         if (s.patternType != SkillPatternType.MovingArc &&
@@ -97,6 +110,44 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float targetAngle = GetAngleToTarget();
         float baseAngle = targetAngle + s.angleOffset;
         Vector3 pos = transform.position;
+
+        // =========================================================================
+        // 🌟【新機能】：領域展開（VJT）中の能動的スキル弾幕強化（3way ➔ 5way 等の個別変調）
+        // =========================================================================
+        PlayerStatusManager emitterStatus = GetComponentInParent<PlayerStatusManager>();
+        if (emitterStatus != null && emitterStatus.isSpellCardActive)
+        {
+            // 💡 参照元の設定を直接汚さないよう、構造体のシャローコピー（複製）を作成して数値をブレンドします
+            PlayerSkillData.SkillSettings enhancedSettings = s;
+
+            // スキル名（skillName）や弾幕パターンを識別し、Emitter側でスキルごとに自由自在に強化幅を微調整！
+            if (enhancedSettings.patternType == SkillPatternType.nWay)
+            {
+                // 例：3way (count = 3) なら、2発上乗せして 5way に拡張！
+                enhancedSettings.count = s.count + 2;
+                // 弾数増加に伴い、扇形の広がり角（wideAngle）も少し広げてド派手化
+                enhancedSettings.wideAngle = s.wideAngle * 1.2f;
+            }
+            else if (enhancedSettings.patternType == SkillPatternType.Line)
+            {
+                // 直線連射スキルなら、連射段数を+3発分上乗せ！
+                enhancedSettings.count = s.count + 3;
+            }
+            else if (enhancedSettings.patternType == SkillPatternType.Round)
+            {
+                // 全方位弾であれば、密度を1.5倍に引き上げて完全密閉弾幕化！
+                enhancedSettings.count = Mathf.RoundToInt(s.count * 1.5f);
+            }
+            else
+            {
+                // その他の特殊・カスタム弾幕パターン（Standard等）は、弾速を1.3倍に引き上げて超高速化！
+                enhancedSettings.speed = s.speed * 1.3f;
+            }
+
+            // 🌟 強化された上書きデータ（enhancedSettings）を s に差し替えて、下の展開処理へ流します！
+            s = enhancedSettings;
+        }
+
         switch (s.patternType)
         {
             case SkillPatternType.Standard:
@@ -145,6 +196,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             // ★ 新しく強欲スキルを追加
             case SkillPatternType.GreedTaxPossession:
                 StartCoroutine(GreedTaxPossessionRoutine(s));
+                break;
+            case SkillPatternType.KarinScalesSlash:
+                StartCoroutine(ExecuteKarinScalesSlashRoutine(s));
                 break;
         }
     }
@@ -1203,6 +1257,129 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         bullet.Initialize(_rootOwner, targetTag, speed2, finalAimAngle, 0f, speed2, 0f, 0f, data, false);
 
 
+    }
+
+    /// <summary>
+    /// 🐉 カリン専用Z：「しの字」のアーク軌道において、
+    /// 🌟 【仕様適合】：出始め(t=0)は完全な接線方向（直角）に放ち、後半にかけて徐々に「接線に垂直な方向（軌道の進む向き）」へと射角を滑らかに旋回・収束させる完全調停版アルゴリズム
+    /// </summary>
+    private IEnumerator ExecuteKarinScalesSlashRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; // 実行中カウント加算（コスト回復停止と同期）
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); 
+        PlayerMove myMove = GetComponentInParent<PlayerMove>(); 
+        
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; 
+
+        // -------------------------------------------------------------------------
+        // 🔮 「しの字」の空間パラメータ基礎設計
+        // -------------------------------------------------------------------------
+        float baseRadiusX = 2.5f;
+        float baseRadiusY = 1.2f;
+
+        int wayCount = 1; // 1way固定
+
+        // 🌟【交互反転制御】：偶奇数回目の反転スイッチ
+        bool currentDirectionReversed = _isArcReversed;
+        _isArcReversed = !_isArcReversed;
+
+        // 「しの長い直線部分」の開始位置と終端位置の制御（調整できるよう変数維持）
+        float startAngleOffset = currentDirectionReversed ? 120f : -120f;
+        float endAngleOffset = currentDirectionReversed ? -60f : 60f;
+        float angleStep = currentDirectionReversed ? -15f : 15f;
+
+        // 自機から見た敵機の絶対ターゲット角度を基準軸としてキャプチャ
+        float absoluteCenterAngle = GetAngleToTarget(transform.position); 
+
+        // ループ全体の総ステップ数に対する進捗（0.0 〜 1.0）を測るワーク変数
+        float currentStepCount = 0f;
+        float totalSteps = Mathf.Abs((endAngleOffset - startAngleOffset) / angleStep);
+
+        // 🔄 角度ブレンド型「しの字」連射ループ
+        for (float offset = startAngleOffset;
+             (angleStep > 0 ? offset <= endAngleOffset : offset >= endAngleOffset);
+             offset += angleStep)
+        {
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) 
+                break;
+
+            // 進行割合 t (0.0 = 出始めの直線 / 1.0 = 終端の丸まり)
+            float t = currentStepCount / totalSteps;
+
+            // 歪な可変半径（出始めは 1.3倍に引き伸ばし、後半は 0.6倍にすぼめる）
+            float radiusModifier = Mathf.Lerp(1.3f, 0.6f, t);
+
+            // 現在フレームの弾源位置（spawnPos）の算出
+            float spawnAngleRad = (absoluteCenterAngle + offset) * Mathf.Deg2Rad;
+            Vector3 ellipseOffset = new Vector3(
+                Mathf.Cos(spawnAngleRad) * baseRadiusX * radiusModifier,
+                Mathf.Sin(spawnAngleRad) * baseRadiusY * radiusModifier,
+                0
+            );
+            Vector3 spawnPos = transform.position + ellipseOffset;
+
+            // =========================================================================
+            // 🎯 接線（Tangent）および 軌道正面（Orbit）の２つの角度を算出
+            // =========================================================================
+            float nextOffset = offset + (angleStep * 0.01f);
+            float nextT = (currentStepCount + 0.01f) / totalSteps;
+            float nextRadiusModifier = Mathf.Lerp(1.3f, 0.6f, nextT);
+
+            float nextSpawnAngleRad = (absoluteCenterAngle + nextOffset) * Mathf.Deg2Rad;
+            Vector3 nextEllipseOffset = new Vector3(
+                Mathf.Cos(nextSpawnAngleRad) * baseRadiusX * nextRadiusModifier,
+                Mathf.Sin(nextSpawnAngleRad) * baseRadiusY * nextRadiusModifier,
+                0
+            );
+            Vector3 nextSpawnPos = transform.position + nextEllipseOffset;
+
+            // 線の流れに沿った「基本接線ベクトル」
+            Vector3 tangentDir = nextSpawnPos - spawnPos;
+            float rawTangentAngle = Mathf.Atan2(tangentDir.y, tangentDir.x) * Mathf.Rad2Deg;
+
+            // 🔷 【角度A】完全な接線方向（軌道に対して真横に放つ外側への法線角）
+            float sideMultiplier = currentDirectionReversed ? 0f : 0f;
+            float targetTangentAngle = rawTangentAngle + sideMultiplier;
+
+            // 🔶 【角度B】接線に垂直な方向（＝軌道の進む向きそのもの。ラインに吸い込まれる直進角）
+            float targetOrbitAngle = rawTangentAngle;
+            if (currentDirectionReversed) targetOrbitAngle += 90f; // 反転時の前方補正
+
+            // =========================================================================
+            // 🌟【核心の反転】：Mathf.LerpAngle による「接線 ➔ 接線に垂直（軌道沿い）」への滑らか旋回
+            // =========================================================================
+            // 💡 高橋さんのご要望通り、第1引数と第2引数をスワップ！
+            // t = 0 (開始)の時は 100% 横向きの接線方向（targetTangentAngle）へダイナミックに薙ぎ払い、
+            // t = 1 (最終)に近づくにつれて、ジワジワと角度が閉じていき、100% 軌道方向（targetOrbitAngle）へ美しく収束します！
+            float blendedAngle = Mathf.LerpAngle(targetTangentAngle, targetOrbitAngle, t);
+
+            // インスペクターからの微調整オフセットを最終結合
+            float finalAngle = blendedAngle + s.angleOffset;
+
+            PlaySkillSE(s.sePath); 
+
+            // =========================================================================
+            // 🌟 多段速度差レイヤーの射出
+            // =========================================================================
+            int layerCount = 3;
+            for (int i = 0; i < layerCount; i++)
+            {
+                float speedPercent = Mathf.Lerp(1.4f, 0.6f, (float)i / (layerCount - 1));
+                float randomizedSpeed = s.speed * speedPercent;
+
+                randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
+
+                // 射出！
+                CreateShot(s.bulletData, spawnPos, randomizedSpeed, finalAngle, s.delay); 
+            }
+
+            // ループカウンタの更新とウェイト
+            currentStepCount += 1f;
+            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate(); 
+        }
+
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f; 
+        _activeSkillCoroutines--; 
     }
 
     // 拡張した内部データ管理クラス
