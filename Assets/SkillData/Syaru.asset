@@ -16,6 +16,7 @@ MonoBehaviour:
   imageColor: {r: 1, g: 1, b: 0, a: 1}
   spellCardName: "\u25A1\u7B26\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
   spellCircleSprite: {fileID: 21300000, guid: 76012f8bd59ccaf4ba33831a5a621911, type: 3}
+  characterOverheatDuration: 20
   characterSpellBGBase: {fileID: 21300000, guid: f1d0c95c39292994eb137aa55737abab, type: 3}
   characterSpellBGAdditive: {fileID: 21300000, guid: c26dba28eb276554589b5a4c8fd23db7, type: 3}
   isBaseScrollActive: 0
@@ -57,7 +58,7 @@ MonoBehaviour:
     moveSpeedMultiplier: 0
     delay: 1
     cost: 30
-    ultimateGain: 70
+    ultimateGain: 120
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
@@ -92,11 +93,11 @@ MonoBehaviour:
     skillName: "\u30D5\u30EB\u30FC\u30EB\u30FB\u30C9\u30FB\u30E2\u30CD"
     skillIcon: {fileID: 0}
     patternType: 4
-    bulletData: {fileID: 11400000, guid: c9266cda3de4e5541a47007bd2b620bf, type: 2}
+    bulletData: {fileID: 11400000, guid: 2e2ee01fb5556ee4483f903aca685098, type: 2}
     cooldown: 0
     sePath: 
     count: 12
-    speed: 8
+    speed: 12
     angleOffset: 60
     wideAngle: 0
     moveSpeedMultiplier: 0.5

@@ -42,10 +42,10 @@ GameObject:
   - component: {fileID: 370525332298100251}
   - component: {fileID: 5330240774540380562}
   - component: {fileID: 8844320068234143428}
-  - component: {fileID: 2670132126822006511}
   - component: {fileID: 3065195585683477238}
+  - component: {fileID: -7258907679045702055}
   m_Layer: 0
-  m_Name: Oonusa
+  m_Name: MagicCircle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -111,7 +111,7 @@ SpriteRenderer:
   m_SortingLayerID: 515225517
   m_SortingLayer: 2
   m_SortingOrder: 500
-  m_Sprite: {fileID: 21300000, guid: 66ad6c27b59dee74c8dd30b8442a654f, type: 3}
+  m_Sprite: {fileID: 1471353646601697182, guid: 84e2fe3cce581204cad975948da5d6ee, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -158,29 +158,6 @@ CircleCollider2D:
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
   m_Radius: 1.1428572
---- !u!114 &2670132126822006511
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2629776414886954406}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e25c03edbb9fc0b459324f45135cdcc7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _stayDuration: 1
-  _scaleDuration: 0.3
-  _rotationSpeed: 1130
-  _enableAfterimage: 1
-  _afterimageInterval: 0.05
-  _afterimageFadeTime: 0.6
-  _afterimageStartAlpha: 0.5
-  _subDanmakuData: {fileID: 11400000, guid: 6beef6151a4ec5640bd98caabb76ac92, type: 2}
-  _muzzleTransform: {fileID: 4445963208709211703}
-  _subBulletMaxSpeed: 3
-  _subBulletAccel: 0.02
 --- !u!50 &3065195585683477238
 Rigidbody2D:
   serializedVersion: 5
@@ -208,3 +185,17 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 0
+--- !u!114 &-7258907679045702055
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2629776414886954406}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75c02666d2618db498b3140eb392c944, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _subDanmakuData: {fileID: 11400000, guid: c9266cda3de4e5541a47007bd2b620bf, type: 2}
+  _bulletDataToShoot: {fileID: 11400000, guid: c9266cda3de4e5541a47007bd2b620bf, type: 2}

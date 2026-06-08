@@ -197,7 +197,16 @@ public class PlayerStatusManager : MonoBehaviour
 
     void Update()
     {
-        if (invincibleTimer > 0) invincibleTimer -= Time.deltaTime;
+        PlayerDanmakuEmitter myEmitter = GetComponentInChildren<PlayerDanmakuEmitter>();
+        if (myEmitter != null && myEmitter.IsSyaruBitEXActive)
+        {
+            invincibleTimer = 0.1f;
+        }
+        else if (invincibleTimer > 0)
+        {
+            invincibleTimer -= Time.deltaTime;
+        }
+
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
 
         // 【VJT実行中のリアルタイム毎フレーム制御】
@@ -220,11 +229,15 @@ public class PlayerStatusManager : MonoBehaviour
 
             if (!isRoundEnded)
             {
-                // 💡 通常プレイ中のみ、時間とゲージを減衰させる
-                spellTimer -= Time.deltaTime; 
 
-                float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration); 
-                _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio; 
+                bool isULTActive = (myEmitter != null && myEmitter.IsSyaruBitEXActive);
+                
+                if (!isULTActive)
+                {
+                    spellTimer -= Time.deltaTime; 
+                    float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration); 
+                    _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio; 
+                }
 
                 // キャラクター固有の領域効果（フィールド・デバフ）の執行
                 ExecuteFieldEffectToOpponent(); 

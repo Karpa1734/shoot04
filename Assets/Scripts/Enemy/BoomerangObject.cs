@@ -15,7 +15,8 @@ public class BoomerangObject : MonoBehaviour
 
     private SpriteRenderer _sr;
     private float _speed; // ★ 修正：速さ
-
+    // 🌟 追加：ビット自身が現在領域展開中の強化状態かどうかをホールドする内部フラグ
+    private bool _isSpellCardEnhanced = false;
     [Header("Behavior Settings")]
     [SerializeField] private float _stayDuration = 1.0f;    // 目的地での待機時間
     [SerializeField] private float _scaleDuration = 0.3f;   // 出現・消滅の拡縮にかかる時間
@@ -33,7 +34,6 @@ public class BoomerangObject : MonoBehaviour
     [SerializeField] private Transform _muzzleTransform;
     [SerializeField] private float _subBulletMaxSpeed = 5f; // ★ 目標とする最高速度
     [SerializeField] private float _subBulletAccel = 0.1f;    // ★ 1フレームあたりの加速度
-    [SerializeField] private int _subBulletCount = 8;
     /// <summary>
     /// 初期化。PlayerDanmakuEmitterから呼ばれる。
     /// </summary>
@@ -41,9 +41,21 @@ public class BoomerangObject : MonoBehaviour
     {
         _owner = owner;
         _subBulletData = data;
-        _speed = speed; // ★ 速さを代入
+        _speed = speed;
         _ownerEmitter = emitter;
         _sr = GetComponent<SpriteRenderer>();
+
+        // 🌟【インフラ結合】：発射元のプレイヤーのステートをチェックし、領域展開中であれば強化フラグをONにする
+        if (emitter != null)
+        {
+            PlayerStatusManager ownerStatus = emitter.GetComponentInParent<PlayerStatusManager>();
+            _isSpellCardEnhanced = (ownerStatus != null && ownerStatus.isSpellCardActive);
+
+            if (_isSpellCardEnhanced)
+            {
+                Debug.Log("<color=gold>🔮【領域展開・ビット同調】ブーメランビット：子弾発射インターバルを4フレームへ半減（連射速度2倍）！</color>");
+            }
+        }
 
         // 生成時は無（LocalScale 0）
         transform.localScale = Vector3.zero;
@@ -75,6 +87,8 @@ public class BoomerangObject : MonoBehaviour
         // --- A. 出現演出：無から拡大（その場に停止） ---
         yield return StartCoroutine(ScaleRoutine(0, 1));
 
+        // 🎯【数理調停の核心】：領域展開中なら4フレームに1回（速度2倍）、通常時なら8フレームに1回にする
+        int fireFrameInterval = _isSpellCardEnhanced ? 2 : 5;
         // --- B. 往路（目的地へ速さベースで移動） ---
         Vector3 startPos = transform.position;
         float distanceToTarget = Vector3.Distance(startPos, _fixedTargetPos);
@@ -84,8 +98,6 @@ public class BoomerangObject : MonoBehaviour
 
         while (elapsed < moveTimeForward)
         {
-            // 🌟【完全溶接】：Unityのタイムスケールが0（ポーズ中）の場合は、ここでフレームの進行を完全にフリーズさせて待機！
-            // これにより、ポーズ中に下の FireSubDanmaku() や yield return null へ処理が流れるのを完璧にブロックします。
             while (Mathf.Approximately(Time.timeScale, 0f))
             {
                 yield return null;
@@ -98,7 +110,9 @@ public class BoomerangObject : MonoBehaviour
             transform.position = Vector3.Lerp(startPos, _fixedTargetPos, Mathf.SmoothStep(0, 1, t));
 
             UpdateAfterimage();
-            if (Time.frameCount % 5 == 0) FireSubDanmaku();
+
+            // 🎯 変調されたインターバルフレームを適用！
+            if (Time.frameCount % fireFrameInterval == 0) FireSubDanmaku();
             yield return null;
         }
 
@@ -108,7 +122,6 @@ public class BoomerangObject : MonoBehaviour
             float stayElapsed = 0;
             while (stayElapsed < _stayDuration)
             {
-                // 🌟【完全溶接】：目的地待機中も同様に、ポーズ中は一切の時間をフリーズ
                 while (Mathf.Approximately(Time.timeScale, 0f))
                 {
                     yield return null;
@@ -118,7 +131,9 @@ public class BoomerangObject : MonoBehaviour
 
                 UpdateAfterimage();
                 stayElapsed += Time.deltaTime;
-                if (Time.frameCount % 5 == 0) FireSubDanmaku();
+
+                // 🎯 変調されたインターバルフレームを適用！
+                if (Time.frameCount % fireFrameInterval == 0) FireSubDanmaku();
                 yield return null;
             }
         }
@@ -134,7 +149,6 @@ public class BoomerangObject : MonoBehaviour
 
             while (elapsed < moveTimeReturn)
             {
-                // 🌟【完全溶接】：帰り道もポーズ中は完全に処理を一時停止
                 while (Mathf.Approximately(Time.timeScale, 0f))
                 {
                     yield return null;
@@ -151,13 +165,14 @@ public class BoomerangObject : MonoBehaviour
                 }
 
                 UpdateAfterimage();
-                if (Time.frameCount % 5 == 0) FireSubDanmaku();
+
+                // 🎯 変調されたインターバルフレームを適用！
+                if (Time.frameCount % fireFrameInterval == 0) FireSubDanmaku();
                 yield return null;
             }
         }
 
         // --- E. 消滅演出：縮小して消える（その場に停止） ---
-        // 🌟【完全溶接】：消滅拡縮ループに入る前にもポーズチェックを挟んで安全性を保証
         while (Mathf.Approximately(Time.timeScale, 0f)) yield return null;
 
         yield return StartCoroutine(ScaleRoutine(1, 0));
@@ -214,11 +229,12 @@ public class BoomerangObject : MonoBehaviour
 
         Vector3 firePos = (_muzzleTransform != null) ? _muzzleTransform.position : transform.position;
 
+        int fireway = _isSpellCardEnhanced ? 1 : 1;
         // ★ 修正：現在のビットの回転角度を取得して基準にする
         float baseAngle = transform.eulerAngles.z;
-        float angleStep = 360f / _subBulletCount;
+        float angleStep = 360f / fireway;
 
-        for (int i = 0; i < _subBulletCount; i++)
+        for (int i = 0; i < fireway; i++)
         {
             // ★ 修正：初速を 0、加速度と最高速度を渡すように拡張メソッドを呼び出す
             _ownerEmitter.ExecuteSubShot(

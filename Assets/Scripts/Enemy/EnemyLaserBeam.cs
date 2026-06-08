@@ -307,12 +307,10 @@ public class EnemyLaserBeam : MonoBehaviour
         if (sr == null || sr.sprite == null) return;
 
         // 1. スプライトの元のサイズ（Unityの単位：Unit）を取得
-        // これにより、PPU（Pixels Per Unit）や画像サイズの影響を打ち消します
         float spriteOriginalHeight = sr.sprite.bounds.size.y;
         float spriteOriginalWidth = sr.sprite.bounds.size.x;
 
         // 2. 正規化したスケールを計算
-        // currentLength = 10.0 なら、ワールド座標で正確に10ユニット分伸びるようになります
         float finalScaleY = currentLength / spriteOriginalHeight;
         float finalScaleX = w / spriteOriginalWidth;
 
@@ -323,15 +321,19 @@ public class EnemyLaserBeam : MonoBehaviour
 
         if (col != null)
         {
-            // 3. 当たり判定の太さを調整（★ここがポイント）
-            // ビームの「光の広がり」まで判定があると理不尽に感じるため、
-            // 芯の部分（例えば60%〜80%）だけを判定にするとゲーム性が向上します。
             float hitboxWidthMultiplier = 0.7f;
 
-            col.size = new Vector2(w * hitboxWidthMultiplier, currentLength);
+            // 現在のレーザーの向き（angle または laserAngle）を取得
+            float currentFacingAngle = (type == LaserType.A_Stationary) ? angle : laserAngle;
 
-            // 4. PivotがBottomの場合、根本を起点に判定を配置
+            // 角度を 0〜360度 にクランプ
+            float checkAngle = (currentFacingAngle % 360f + 360f) % 360f;
+
+
+            // 通常の縦型レーザー（それ以外の角度）の時は、既存の標準計算を安全にフォールバック
+            col.size = new Vector2(w * hitboxWidthMultiplier, currentLength);
             col.offset = new Vector2(0, currentLength * 0.5f);
+
 
             // 予告中は判定を消し、発射中のみ有効化
             if (elapsedFrames >= delayFrames && !isClosing) col.enabled = true;

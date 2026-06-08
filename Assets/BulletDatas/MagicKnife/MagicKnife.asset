@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21264d726d8d3e24a9f6272f291feb5d, type: 3}
+  m_Name: MagicKnife
+  m_EditorClassIdentifier: 
+  isLaser: 0
+  laserColor: 0
+  bulletPrefab: {fileID: 2629776414886954406, guid: 46fe996c22b4e5c4e950a2c9a637251b, type: 3}
+  sizeType: 0
+  bulletScale: 1
+  radius: 0.12
+  colliderOffset: {x: 0, y: 0.08}
+  damage: 15
+  bulletSprite: {fileID: 1471353646601697182, guid: 84e2fe3cce581204cad975948da5d6ee, type: 3}
+  animationSprites: []
+  animationFPS: 20
+  delaySprite: {fileID: 1494407525467865721, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
+  breakColor: {r: 1, g: 0, b: 0, a: 1}
+  material: {fileID: 0}

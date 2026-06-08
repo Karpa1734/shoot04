@@ -197,6 +197,11 @@ public class MatchTimerUI : MonoBehaviour
         vjtLastIntSecond = -1;
     }
 
+    // =========================================================================
+    // 🔮【リアルタイム完全独立駆動エンジン】：
+    // 💡 相手が被弾して Time.timeScale = 0.3f のスローモーション演出に入っても、
+    // 💡 領域展開の残り時間だけは Time.unscaledDeltaTime を用いて現実世界の1秒等速で正確に減算します！
+    // =========================================================================
     private IEnumerator VJTSpeelTimerRoutine(PlayerStatusManager activeVJTPlayer)
     {
         if (vjtTimerText == null) yield break;
@@ -207,29 +212,38 @@ public class MatchTimerUI : MonoBehaviour
 
         while (activeVJTPlayer != null && activeVJTPlayer.isSpellCardActive && activeVJTPlayer.spellHP > 0f)
         {
-            // 🌟【超軽量化】：public化されたので、リフレクションを一切使わず直接1発で秒数を取得！
+            // 🚨【重要】：相手の被弾スロー中に、プレイヤー自身の内部タイマー（spellTimer）も
+            // 🚨 現実世界の絶対時間で等速減算されるように、ここで直接 unscaledDeltaTime を用いて手動調停・上書き減算します！
+            if (Time.timeScale < 1.0f && Time.timeScale > 0f)
+            {
+                // スローモーション中（0.3倍）に失われる「リアルな実時間」の差分を逆算して直接タイマーを消費させます
+                activeVJTPlayer.spellTimer -= (Time.unscaledDeltaTime - Time.deltaTime);
+            }
+
             float remainingTime = activeVJTPlayer.spellTimer;
+
+            // 負の数に入らないように安全クランプ
+            if (remainingTime < 0f) remainingTime = 0f;
 
             int seconds = Mathf.FloorToInt(remainingTime);
             int fraction = Mathf.FloorToInt((remainingTime - seconds) * 100f);
 
-            // 小数点以下2桁を70%に縮小表示する美しいリッチテキスト
+            // 小数点以下2桁を70%に縮小表示する美麗リッチテキスト
             vjtTimerText.text = $"{seconds}.<size=70%>{fraction:D2}</size>";
 
             // 残り時間が10秒以下になった時の演出同期
             int displayVjtSec = Mathf.CeilToInt(remainingTime);
             if (displayVjtSec <= 10 && remainingTime > 0f)
             {
-                // 1. 色の変更（10秒未満で黄色、5秒未満で赤色）
                 if (remainingTime < 5f) vjtTimerText.color = dangerColor;
                 else if (remainingTime < 10f) vjtTimerText.color = warningColor;
 
-                // 2. SE音 と Pop(拡縮)のアニメーション連動
                 if (displayVjtSec != vjtLastIntSecond)
                 {
                     if (vjtRectTransform != null)
                     {
-                        StartCoroutine(PopRoutine(vjtRectTransform, vjtOriginalScale));
+                        // 拡縮アニメーションもタイムスケールを無視して unscaled 制御へ
+                        StartCoroutine(PopUnscaledRoutine(vjtRectTransform, vjtOriginalScale));
                     }
                     PlayCountSE(displayVjtSec);
                     vjtLastIntSecond = displayVjtSec;
@@ -240,11 +254,31 @@ public class MatchTimerUI : MonoBehaviour
                 vjtTimerText.color = vjtDefaultColor;
             }
 
+            // 💡 スローモーション中であっても、毎フレーム「現実世界の処理速度」のまま最速でループを回します
             yield return null;
         }
 
         vjtTimerText.gameObject.SetActive(false);
         vjtTimerCoroutine = null;
+    }
+
+    /// <summary>
+    /// 💡 新設：Time.timeScaleの影響を受けずに、10秒以下のタイマーを美しくPop拡縮させるリアルタイム専用コルーチン
+    /// </summary>
+    private IEnumerator PopUnscaledRoutine(RectTransform targetRect, Vector3 origScale)
+    {
+        if (targetRect == null) yield break;
+        float duration = 0.15f;
+        float elapsed = 0f;
+        Vector3 popScale = origScale * 1.3f;
+        while (elapsed < duration)
+        {
+            // Time.deltaTime ではなく Time.unscaledDeltaTime を使うことで、スロー中も等速でアニメーションが回ります！
+            elapsed += Time.unscaledDeltaTime;
+            targetRect.localScale = Vector3.Lerp(origScale, popScale, elapsed / duration);
+            yield return null;
+        }
+        targetRect.localScale = origScale;
     }
 
     public void SetInfiniteMode(bool infinite)

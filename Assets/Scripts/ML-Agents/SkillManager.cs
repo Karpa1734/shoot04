@@ -191,14 +191,13 @@ public class SkillManager : MonoBehaviour
             {
                 if (timerEX <= 0f)
                 {
-                    statusManager.SetInvincible(2.0f);
+                    // 🎯【ULTインフラの始動】：発動の瞬間にアルカナゲージ（アルティメットゲージ）を0%にリセットしつつ、
+                    // 🚨 DeactivateSpellCard をパージすることで、領域を破棄させずに引き伸ばします！
+                    playerMove.ultimateEnergy = 0f;
                     emitter.FireEX(skillData.skillEX);
 
-                    playerMove.ultimateEnergy = 0f;
-                    statusManager.DeactivateSpellCard(false);
-
                     timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
-                    Debug.Log("<color=magenta>👑【アルティメットスキル(ULT)】領域を強制解除し、必殺技を放ちました！</color>");
+                    Debug.Log("<color=magenta>👑【アルティメットスキル(ULT)】領域を維持したまま、究極必殺技をキックしました！</color>");
                 }
             }
             else

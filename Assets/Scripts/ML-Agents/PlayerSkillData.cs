@@ -13,7 +13,7 @@ public enum SkillPatternType
     RotatingAccelRound,
     GreedTaxPossession,
     KarinScalesSlash,
-    KarinFireSlash
+    KarinFireSlash,
 }
 public enum VJTEffectType
 {
