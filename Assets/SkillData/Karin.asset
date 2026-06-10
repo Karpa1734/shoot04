@@ -33,7 +33,7 @@ MonoBehaviour:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
     skillIcon: {fileID: 21300000, guid: 8cc885d7fad1f0b43ac224300fc02e4a, type: 3}
     patternType: 14
-    bulletData: {fileID: 11400000, guid: fc8e8b59cca2fcd4785a0f6e8a4cd6ce, type: 2}
+    bulletData: {fileID: 11400000, guid: 7d8f266f18fdc1d46b2a90a5d56bb2b0, type: 2}
     cooldown: 0.5
     sePath: Slash
     count: 1

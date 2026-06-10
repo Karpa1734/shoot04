@@ -3,10 +3,9 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// 🌟 【音響周期不整合・音消えバグ完全根治版】：背後追従型魔方陣ビット本体
-/// 🌟 射撃間隔（4F）とSE間引き（3F）の周期ズレによる不規則な音切れ（12Fの罠）を100%パージ。
-/// 🌟 生成インデックス（_bitIndex）に基づく固有スロットID音響分散システムにより、
-/// 🌟 6連極大クロス時も音割れを完全に防ぎつつ、弾源とSEが完璧に等速等間隔でシンクロ駆動します！
+/// 🌟 【リアルタイム敵位置逆相追従 ＆ 動的ターゲットロックオン版】：背後追従型魔方陣ビット本体
+/// 🌟 真横固定射撃をパージし、毎フレーム敵の座標を自動追尾して「自機を挟んだ真逆の背後」へリアルタイムに陣形を旋回。
+/// 🌟 銃口の角度および射出ベクトルも、敵の芯をミリ秒単位で完全に捉え続けるホーミングスキャンインフラを確立！
 /// </summary>
 [RequireComponent(typeof(SpriteRenderer))]
 public class PortalBitObject : MonoBehaviour
@@ -15,7 +14,7 @@ public class PortalBitObject : MonoBehaviour
     private PlayerDanmakuEmitter _ownerEmitter;
     private SpriteRenderer _sr;
 
-    private float _behindOffsetX;
+    private float _behindOffsetX; // 💡 距離の絶対値（半径）として流用
     private float _yOffset;
     private float _shootAngle;
     private float _bulletSpeed;
@@ -35,7 +34,7 @@ public class PortalBitObject : MonoBehaviour
     {
         _owner = owner;
         _ownerEmitter = emitter;
-        _behindOffsetX = behindX;
+        _behindOffsetX = Mathf.Abs(behindX); // 💡 カリンからの配置半径（1.2f）として絶対値を取得
         _yOffset = yOffset;
         _shootAngle = shootAngle;
         _duration = duration;
@@ -78,9 +77,18 @@ public class PortalBitObject : MonoBehaviour
         int halfCount = _isSpellCardEnhanced ? 3 : 2;
 
         float initialSpawnY = (_bitIndex >= halfCount) ? currentMaxMag : -currentMaxMag;
-        if (_owner != null)
+
+        // 🎯 生まれた瞬間の0フレーム目から敵の逆ベクトルの最端へ初期バインド（ワープ防止）
+        if (_owner != null && _ownerEmitter != null)
         {
-            transform.position = _owner.position + new Vector3(_behindOffsetX, initialSpawnY, 0f);
+            float targetAngleDeg = _ownerEmitter.ExecuteGetAngleToTargetBridge();
+            float baseRad = targetAngleDeg * Mathf.Deg2Rad;
+
+            // 敵の逆方向ベクトル（背後半径） ＋ クロス高度ベクトル
+            Vector3 forwardDir = new Vector3(Mathf.Cos(baseRad), Mathf.Sin(baseRad), 0f);
+            Vector3 orthoDir = new Vector3(-Mathf.Sin(baseRad), Mathf.Cos(baseRad), 0f);
+
+            transform.position = _owner.position - (forwardDir * _behindOffsetX) + (orthoDir * initialSpawnY);
         }
 
         transform.localScale = Vector3.zero;
@@ -106,7 +114,7 @@ public class PortalBitObject : MonoBehaviour
         {
             while (Mathf.Approximately(Time.timeScale, 0f)) yield return null;
 
-            if (!PlayerMove.CanShoot || _owner == null) break;
+            if (!PlayerMove.CanShoot || _owner == null || _ownerEmitter == null) break;
 
             // ① スケールおよびコサイン振幅の滑らかなエンベロープフェード
             float currentScale = 1f;
@@ -131,38 +139,46 @@ public class PortalBitObject : MonoBehaviour
             float shootProgress = Mathf.Clamp01((elapsed - 0.2f) / _duration);
             float baseTimerAngleRad = (shootProgress + timeDelayOffset) * Mathf.PI * 4f;
 
-            // ③ 【ワープ完全根治】：可変限界高度フルステージ・上下対称クロス数理エンジン
+            // ③ 【可変限界高度フルステージ・上下対称クロス数理エンジン】
             float finalLocalY = waveCenterY + Mathf.Cos(baseTimerAngleRad) * groupSign * currentWaveMagnitude;
 
-            Vector3 targetPortalPos = _owner.position + new Vector3(_behindOffsetX, finalLocalY, 0f);
+            // =========================================================================
+            // 🎯【核心処理：リアルタイム逆相極座標トランスフォーム】
+            // =========================================================================
+            // 1. Emitter（親）から現在のターゲットへの最新リアルタイム角度を取得
+            float currentTargetAngleDeg = _ownerEmitter.ExecuteGetAngleToTargetBridge();
+            float currentRad = currentTargetAngleDeg * Mathf.Deg2Rad;
+
+            // 2. 敵へ向かう前方ベクトル（Forward）と、それと直交する縦軸ベクトル（Ortho）を毎フレーム更新抽出
+            Vector3 forwardVector = new Vector3(Mathf.Cos(currentRad), Mathf.Sin(currentRad), 0f);
+            Vector3 orthoVector = new Vector3(-Mathf.Sin(currentRad), Mathf.Cos(currentRad), 0f);
+
+            // 3. 自機位置を原点とし、「敵と真逆の背後方向（-Forward）」へ半径分下がり、そこに「クロス往復（Ortho）」を直交合成！
+            Vector3 targetPortalPos = _owner.position - (forwardVector * _behindOffsetX) + (orthoVector * finalLocalY);
             transform.position = targetPortalPos;
-            transform.rotation = Quaternion.Euler(0f, 0f, _shootAngle);
+
+            // 4. 銃口を敵の方向へ完全にロックオン！
+            transform.rotation = Quaternion.Euler(0f, 0f, currentTargetAngleDeg);
 
             // -------------------------------------------------------------------------
             // ④ 射撃制御（正味の連射持続時間である 0.2秒〜1.7秒 の間だけ射出）
             // -------------------------------------------------------------------------
             if (elapsed >= 0.2f && elapsed <= totalTimelineTime - 0.2f)
             {
-                // 🎯 4フレームに1回の正規の射撃タイミング
                 if (frameCounter % _fireIntervalFrames == 0)
                 {
                     BulletData dataToUse = (_subDanmakuData != null) ? _subDanmakuData : _bulletDataToShoot;
 
                     if (_ownerEmitter != null && dataToUse != null)
                     {
-                        // =========================================================================
-                        // 🎯【コンパイラ/数理調停の核心：音消えバグ完全根治インフラ】
-                        // =========================================================================
-                        // 💡 外部の3F周期に頼るのではなく、この弾が出る「4F周期」の瞬間に完全に同期！
-                        // 💡 6枚（または4枚）の魔方陣のうち、「インデックスが 0 番（最下端）」のオブジェクトだけが
-                        // 💡 代表してSEをトリガーすることで、不規則な音切れ（12Fの罠）を100%永久パージ！
-                        // 💡 常に4フレームに1回、「シュババババッ！」とキレ味鋭い音が一切途切れずに鳴り響きます。
                         if (_bitIndex == 0 && SEManager.Instance != null)
                         {
-                            SEManager.Instance.Play(SEPath.SHOT1, 0.35f); // 1音集中に付き音量をスマートに最適化
+                            // 4フレーム周期ジャスト同期SE
+                            SEManager.Instance.Play(SEPath.SHOT1, 0.35f);
                         }
 
-                        _ownerEmitter.ExecuteSubShotFromPortal(dataToUse, transform.position, _bulletSpeed, _shootAngle, _bulletDelay);
+                        // 🎯【敵へ向けてまっすぐ発射】：固定の_shootAngleをパージし、現在の「currentTargetAngleDeg」を直接叩き込む！
+                        _ownerEmitter.ExecuteSubShotFromPortal(dataToUse, transform.position, _bulletSpeed, currentTargetAngleDeg, _bulletDelay);
                     }
                 }
                 frameCounter++;

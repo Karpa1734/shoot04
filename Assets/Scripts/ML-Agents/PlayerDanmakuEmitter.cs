@@ -505,7 +505,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     {
         int count = Mathf.Max(1, s.count);
         float step = 360f / count;
-        float spawnDistance = 2.5f;
+        float spawnDistance =3.5f;
         float rotationOffset = (count % 2 == 0) ? (step / 2f) : 0f;
         for (int i = 0; i < count; i++)
         {
@@ -519,21 +519,90 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     /// <summary>
     /// 設置型または追従型の極太レーザーを実行する
     /// </summary>
-    
+
 
     private void CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay, bool isConverge = false)
     {
+        // 1. スプライト本来の弾幕プレハブを実体化（本体はクッキリ最前面に描画）
         GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
 
-        // ★ 追加：発射したプレイヤーに応じて弾にタグとレイヤーを設定する
-        var myStatus = GetComponentInParent<PlayerStatusManager>();
+        // 大元の所有者（PlayerStatusManager）の精密探索コンテキスト
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null)
+        {
+            myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+        }
+
         int ownerId = (myStatus != null) ? myStatus.playerId : 1;
 
-        // タグの設定 (P1の弾 = PlayerBullet, P2の弾 = EnemyBullet)
+        // =========================================================================
+        // 🔮【Resources完全撤廃型：白アセットカラー着色・非混色加算オーラシステム】
+        // =========================================================================
+        SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
+        if (mainSR != null && data != null)
+        {
+            // 💡 1. オーラ専用の子供オブジェクトを生成してバインド
+            GameObject auraChild = new GameObject("PureColorAuraObject");
+            auraChild.transform.SetParent(obj.transform);
+
+            // 💡 2. 位置・回転を本体と100%完全同調させ、サイズを一回り大きく拡張！
+            auraChild.transform.localPosition = Vector3.zero;
+            auraChild.transform.localRotation = Quaternion.identity;
+            auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
+
+            SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
+
+            // 💡 3. レイヤー順（SortingOrder）を、本体スプライトの「真後ろ（-1）」へ潜り込ませる
+            auraSR.sortingLayerID = mainSR.sortingLayerID;
+            auraSR.sortingOrder = mainSR.sortingOrder - 1;
+
+            // =========================================================================
+            // 🎯【ノンリソース化の核心：静的データバインド調停】
+            // =========================================================================
+            // 💡 Resources.Loadを100%完全パージ！
+            // 💡 BulletDataのインスペクターに直接登録されたマテリアルから最速でデータ共有。
+            if (data.auraMaterial != null)
+            {
+                auraSR.material = data.auraMaterial;
+            }
+            else
+            {
+                // 🛡️ 安全弁：もしアセット側で入れ忘れていた場合のみ、標準の粒子加算シェーダーをバックアップビルド
+                auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+            }
+
+            // 💡 5. 白スプライトをアサインし、プレイヤーカラーで着色
+            if (data.auraWhiteSprite != null)
+            {
+                auraSR.sprite = data.auraWhiteSprite;
+            }
+            else
+            {
+                auraSR.sprite = mainSR.sprite;
+            }
+
+            // 💡 6. 大元の持ち主のカラー（imageColor）を精密抽出してオーラへ着色インジェクション！
+            if (myStatus != null && myStatus.characterData != null)
+            {
+                Color charImageColor = myStatus.characterData.imageColor;
+
+                // 加算合成マテリアルの不透明度（アルファ）を一番綺麗に輝く 0.7f 前後に調整して注入
+                charImageColor.a = 1.0f;
+                auraSR.color = charImageColor;
+            }
+            else
+            {
+                // セーフティ安全弁
+                Color defaultColor = (ownerId == 1) ? Color.cyan : Color.red;
+                defaultColor.a = 1.0f;
+                auraSR.color = defaultColor;
+            }
+        }
+
+        // --- 以下、既存のチーム識別タグ・レイヤー設定、および Initialize インフラへ過不足なく完全結合 ---
         string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
         obj.tag = assignedTag;
 
-        // レイヤーの設定 (衝突判定の分離用)
         int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
         obj.layer = assignedLayer;
         SetLayerRecursive(obj, assignedLayer);
@@ -542,7 +611,6 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (bullet != null)
             bullet.Initialize(_rootOwner, targetTag, speed, angle, 0, speed, 0, delay, data, isConverge);
     }
-
     private void ExecutePolygon(PlayerSkillData.SkillSettings s, Vector3 pos, float startAngle)
     {
         int edges = Mathf.Max(3, s.count);
@@ -1915,6 +1983,13 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             myStatus.DeactivateSpellCard(false);
         }
 
+    }
+    /// <summary>
+    /// 🎯【新設】：PortalBitObjectが毎フレーム自機の最新ターゲット角度を逆算抽出するためのインフラブリッジ関数
+    /// </summary>
+    public float ExecuteGetAngleToTargetBridge()
+    {
+        return GetAngleToTarget(transform.position);
     }
     public void ExecuteSubShotFromPortal(BulletData data, Vector3 pos, float speed, float angle, float delay)
     {

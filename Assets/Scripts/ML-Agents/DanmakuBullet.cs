@@ -69,9 +69,13 @@ public class DanmakuBullet : MonoBehaviour
         transform.localScale = new Vector3(baseScale.x * multiplier, baseScale.y * multiplier, baseScale.z * multiplier);
 
         sr.sprite = data.bulletSprite;
-        col.radius = data.radius;
-        if (data.material != null) sr.material = data.material;
-
+        col.radius = data.radius;// 🎯【マテリアル生存権の調停】：
+        // 💡 エミッター側で既にオーラカラー（_AuraColor）がマテリアルにインジェクションされている場合は、
+        // 💡 それを最優先として残し、空（デフォルトマテリアル）の時だけ data.material を適用します！
+        if (sr.material == null || !sr.material.HasProperty("_AuraColor"))
+        {
+            if (data.material != null) sr.material = data.material;
+        }
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
         // ★ アニメーションの有無を確認
         if (data.animationSprites != null && data.animationSprites.Length > 1)
@@ -133,7 +137,13 @@ public class DanmakuBullet : MonoBehaviour
         this.isAnimated = false;
 
         sr.sprite = data.bulletSprite;
-        if (data.material != null) sr.material = data.material;
+        // 🎯【マテリアル生存権の調停】：
+        // 💡 エミッター側で既にオーラカラー（_AuraColor）がマテリアルにインジェクションされている場合は、
+        // 💡 それを最優先として残し、空（デフォルトマテリアル）の時だけ data.material を適用します！
+        if (sr.material == null || !sr.material.HasProperty("_AuraColor"))
+        {
+            if (data.material != null) sr.material = data.material;
+        }
 
         // 待機中の見た目を華やかにするため初期角度をランダムに
         _knifeCurrentAngle = Random.Range(0f, 360f);
@@ -234,7 +244,6 @@ public class DanmakuBullet : MonoBehaviour
     }
     private void UpdateAnimation()
     {
-        // 弾が非表示（ディレイ中）でも計算自体は進めておく
         animTimer += Time.fixedDeltaTime;
         float frameDuration = 1f / currentData.animationFPS;
 
@@ -242,7 +251,23 @@ public class DanmakuBullet : MonoBehaviour
         {
             animTimer = 0f;
             currentAnimFrame = (currentAnimFrame + 1) % currentData.animationSprites.Length;
+
+            // 💡 本体のスプライトをアニメーション更新
             sr.sprite = currentData.animationSprites[currentAnimFrame];
+
+            // 🎯【オーラアトラス同期レイヤー】：
+            // 💡 もし背後に生成したオーラ用の子オブジェクト（PureColorAuraObject）があれば、
+            // 💡 そのSpriteRendererの画像も本体のアニメーションの動きに完全に連動させます！
+            Transform auraChild = transform.Find("PureColorAuraObject");
+            if (auraChild != null)
+            {
+                SpriteRenderer childSR = auraChild.GetComponent<SpriteRenderer>();
+                if (childSR != null)
+                {
+                    // 💡 オーラ側も同じアニメーションコマへと追従
+                    childSR.sprite = sr.sprite;
+                }
+            }
         }
     }
     private IEnumerator DelayEffectRoutine(float delay, BulletData data)
