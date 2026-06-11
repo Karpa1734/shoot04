@@ -15,35 +15,36 @@ public class EnemyLaserBeam : MonoBehaviour
     private Transform bossTransform;
     private Transform laserVisualTrans;
 
+    // =========================================================================
+    // 🎨【新設：レーザーシンクロ追従型・加算オーラインフラ変数】
+    // =========================================================================
+    private Transform auraVisualTrans;
+    private SpriteRenderer auraSR;
+
     private float targetWidth, currentLength;
     private int delayFrames, elapsedFrames, closingFrames;
     private bool isFired = false;
     private bool isClosing = false;
-    /// <summary>
-    /// ★ AI連携用：現在レーザーが「予告線（プレビュー）」の状態であれば true を返す
-    /// </summary>
-    public bool IsPreviewing => elapsedFrames < delayFrames && !isClosing;
 
-    /// <summary>
-    /// ★ AI連携用：現在のレーザーのワールド座標上の長さを取得
-    /// </summary>
+    public bool IsPreviewing => elapsedFrames < delayFrames && !isClosing;
     public float CurrentLength => currentLength;
+
     private float targetDistAngleVel;
     private bool useSmoothStop = false;
     private float targetLaserAngleVel;
-    private string _targetTag; // ★追加：攻撃対象のタグ
-    private int _damage;       // ★追加：ダメージ量
-    private float _hitTimer = 0f; // 多段ヒット用タイマー
+    private string _targetTag;
+    private int _damage;
+    private float _hitTimer = 0f;
     private float lengthVel, angle, angVel, moveSpeed, moveAngle;
     private float dist, distVel, distAngle, distAngleVel, laserAngle, laserAngleVel;
-    private float targetAngVel; // ★追加：目標とする角速度
+    private float targetAngVel;
     private SpriteRenderer sourceEffectSr;
     private GameObject sourceEffectInstance;
     private List<LaserTransformData> transformQueue = new List<LaserTransformData>();
     private float closingStartWidth;
-    private Vector3 _centerPos; // ★追加：回転の中心となる固定座標
-    // ★ 追加：エラーの原因となっていた変数を宣言
+    private Vector3 _centerPos;
     private GameObject _rootOwner;
+
     [System.Serializable]
     public class LaserTransformData
     {
@@ -57,7 +58,6 @@ public class EnemyLaserBeam : MonoBehaviour
 
     void Awake()
     {
-        // 既存のAwake処理
         Transform child = transform.Find("Visual");
         if (child != null)
         {
@@ -73,9 +73,8 @@ public class EnemyLaserBeam : MonoBehaviour
         sr.enabled = false;
     }
 
-    // ★ 修正：SetupA
-    // ★修正：引数に targetTag と damage を追加
-    public void SetupA(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite)
+    // 🎯【修正】：引数の末尾に BulletData data を追加して上流から結合
+    public void SetupA(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite, BulletData data)
     {
         this.type = LaserType.A_Stationary;
         this._rootOwner = shooter;
@@ -86,12 +85,13 @@ public class EnemyLaserBeam : MonoBehaviour
         ApplyTeamSettings(shooter);
         SpawnSourceEffect(sourcePrefab, sourceSprite);
         InitializeBase(length, width, color, delay);
+
+        // 💡 レーザー用アセットデータを手渡ししてオーラを結合
+        InjectLaserAuraLink(data);
     }
 
-    // ★ 修正：SetupB (shooter引数を追加)
-    // --- EnemyLaserBeam.cs 修正箇所 ---
-
-    public void SetupB(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite)
+    // 🎯【修正】：引数の末尾に BulletData data を追加して上流から結合
+    public void SetupB(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite, BulletData data)
     {
         this.type = LaserType.B_FollowBoss;
         this._rootOwner = shooter;
@@ -99,20 +99,88 @@ public class EnemyLaserBeam : MonoBehaviour
         this._damage = damage;
         this.bossTransform = shooter.transform;
 
-        // ★重要：発射時の座標を中心に固定する
         this._centerPos = new Vector3(x, y, 0);
         transform.position = _centerPos;
 
         ApplyTeamSettings(shooter);
         SpawnSourceEffect(sourcePrefab, sourceSprite);
         InitializeBase(length, width, color, delay);
+
+        // 💡 レーザー用アセットデータを手渡ししてオーラを結合
+        InjectLaserAuraLink(data);
     }
-    // ★ 追加：チーム（P1/P2）に応じた設定を適用するヘルパー関数
+
+    // =========================================================================
+    // 🔮【調停完了】：白シルエット画像（auraWhiteSprite）完全対応型レーザーオーラ結合
+    // =========================================================================
+    private void InjectLaserAuraLink(BulletData data)
+    {
+        if (laserVisualTrans == null || sr == null || _rootOwner == null) return;
+
+        // 💡 1. オーラ専用の伸縮GameObjectを動的生成して結合
+        GameObject auraObj = new GameObject("LaserPureColorAura");
+        auraObj.transform.SetParent(laserVisualTrans.parent);
+
+        // 位置・回転を本体と完全シンクロ
+        auraObj.transform.localPosition = laserVisualTrans.localPosition;
+        auraObj.transform.localRotation = laserVisualTrans.localRotation;
+        auraObj.transform.localScale = laserVisualTrans.localScale;
+
+        auraVisualTrans = auraObj.transform;
+        auraSR = auraObj.AddComponent<SpriteRenderer>();
+
+        // 💡 2. レイヤー順（SortingOrder）を、レーザー本体の「真後ろ（-1）」へ潜り込ませる
+        auraSR.sortingLayerID = sr.sortingLayerID;
+        auraSR.sortingOrder = sr.sortingOrder - 1;
+        auraSR.enabled = false;
+
+        // 💡 3. 【高橋さんの指定】：弾幕と同様に auraWhiteSprite を優先的に読み込んでアサイン！
+        // 💡    もしデータ側に登録されていなければ、フォールバックとしてレーザー本来の画像（visualSet.mainSprite）を適応します
+        if (data != null && data.auraWhiteSprite != null)
+        {
+            auraSR.sprite = data.auraWhiteSprite;
+        }
+        else if (visualSet.mainSprite != null)
+        {
+            auraSR.sprite = visualSet.mainSprite;
+        }
+        else
+        {
+            auraSR.sprite = sr.sprite;
+        }
+
+        // 💡 4. 加算マテリアルの適用：データに登録された auraMaterial からResourcesを介さずに直接静的共有
+        if (data != null && data.auraMaterial != null)
+        {
+            auraSR.material = data.auraMaterial;
+        }
+        else
+        {
+            auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+        }
+
+        // 💡 5. 大元の持ち主のカラー（imageColor）を精密抽出してオーラへ直撃注入！
+        var myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+        if (myStatus == null) myStatus = _rootOwner.GetComponentInParent<PlayerStatusManager>();
+
+        if (myStatus != null && myStatus.characterData != null)
+        {
+            Color charImageColor = myStatus.characterData.imageColor;
+            charImageColor.a = 0.2f; // 指定の通りアルファ1.0fの最大発光で流し込み
+            auraSR.color = charImageColor;
+        }
+        else
+        {
+            int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+            Color defaultColor = (ownerId == 1) ? Color.cyan : Color.red;
+            defaultColor.a = 0.2f;
+            auraSR.color = defaultColor;
+        }
+    }
+
     private void ApplyTeamSettings(GameObject shooter)
     {
-        // グレイズ判定用にタグは "Laser" 固定にする
         gameObject.tag = "Laser";
-
         var myStatus = shooter.GetComponentInParent<PlayerStatusManager>();
         int ownerId = (myStatus != null) ? myStatus.playerId : 1;
         int layer = LayerMask.NameToLayer(ownerId == 1 ? "Player1Bullet" : "Player2Bullet");
@@ -155,13 +223,13 @@ public class EnemyLaserBeam : MonoBehaviour
     {
         isFired = true;
         sr.enabled = true;
+        if (auraSR != null) auraSR.enabled = true;
     }
 
     public void ForceClose()
     {
         if (isClosing) return;
-
-        closingStartWidth = GetCurrentWidth(); // 現在の太さを記憶
+        closingStartWidth = GetCurrentWidth();
         isClosing = true;
         col.enabled = false;
         lengthVel = 0;
@@ -170,23 +238,18 @@ public class EnemyLaserBeam : MonoBehaviour
 
     private float GetCurrentWidth()
     {
-        if (elapsedFrames < delayFrames)
-            return targetWidth * 0.5f;
-
+        if (elapsedFrames < delayFrames) return targetWidth * 0.5f;
         if (elapsedFrames < delayFrames + ANIM_FRAMES)
         {
             float t = (float)(elapsedFrames - delayFrames) / ANIM_FRAMES;
             return Mathf.Lerp(targetWidth * 0.5f, targetWidth, t);
         }
-
         return targetWidth;
     }
 
     void FixedUpdate()
     {
         if (!isFired) return;
-        // ★ 追加：ラウンド終了（タイムアップ等）を検知したら即座に閉じる
-        // PlayerMove.CanShoot が false になった瞬間に ForceClose を実行します
         if (!PlayerMove.CanShoot && !isClosing)
         {
             ForceClose();
@@ -197,16 +260,15 @@ public class EnemyLaserBeam : MonoBehaviour
             transformQueue.RemoveAt(0);
         }
 
-        // 回転の補間処理（Type A の angVel も対象に含める）
         if (useSmoothStop)
         {
-            angVel = Mathf.Lerp(angVel, targetAngVel, 0.1f); // ★追加
+            angVel = Mathf.Lerp(angVel, targetAngVel, 0.1f);
             laserAngleVel = Mathf.Lerp(laserAngleVel, targetLaserAngleVel, 0.1f);
             distAngleVel = Mathf.Lerp(distAngleVel, targetDistAngleVel, 0.1f);
         }
         else
         {
-            angVel = targetAngVel; // ★追加
+            angVel = targetAngVel;
             laserAngleVel = targetLaserAngleVel;
             distAngleVel = targetDistAngleVel;
         }
@@ -265,7 +327,6 @@ public class EnemyLaserBeam : MonoBehaviour
 
     private void UpdateB()
     {
-        // 発射元（オーナー）がいなくなった場合の生存確認としてのみ bossTransform を使用
         if (bossTransform == null)
         {
             ForceClose();
@@ -278,10 +339,8 @@ public class EnemyLaserBeam : MonoBehaviour
 
         if (!isClosing) currentLength += lengthVel;
 
-        // ★修正：bossTransform.position ではなく、記録した _centerPos を基準にする
         Vector3 offset = new Vector3(Mathf.Cos(distAngle * Mathf.Deg2Rad), Mathf.Sin(distAngle * Mathf.Deg2Rad), 0) * dist;
         transform.position = _centerPos + offset;
-
         transform.rotation = Quaternion.Euler(0, 0, laserAngle - 90f);
     }
 
@@ -306,11 +365,9 @@ public class EnemyLaserBeam : MonoBehaviour
     {
         if (sr == null || sr.sprite == null) return;
 
-        // 1. スプライトの元のサイズ（Unityの単位：Unit）を取得
         float spriteOriginalHeight = sr.sprite.bounds.size.y;
         float spriteOriginalWidth = sr.sprite.bounds.size.x;
 
-        // 2. 正規化したスケールを計算
         float finalScaleY = currentLength / spriteOriginalHeight;
         float finalScaleX = w / spriteOriginalWidth;
 
@@ -319,27 +376,23 @@ public class EnemyLaserBeam : MonoBehaviour
             laserVisualTrans.localScale = new Vector3(finalScaleX, finalScaleY, 1f);
         }
 
+        // =========================================================================
+        // 🎯【白アセット追従型】：レーザー形状にシンクロして横幅を1.5倍に拡張
+        // =========================================================================
+        if (auraVisualTrans != null && auraSR != null)
+        {
+            auraVisualTrans.localScale = new Vector3(finalScaleX * 1.5f, finalScaleY, 1f);
+        }
+
         if (col != null)
         {
             float hitboxWidthMultiplier = 0.7f;
-
-            // 現在のレーザーの向き（angle または laserAngle）を取得
-            float currentFacingAngle = (type == LaserType.A_Stationary) ? angle : laserAngle;
-
-            // 角度を 0〜360度 にクランプ
-            float checkAngle = (currentFacingAngle % 360f + 360f) % 360f;
-
-
-            // 通常の縦型レーザー（それ以外の角度）の時は、既存の標準計算を安全にフォールバック
             col.size = new Vector2(w * hitboxWidthMultiplier, currentLength);
             col.offset = new Vector2(0, currentLength * 0.5f);
 
-
-            // 予告中は判定を消し、発射中のみ有効化
             if (elapsedFrames >= delayFrames && !isClosing) col.enabled = true;
         }
 
-        // 弾源エフェクト等の回転処理（既存のまま）
         if (sourceEffectInstance != null && sourceEffectSr != null)
         {
             float effectRatio = Mathf.Clamp01(w / targetWidth);
@@ -349,22 +402,18 @@ public class EnemyLaserBeam : MonoBehaviour
         }
     }
 
-    // ★追加：ダメージ判定（多段ヒット）
     private void OnTriggerStay2D(Collider2D collision)
     {
         if (!isFired || isClosing || elapsedFrames < delayFrames) return;
-
-        // ターゲットタグに一致するか判定
         if (collision.CompareTag(_targetTag) && _hitTimer <= 0)
         {
             collision.SendMessage("OnHit", _damage, SendMessageOptions.DontRequireReceiver);
-            _hitTimer = 0.1f; // 6フレーム（約0.1秒）に1回ヒット
+            _hitTimer = 0.1f;
         }
     }
 
     private void ApplyTransform(LaserTransformData t)
     {
-        // 消滅フラグが立ったら即座に ForceClose 
         if (t.startClosing && !isClosing)
         {
             ForceClose();
@@ -376,8 +425,8 @@ public class EnemyLaserBeam : MonoBehaviour
 
         if (type == LaserType.A_Stationary)
         {
-            if (t.angle != -999f) angle = t.angle; 
-            if (t.angVel != -999f) targetAngVel = t.angVel; // ★修正：直接代入ではなく target に入れる
+            if (t.angle != -999f) angle = t.angle;
+            if (t.angVel != -999f) targetAngVel = t.angVel;
             if (t.moveSpeed != -999f) moveSpeed = t.moveSpeed;
             if (t.moveAngle != -999f) moveAngle = t.moveAngle;
             transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
@@ -393,7 +442,6 @@ public class EnemyLaserBeam : MonoBehaviour
             if (t.laserAngleVel != -999f)
             {
                 targetLaserAngleVel = t.laserAngleVel;
-                // 0フレーム目やパッと止まる設定なら即座に反映
                 if (t.frame == 0 || !useSmoothStop)
                 {
                     laserAngleVel = t.laserAngleVel;

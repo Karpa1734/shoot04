@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
   m_Name: Syaru
   m_EditorClassIdentifier: 
+  rankHP: 1
+  rankMP: 4
+  rankAttack: 2
+  rankAgility: 1
+  rankMMPRegen: 5
+  rankSpellZone: 2
   characterName: Player2
   imageColor: {r: 1, g: 1, b: 0, a: 1}
   spellCardName: "\u25A1\u7B26\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
@@ -40,7 +46,7 @@ MonoBehaviour:
     speed: 7
     angleOffset: 0
     wideAngle: 60
-    moveSpeedMultiplier: 0.8
+    moveSpeedMultiplier: 0.4
     delay: 2
     cost: 10
     ultimateGain: 3
@@ -51,7 +57,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
     cooldown: 0.5
     sePath: 
-    count: 8
+    count: 5
     speed: 1.5
     angleOffset: 0
     wideAngle: 60

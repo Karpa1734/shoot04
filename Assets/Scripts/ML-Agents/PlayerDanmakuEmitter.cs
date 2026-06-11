@@ -214,6 +214,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
+
+        int burstCount = 6;
+        int knivesway = s.count;
+
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+        if (isSpellActive)
+        {
+            knivesway += 2;
+        }
         // 1. スキル使用中の減速を適用
         if (myMove != null && !_isEXSkillActive) { myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; }
 
@@ -226,15 +236,14 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             Vector3 spawnPos = transform.position + new Vector3(randomCircle.x, randomCircle.y, 0);
 
             // ★ セット内で角度を固定：弾源から敵機への基本角度を一度だけ計算
-            float targetAngle = GetAngleToTarget(spawnPos) + Random.Range(-3.0f,3.0f);
+            float targetAngle = GetAngleToTarget(spawnPos) + Random.Range(-1.5f,1.5f);
             float baseAngle = targetAngle + s.angleOffset;
 
             // 規定回数（6回）を連射
-            int burstCount = 6;
             for (int i = 0; i < burstCount; i++)
             {
                 // --- N-way（扇形）の生成ロジック ---
-                int wayCount = Mathf.Max(1, s.count); // 3way, 5wayなど
+                int wayCount = Mathf.Max(1, knivesway); // 3way, 5wayなど
                 float spread = s.wideAngle;
 
                 if (wayCount <= 1)
@@ -275,45 +284,73 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         _activeSkillCoroutines--;
     }
     // --- ★ 追加：防御フィールド専用のチャージ演出ルーチン ---
+    // 📄 PlayerDanmakuEmitter.cs 内の防御フィールド制御セクター【領域展開・動的巨大延長版】
     private IEnumerator ChargeAndExecuteDefensiveField(PlayerSkillData.SkillSettings s)
     {
-        _activeSkillCoroutines++;
-        // ★ 修正：_rootOwner から確実に PlayerMove を取得する
-        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
+        _activeSkillCoroutines++; //
+        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>(); //
 
-        if (myMove != null)
+        if (myMove != null) //
         {
-            // デバッグログ：現在の設定値をコンソールに表示して確認
-            Debug.Log($"Charge Start: Multiplier set to {s.moveSpeedMultiplier}");
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-    }
-        else
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
+        }
+
+        // 💡 1. 領域展開中（スペルカード発動中）であるかステートをチェック
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+        // 💡 2. 【高橋さんの指定】：領域中ならサイズと持続時間の変数を動的にブースト！
+        float finalFieldDuration = 1.0f; // 通常時の持続秒数
+        float finalFieldScale = 2.0f;    // 通常時のDefensiveFieldインスペクター想定スケール
+
+        if (isSpellActive)
         {
-            Debug.LogError("PlayerMove could not be found on _rootOwner!");
+            finalFieldDuration = 2.0f;   // 🎯 領域展開中：持続時間を「3.0秒」へ延長（2倍）
+            finalFieldScale = 3.5f;      // 🎯 領域展開中：サイズ（最大スケール）を「3.5倍」へ巨大化
+            Debug.Log($"<color=gold>🔮【領域展開・絶対防壁】防御フィールドを極大化！ Duration: {finalFieldDuration}s, Scale: {finalFieldScale}</color>");
         }
 
         // チャージ演出
-        float chargeTime = 0.3f;
-        if (BossEffectManager.Instance != null)
+        float chargeTime = 0.3f; //
+        if (BossEffectManager.Instance != null) //
         {
-            BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, transform.position);
-    }
-        yield return new WaitForSeconds(chargeTime);
+            BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, transform.position); //
+        }
+        yield return new WaitForSeconds(chargeTime + 0.2f); //
 
-        SEManager.Instance.Play(SEPath.SHOT1, 0.2f);
-        // スキル本体の生成
-        ExecuteDefensiveField(s);
+        if (SEManager.Instance != null)
+        {
+            SEManager.Instance.Play(SEPath.SLASH, 0.5f); //
+        }
 
-        // スキル終了まで待機（DefensiveFieldの持続時間に合わせる）
-        yield return new WaitForSeconds(1.5f);
+        // 💡 3. 変調されたサイズと持続時間を手渡しして、スキル本体を実体化！
+        ExecuteDefensiveField(s, finalFieldDuration, finalFieldScale);
+
+        // 💡 4. 【インフラ完全同期】：スキル終了まで待機（引き伸ばされた動的持続時間に正確に合わせる）
+        yield return new WaitForSeconds(finalFieldDuration);
 
         // 倍率を戻す
-        if (myMove != null)
+        if (myMove != null) //
         {
-            Debug.Log("Charge End: Multiplier reset to 1.0");
-            myMove.skillSpeedMultiplier = 1.0f; 
+            myMove.skillSpeedMultiplier = 1.0f; //
+        }
+        _activeSkillCoroutines--; //
     }
-        _activeSkillCoroutines--;
+
+    // 🎯【引数拡張】：外部変調パラメータを確実に受け取れるようにオーバーロード調停
+    private void ExecuteDefensiveField(PlayerSkillData.SkillSettings s, float duration, float scale)
+    {
+        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity); //
+        var myStatus = GetComponentInParent<PlayerStatusManager>(); //
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1; //
+        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet"; //
+        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet"); //
+
+        var field = fieldObj.GetComponent<DefensiveField>(); //
+        if (field == null) field = fieldObj.AddComponent<DefensiveField>(); //
+
+        // 💡 拡張された Initialize 窓口へパラメータを一挙にインジェクション！
+        field.Initialize(transform, s.bulletData, duration, assignedTag, assignedLayer, scale);
     }
 
     private IEnumerator MovingArcRoutine(PlayerSkillData.SkillSettings s)
@@ -445,28 +482,98 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             SetLayerRecursive(child.gameObject, layer);
     }
 
+    // 📄 PlayerDanmakuEmitter.cs 内の ExecuteSubShot メソッド【攻撃ランク・最下流溶接版】
     public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
     {
-        GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
+        if (data == null || data.bulletPrefab == null) return;
+
+        if (SEManager.Instance != null)
+        {
+            SEManager.Instance.Play(SEPath.SHOT2, 0.2f);
+        }
+
+        // 💡 ブーメラン独自の物理と攻撃力をコンテキスト共有するため、ランタイムクローンを生成
+        BulletData runtimeData = Instantiate(data);
+
+        // 大元の所有者（PlayerStatusManager）の精密探索
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null)
+        {
+            myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+        }
+
+        // =========================================================================
+        // 🎯【大正法】：ブーメラン子弾射出の瞬間にも攻撃ランク倍率を動的結合！
+        // =========================================================================
+        if (myStatus != null && myStatus.characterData != null)
+        {
+            float atkMultiplier = 1.0f;
+            switch (myStatus.characterData.rankAttack)
+            {
+                case StatusRank.E: atkMultiplier = 0.8f; break;
+                case StatusRank.D: atkMultiplier = 0.9f; break;
+                case StatusRank.C: atkMultiplier = 1.0f; break;
+                case StatusRank.B: atkMultiplier = 1.1f; break;
+                case StatusRank.A: atkMultiplier = 1.2f; break;
+                case StatusRank.EX: atkMultiplier = 1.3f; break;
+            }
+
+            runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
+        }
+
+        // プレハブをその場で実体化
+        GameObject obj = Instantiate(runtimeData.bulletPrefab, pos, Quaternion.identity);
+
         obj.tag = tag;
         obj.layer = layer;
-        SEManager.Instance.Play(SEPath.SHOT2, 0.2f);
+        SetLayerRecursive(obj, layer);
+
         DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
         if (bullet != null)
-            bullet.Initialize(_rootOwner, targetTag, speed, angle, accel, maxSpeed, 0, 0, data);
+        {
+            bullet.Initialize(_rootOwner, targetTag, speed, angle, accel, maxSpeed, 0f, 0f, runtimeData, false);
+        }
+
+        // =========================================================================
+        // 🔮【白アセットカラー着色型・非混色加算オーラ生成インフラ】
+        // =========================================================================
+        SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
+        if (mainSR != null)
+        {
+            GameObject auraChild = new GameObject("PureColorAuraObject");
+            auraChild.transform.SetParent(obj.transform);
+
+            auraChild.transform.localPosition = Vector3.zero;
+            auraChild.transform.localRotation = Quaternion.identity;
+            auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
+
+            SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
+
+            auraSR.sortingLayerID = mainSR.sortingLayerID;
+            auraSR.sortingOrder = mainSR.sortingOrder - 1;
+
+            if (runtimeData.auraMaterial != null) auraSR.material = runtimeData.auraMaterial;
+            else auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+
+            if (runtimeData.auraWhiteSprite != null) auraSR.sprite = runtimeData.auraWhiteSprite;
+            else auraSR.sprite = mainSR.sprite;
+
+            if (myStatus != null && myStatus.characterData != null)
+            {
+                Color charImageColor = myStatus.characterData.imageColor;
+                charImageColor.a = 0.7f;
+                auraSR.color = charImageColor;
+            }
+            else
+            {
+                int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+                Color defaultColor = (ownerId == 1) ? Color.cyan : Color.red;
+                defaultColor.a = 0.8f;
+                auraSR.color = defaultColor;
+            }
+        }
     }
 
-    private void ExecuteDefensiveField(PlayerSkillData.SkillSettings s)
-    {
-        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
-        var myStatus = GetComponentInParent<PlayerStatusManager>();
-        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
-        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
-        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
-        var field = fieldObj.GetComponent<DefensiveField>();
-        if (field == null) field = fieldObj.AddComponent<DefensiveField>();
-        field.Initialize(transform, s.bulletData, 1.5f, assignedTag, assignedLayer);
-    }
 
     private void ExecuteNWay(PlayerSkillData.SkillSettings s, Vector3 pos, float baseAngle)
     {
@@ -521,10 +628,13 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     /// </summary>
 
 
+    // 📄 PlayerDanmakuEmitter.cs 内の CreateShot メソッド【攻撃ランク・最下流溶接版】
     private void CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay, bool isConverge = false)
     {
-        // 1. スプライト本来の弾幕プレハブを実体化（本体はクッキリ最前面に描画）
-        GameObject obj = Instantiate(data.bulletPrefab, pos, Quaternion.identity);
+        // 💡 修正の核心：プレハブを実体化する前に、この弾幕データの「純粋なクローン（複製）」を作ります。
+        // 💡 これにより、元の ScriptableObject(アセット)のダメージ設定値を永久に汚すことなく、
+        // 💡 このフレームで生まれる弾だけの攻撃力倍率を安全に書き換えることができます！
+        BulletData runtimeData = Instantiate(data);
 
         // 大元の所有者（PlayerStatusManager）の精密探索コンテキスト
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -536,63 +646,60 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         int ownerId = (myStatus != null) ? myStatus.playerId : 1;
 
         // =========================================================================
-        // 🔮【Resources完全撤廃型：白アセットカラー着色・非混色加算オーラシステム】
+        // 🎯【大正法】：弾幕射出の瞬間にキャラクターの攻撃ランク倍率を動的結合！
+        // =========================================================================
+        if (myStatus != null && myStatus.characterData != null)
+        {
+            float atkMultiplier = 1.0f;
+            switch (myStatus.characterData.rankAttack)
+            {
+                case StatusRank.E: atkMultiplier = 0.8f; break;
+                case StatusRank.D: atkMultiplier = 0.9f; break;
+                case StatusRank.C: atkMultiplier = 1.0f; break;
+                case StatusRank.B: atkMultiplier = 1.1f; break;
+                case StatusRank.A: atkMultiplier = 1.2f; break;
+                case StatusRank.EX: atkMultiplier = 1.3f; break;
+            }
+
+            // 💡 キャラクター固有の攻撃ランク倍率を、生まれたての弾幕にダイレクト乗算！
+            runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
+        }
+
+        // 1. スプライト本来の弾幕プレハブを実体化（上書きされた runtimeData を使用）
+        GameObject obj = Instantiate(runtimeData.bulletPrefab, pos, Quaternion.identity);
+
+        // =========================================================================
+        // 🔮【白アセットカラー着色・非混色加算オーラシステム】
         // =========================================================================
         SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
-        if (mainSR != null && data != null)
+        if (mainSR != null)
         {
-            // 💡 1. オーラ専用の子供オブジェクトを生成してバインド
             GameObject auraChild = new GameObject("PureColorAuraObject");
             auraChild.transform.SetParent(obj.transform);
 
-            // 💡 2. 位置・回転を本体と100%完全同調させ、サイズを一回り大きく拡張！
             auraChild.transform.localPosition = Vector3.zero;
             auraChild.transform.localRotation = Quaternion.identity;
             auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
 
             SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
 
-            // 💡 3. レイヤー順（SortingOrder）を、本体スプライトの「真後ろ（-1）」へ潜り込ませる
             auraSR.sortingLayerID = mainSR.sortingLayerID;
             auraSR.sortingOrder = mainSR.sortingOrder - 1;
 
-            // =========================================================================
-            // 🎯【ノンリソース化の核心：静的データバインド調停】
-            // =========================================================================
-            // 💡 Resources.Loadを100%完全パージ！
-            // 💡 BulletDataのインスペクターに直接登録されたマテリアルから最速でデータ共有。
-            if (data.auraMaterial != null)
-            {
-                auraSR.material = data.auraMaterial;
-            }
-            else
-            {
-                // 🛡️ 安全弁：もしアセット側で入れ忘れていた場合のみ、標準の粒子加算シェーダーをバックアップビルド
-                auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-            }
+            if (runtimeData.auraMaterial != null) auraSR.material = runtimeData.auraMaterial;
+            else auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
 
-            // 💡 5. 白スプライトをアサインし、プレイヤーカラーで着色
-            if (data.auraWhiteSprite != null)
-            {
-                auraSR.sprite = data.auraWhiteSprite;
-            }
-            else
-            {
-                auraSR.sprite = mainSR.sprite;
-            }
+            if (runtimeData.auraWhiteSprite != null) auraSR.sprite = runtimeData.auraWhiteSprite;
+            else auraSR.sprite = mainSR.sprite;
 
-            // 💡 6. 大元の持ち主のカラー（imageColor）を精密抽出してオーラへ着色インジェクション！
             if (myStatus != null && myStatus.characterData != null)
             {
                 Color charImageColor = myStatus.characterData.imageColor;
-
-                // 加算合成マテリアルの不透明度（アルファ）を一番綺麗に輝く 0.7f 前後に調整して注入
                 charImageColor.a = 1.0f;
                 auraSR.color = charImageColor;
             }
             else
             {
-                // セーフティ安全弁
                 Color defaultColor = (ownerId == 1) ? Color.cyan : Color.red;
                 defaultColor.a = 1.0f;
                 auraSR.color = defaultColor;
@@ -609,7 +716,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
         if (bullet != null)
-            bullet.Initialize(_rootOwner, targetTag, speed, angle, 0, speed, 0, delay, data, isConverge);
+            bullet.Initialize(_rootOwner, targetTag, speed, angle, 0, speed, 0, delay, runtimeData, isConverge);
     }
     private void ExecutePolygon(PlayerSkillData.SkillSettings s, Vector3 pos, float startAngle)
     {
@@ -657,7 +764,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             {
                 laser.SetupA(_rootOwner, targetTag, s.bulletData.damage,
                              transform.position.x, transform.position.y, s.count, s.wideAngle,
-                             color, (int)s.delay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite);
+                             color, (int)s.delay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
             }
 
             // 角度設定（1セット目は現在のターゲット方向）
@@ -682,9 +789,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (BulletManager.Instance == null) { _activeSkillCoroutines--; yield break; }
 
         List<EnemyLaserBeam> spawnedLasers = new List<EnemyLaserBeam>();
+        int LaserWay = 24;
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+        if (isSpellActive)
+        {
+            LaserWay = 48;    
+        }
 
         // --- 設定パラメータ ---
-        int laserCount = Mathf.Max(1, 32); // 18本
+        int laserCount = Mathf.Max(1, LaserWay); // 18本
         float radius = 1.6f;             // 弾源の半径
         int stopFrame = 40;              // 回転が止まり始めるフレーム
         int warningFrame = stopFrame + 60; // 完全に止まってから実線化するまでの「タメ」
@@ -717,10 +831,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 spawnedLasers.Add(laser);
 
                 // ★ 発射時の自機座標を centerPos として固定する SetupB を使用
+                // ✨ 修正後
                 laser.SetupB(_rootOwner, targetTag, s.bulletData.damage,
                              transform.position.x, transform.position.y,
                              s.count, s.wideAngle, color, warningFrame,
-                             BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite);
+                             BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
 
                 float currentStartAngle = baseAngle + (360f / laserCount * i);
 
@@ -769,18 +884,33 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     /// 自機外し全方位弾を、射角を回転させ、段階的に弾速を上げながら連射する
     /// 1回使うごとに回転方向が交互に反転する
     /// </summary>
+   // 📄 PlayerDanmakuEmitter.cs 内の RotatingAccelRoundRoutine メソッド【領域展開・弾数4増量変調版】
     private IEnumerator RotatingAccelRoundRoutine(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++; // 実行中カウント（MP回復停止）
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); //
         PlayerMove myMove = GetComponentInParent<PlayerMove>(); //
-
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        float addan = 12;
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
 
         Vector3 pos = transform.position; //
 
-        // 1. 1波あたりの弾数を設定（インスペクターのCountを使用）
-        int bulletCount = Mathf.Max(2, s.count); //
+        // =========================================================================
+        // 🔮【新設：領域展開連動・4極アレイ拡張マトリクス】
+        // =========================================================================
+        // 💡 大元の所有者から現在の領域展開（スペルカード）ステートをチェック
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+        // 💡 高橋さんの指定：領域展開中であればベースの数（s.count）から「4」を動的に加算！
+        int baseBulletCount = s.count;
+        if (isSpellActive)
+        {
+            baseBulletCount += 4;
+        }
+
+        // 1. 1波あたりの弾数を設定（偶数丸め処理）
+        int bulletCount = Mathf.Max(2, baseBulletCount); //
         if (bulletCount % 2 != 0) bulletCount++; //
 
         float step = 360f / bulletCount; //
@@ -791,12 +921,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float currentSpeed = s.speed; // 初速（インスペクターのSpeed）
 
         // ★ 現在の状態を取得し、フラグを反転させて次回に備える
-        bool currentRotReversed = _isRoundRotReversed;
-        _isRoundRotReversed = !_isRoundRotReversed;
+        bool currentRotReversed = _isRoundRotReversed; //
+        _isRoundRotReversed = !_isRoundRotReversed; //
 
         // フラグに応じて回転方向を 1.0 または -1.0 にする
-        float rotDirection = currentRotReversed ? -1f : 1f;
-        float angleIncrement = 13f * rotDirection; // ★ 1波ごとの回転角の向きを決定
+        float rotDirection = currentRotReversed ? -1f : 1f; //
+        float angleIncrement = addan * rotDirection; // ★ 1波ごとの回転角の向きを決定
 
         // 射撃開始時のターゲットへの基本角度を算出
         float targetAngle = GetAngleToTarget(); //
@@ -815,13 +945,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             {
                 // ベース角 + 全方位分割角 + wによる回転量を加算
                 float finalAngle = baseAngle + (step * i) + (angleIncrement * w); //
+
+                // 💡 すでに完成しているCreateShotインフラを通るため、
+                // 💡 4発増量された全弾の真ろに、混色ゼロの美しい白シルエット加算オーラが自動で溶接されます！
                 CreateShot(s.bulletData, pos, currentSpeed, finalAngle, s.delay); //
             }
 
             // 次の波の弾速を上げる（段階的加速）
             currentSpeed += 0.5f; //
 
-            // 波と波の間の時間差（1フレーム待機）
+            // 波と波の間の時間差（3フレーム待機）
             for (int f = 0; f < 3; f++) //
             {
                 yield return new WaitForFixedUpdate(); //
@@ -831,60 +964,77 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         // 次のキャストまでのクールタイム待機
         yield return new WaitForSeconds(s.cooldown); //
 
-        if (myMove != null && ! _isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f; //
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f; //
         _activeSkillCoroutines--; //
     }
-    /// <summary>
-    /// 強欲：グリード・タックス＆ポゼッション
-    /// 敵弾をかき消して必殺ゲージに変え、その場に一回転するカウンターナイフを生成する防御フィールドを展開
-    /// </summary>
+    // 📄 PlayerDanmakuEmitter.cs 内の強欲カウンター制御セクター【領域展開・性能4冠ブースト版】
     private IEnumerator GreedTaxPossessionRoutine(PlayerSkillData.SkillSettings s)
     {
-        _activeSkillCoroutines++;
+        _activeSkillCoroutines++; //
 
-        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
-        if (myMove != null && !_isEXSkillActive && s.moveSpeedMultiplier < 1.0f)
+        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>(); //
+        if (myMove != null && !_isEXSkillActive && s.moveSpeedMultiplier < 1.0f) //
         {
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
         }
 
-        PlaySkillSE(s.sePath);
+        PlaySkillSE(s.sePath); //
 
         // 1. スキルデータに登録された「フィールドプレハブ」を生成
-        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
+        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity); //
 
         // 2. 所属チームに応じたタグとレイヤーを生成の瞬間に割り当てる
-        var myStatus = GetComponentInParent<PlayerStatusManager>();
-        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+        var myStatus = GetComponentInParent<PlayerStatusManager>(); //
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1; //
 
-        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
-        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet"; //
+        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet"); //
 
-        fieldObj.tag = assignedTag;
-        fieldObj.layer = assignedLayer;
-        SetLayerRecursive(fieldObj, assignedLayer);
+        fieldObj.tag = assignedTag; //
+        fieldObj.layer = assignedLayer; //
+        SetLayerRecursive(fieldObj, assignedLayer); //
 
         // 3. プレハブにあらかじめ付いている GreedTaxPossessionField コンポーネントを取得
-        GreedTaxPossessionField fieldLogic = fieldObj.GetComponent<GreedTaxPossessionField>();
+        GreedTaxPossessionField fieldLogic = fieldObj.GetComponent<GreedTaxPossessionField>(); //
 
         if (fieldLogic != null)
         {
-            // ★ ブーメランビットと同様、アタッチされたコンポーネントに必要な参照を渡して初期化
-            fieldLogic.Initialize(transform, _rootOwner, targetTag, this);
+            // 💡 4. 領域展開中（スペルカードアクティブ）のフラグを上流インフラから安全に取得
+            bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+            // 💡 5. 【高橋さんの指定】：通常値と領域展開中のパラメータを完全に仕分け
+            float targetDuration = 1.5f;     // 通常時の持続時間（秒）
+            float targetScaleMultiplier = 1f; // 通常時のスケール等倍
+            float targetKnifeSpeed = 6f;   // 通常時の反射カウンター弾速
+            float targetEnergyGain = 1.5f;   // 通常時の1発あたりゲージ回復量
+
+            if (isSpellActive)
+            {
+                // 🎯 領域展開中：性能4冠の一挙極大ブーストを執行！
+                targetDuration = 3.0f;        // ⏰ 持続時間を「3.0秒」へ延長（2倍）
+                targetScaleMultiplier = 1.3f; // 📐 フィールドの大きさを「1.8倍」へ巨大化
+                targetKnifeSpeed = 9.0f;      // ⚡ 反射カウンター弾速を「7.0f」へ高速化
+                targetEnergyGain = 0f;      // 🪙 ゲージ回復量を「3.0f」へ倍増
+                Debug.Log($"<color=orange>🪙【領域展開・強欲の重税】魔方陣フィールド強化：Duration:{targetDuration}s, Scale:{targetScaleMultiplier}x, KnifeSpeed:{targetKnifeSpeed}, EnergyGain:{targetEnergyGain}</color>");
+            }
+
+            // 💡 6. 拡張された窓口へ変調パラメータを安全にインジェクション！
+            fieldLogic.Initialize(transform, _rootOwner, targetTag, this, targetDuration, targetScaleMultiplier, targetKnifeSpeed, targetEnergyGain);
+
+            // 💡 7. 【タイムライン完全同期】：フィールドの稼働時間（持続秒数 ＋ 拡縮演出0.2秒）に正確に一致させてEmitter側も待機！
+            yield return new WaitForSeconds(targetDuration + 0.2f);
         }
         else
         {
-            Debug.LogError("フィールド用プレハブに GreedTaxPossessionField が付いていません！");
+            Debug.LogError("フィールド用プレハブに GreedTaxPossessionField が付いていません！"); //
+            yield return new WaitForSeconds(1.5f + 0.2f);
         }
 
-        // 4. フィールドの有効持続時間分、Emitter側も安全に同期待機
-        yield return new WaitForSeconds(3.0f + 0.2f);
-
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f; //
+        _activeSkillCoroutines--; //
     }
 
-  
+
 
     /// <summary>
     /// 【キャラA専用EX】陰陽オーブ公転・ホーミング追従アサルト（公転終了時に自機の硬直速度制限を最速解除する最適化版）
@@ -1820,7 +1970,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                     zessenLaser.SetupA(_rootOwner, targetTag, s.bulletData.damage * 2,
                                      finalLaserSpawnPos.x, finalLaserSpawnPos.y,
                                      laserDistance, 0.5f,
-                                     color, dynamicDelay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite);
+                                     color, dynamicDelay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
 
                     SpriteRenderer laserSR = laserObj.GetComponentInChildren<SpriteRenderer>();
                     bool isCustomSpriteAssigned = (s.bulletData.bulletSprite != null);
@@ -2010,14 +2160,18 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         myMove.skillSpeedMultiplier = 1.0f;
     }
 
+    // 📄 PlayerDanmakuEmitter.cs 内の TemporarySlow コルーチン【参照完全分離版】
     private IEnumerator TemporarySlow(float multiplier, float duration)
     {
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-        if (myMove != null) myMove.skillSpeedMultiplier = multiplier;
-        yield return new WaitForSeconds(duration);
+        // 🔄 修正前：PlayerMove myMove = GetComponentInParent<PlayerMove>();
+        // 🎯 修正後：Awakeで確定ロックした「自分自身の_rootOwner」から直接引っ張ることで、
+        // 💡 対戦相手のPlayerMoveのポインタを誤って掴んでしまう事故を100%物理的にパージします！
+        PlayerMove myMove = (_rootOwner != null) ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
 
-        // 🔄 修正前：myMove.skillSpeedMultiplier = 1.0f;
-        RestoreSpeedSafety(myMove); // ✨ 修正後：安全関数経由にしてガード！
+        if (myMove != null) myMove.skillSpeedMultiplier = multiplier; //
+        yield return new WaitForSeconds(duration); //
+
+        RestoreSpeedSafety(myMove); //
     }
 
     // 拡張した内部データ管理クラス

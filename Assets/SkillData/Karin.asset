@@ -12,6 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
   m_Name: Karin
   m_EditorClassIdentifier: 
+  rankHP: 3
+  rankMP: 3
+  rankAttack: 4
+  rankAgility: 2
+  rankMMPRegen: 1
+  rankSpellZone: 3
   characterName: Player1
   imageColor: {r: 1, g: 0, b: 0, a: 1}
   spellCardName: "\u25CB\u7B26\u300C\u25CB\u25CB\u25CB\u25CB\u300D"
@@ -40,7 +46,7 @@ MonoBehaviour:
     speed: 4.5
     angleOffset: 0
     wideAngle: 45
-    moveSpeedMultiplier: 0.5
+    moveSpeedMultiplier: 0.2
     delay: 5
     cost: 33
     ultimateGain: 4
@@ -56,7 +62,7 @@ MonoBehaviour:
     angleOffset: 0
     wideAngle: 60
     moveSpeedMultiplier: 0.5
-    delay: 20
+    delay: 10
     cost: 20
     ultimateGain: 8
   skillC:

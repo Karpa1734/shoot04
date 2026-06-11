@@ -134,14 +134,91 @@ public class PlayerStatusManager : MonoBehaviour
         }
     }
 
+    // 📄 PlayerStatusManager.cs 内の Start メソッドおよび拡張インフラ層
+    // 📄 PlayerStatusManager.cs 内の Start メソッド（6大パラメーター完全適合版）
     void Start()
     {
-        currentHP = maxHP;
-        ApplyCharacterSettings();
-        StartCoroutine(SetupInitialUI());
-        StartCoroutine(InitUIWithDelay());
-    }
+        // ========================================================================
+        // 🎯【完全調停】：6大パラメーターランクの動的デコード・反映マトリクス
+        // =========================================================================
+        if (characterData != null)
+        {
+            // 🟥 ① 体力 (最大HP) の反映
+            switch (characterData.rankHP)
+            {
+                case StatusRank.E: maxHP = 80f; break;
+                case StatusRank.D: maxHP = 90f; break;
+                case StatusRank.C: maxHP = 100f; break;
+                case StatusRank.B: maxHP = 110f; break;
+                case StatusRank.A: maxHP = 120f; break;
+                case StatusRank.EX: maxHP = 130f; break;
+            }
 
+            // 🟦 ② 魔力 (マナの最大値の高さ rankMP) ➔ Dataの maxEnergy と完全対応！
+            float convertedMaxEnergy = 100f;
+            switch (characterData.rankMP)
+            {
+                case StatusRank.E: convertedMaxEnergy = 80f; break;
+                case StatusRank.D: convertedMaxEnergy = 90f; break;
+                case StatusRank.C: convertedMaxEnergy = 100f; break;
+                case StatusRank.B: convertedMaxEnergy = 110f; break;
+                case StatusRank.A: convertedMaxEnergy = 120f; break;
+                case StatusRank.EX: convertedMaxEnergy = 130f; break;
+            }
+            if (_playerMove != null) _playerMove.maxEnergy = convertedMaxEnergy;
+
+            // 🟨 ③ 敏捷 (高速移動時の移動速度 rankAgility) ➔ 基準値5.0、規律数値を100%ジャスト適合！
+            if (_playerMove != null)
+            {
+                float calculatedAgilitySpeed = 5.0f; // 💡 基準値5.0に完全修正
+                switch (characterData.rankAgility)
+                {
+                    case StatusRank.E: calculatedAgilitySpeed = 4.0f; break; // 💡 規律通りの4.0
+                    case StatusRank.D: calculatedAgilitySpeed = 4.5f; break; // 💡 規律通りの4.5
+                    case StatusRank.C: calculatedAgilitySpeed = 5.0f; break; // 💡 規律通りの5.0
+                    case StatusRank.B: calculatedAgilitySpeed = 5.5f; break; // 💡 規律通りの5.5
+                    case StatusRank.A: calculatedAgilitySpeed = 6.0f; break; // 💡 規律通りの6.0
+                    case StatusRank.EX: calculatedAgilitySpeed = 6.5f; break; // 💡 規律通りの6.5
+                }
+
+                // 💡 PlayerMove側の SetSpeedFromRank をキックし、focusSpeed (0.4倍) と共に物理完全固定！
+                _playerMove.SetSpeedFromRank(calculatedAgilitySpeed);
+            }
+
+            // 🟩 ④ マナ再生 (マナゲージ再生の速さ rankMMPRegen) ➔ Dataの energyRegenRate と完全対応！
+            if (_playerMove != null)
+            {
+                switch (characterData.rankMMPRegen)
+                {
+                    case StatusRank.E: _playerMove.energyRegenRate = 60f; break;
+                    case StatusRank.D: _playerMove.energyRegenRate = 65f; break;
+                    case StatusRank.C: _playerMove.energyRegenRate = 70f; break;
+                    case StatusRank.B: _playerMove.energyRegenRate = 75f; break;
+                    case StatusRank.A: _playerMove.energyRegenRate = 80f; break;
+                    case StatusRank.EX: _playerMove.energyRegenRate = 85f; break;
+                }
+            }
+
+            // 🔮 ⑤ 領域維持時間 (rankSpellZone) ＆ 術式焼き切れ（Overheat）秒数の完全連動
+            switch (characterData.rankSpellZone)
+            {
+                case StatusRank.E: maxSpellDuration = 20f; characterOverheatDuration = 20f; break;
+                case StatusRank.D: maxSpellDuration = 25f; characterOverheatDuration = 25f; break;
+                case StatusRank.C: maxSpellDuration = 30f; characterOverheatDuration = 30f; break;
+                case StatusRank.B: maxSpellDuration = 35f; characterOverheatDuration = 35f; break;
+                case StatusRank.A: maxSpellDuration = 40f; characterOverheatDuration = 40f; break;
+                case StatusRank.EX: maxSpellDuration = 45f; characterOverheatDuration = 45f; break;
+            }
+            // 最小持続時間は、最大持続時間の0.6倍に数理同期
+            minSpellDuration = maxSpellDuration * 0.6f;
+        }
+
+        // --- 既存のUI初期化インフラへ完全結合 ---
+        currentHP = maxHP; //
+        ApplyCharacterSettings(); //
+        StartCoroutine(SetupInitialUI()); //
+        StartCoroutine(InitUIWithDelay()); //
+    }
     private IEnumerator InitUIWithDelay()
     {
         yield return null;

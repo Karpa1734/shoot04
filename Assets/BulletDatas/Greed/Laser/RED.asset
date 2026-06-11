@@ -26,3 +26,5 @@ MonoBehaviour:
   delaySprite: {fileID: 1494407525467865721, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
   breakColor: {r: 1, g: 0, b: 0, a: 1}
   material: {fileID: 0}
+  auraMaterial: {fileID: 2100000, guid: b955a6fe290ae404496e5fc9dc6bd3da, type: 2}
+  auraWhiteSprite: {fileID: -2212790594762488657, guid: c7e094b60271cb24a91b0c42e142e170, type: 3}

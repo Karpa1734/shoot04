@@ -1,6 +1,7 @@
 ﻿// --- PlayerSkillData.cs 修正完全版 ---
 using UnityEngine;
-
+// 💡 6段階のステータスランクを完全定義
+public enum StatusRank { E, D, C, B, A, EX }
 public enum SkillPatternType
 {
     Standard, nWay, Round, Polygon, Line, Custom,
@@ -27,6 +28,18 @@ public enum VJTEffectType
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]
 public class PlayerSkillData : ScriptableObject
 {
+    // =========================================================================
+    // 📊【新設：6大パラメーター・ランクインフラ】
+    // =========================================================================
+    [Header("📊 キャラクター基礎ステータス評価（E ～ EX）")]
+    [Tooltip("体力(最大HP)の高さ評価")] public StatusRank rankHP = StatusRank.C;
+    [Tooltip("魔力(最大マナ)の高さ評価")] public StatusRank rankMP = StatusRank.C;
+    [Tooltip("攻撃(弾幕の基礎攻撃力倍率)評価")] public StatusRank rankAttack = StatusRank.C;
+    [Tooltip("敏捷(高速移動速度の速さ倍率)評価")] public StatusRank rankAgility = StatusRank.C;
+    [Tooltip("マナ再生(マナゲージの自動回復速度)評価")] public StatusRank rankMMPRegen = StatusRank.C;
+    [Tooltip("領域(聖少女領域の最大持続時間)評価")] public StatusRank rankSpellZone = StatusRank.C;
+
+
     [Header("Character Info")]
     public string characterName = "キャラクター名";
     public Color imageColor = Color.white;
@@ -71,10 +84,6 @@ public class PlayerSkillData : ScriptableObject
     public VJTEffectType vjtEffectType = VJTEffectType.None;
     [Tooltip("効果の強度（例：HpDrainなら1秒間のダメージ、SizeUpならコライダースケール倍率）")]
     public float vjtEffectValue = 10f;
-
-    [Header("Character Energy Settings")]
-    public float maxEnergy = 100f;
-    public float energyRegenRate = 15f;
 
     [System.Serializable]
     public struct SkillSettings

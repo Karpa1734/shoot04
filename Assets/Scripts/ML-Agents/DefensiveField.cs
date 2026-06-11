@@ -1,105 +1,112 @@
+ï»¿// --- DefensiveField.cs é ˜åŸŸå¤‰èª¿ãƒ»å¤–éƒ¨æ‹¡å¼µå¯¾å¿œç‰ˆ ---
 using UnityEngine;
 using System.Collections;
 
 /// <summary>
-/// Š—LÒî•ñ‚ğ‚¿A“G’e‚Ì‚İ‚ğÁ‹‚µ‚Ä“GƒvƒŒƒCƒ„[‚É‚Ì‚İƒ_ƒ[ƒW‚ğ—^‚¦‚é–hŒäƒtƒB[ƒ‹ƒhB
+/// æ‰€æœ‰è€…æƒ…å ±ã‚’æŒã¡ã€æ•µå¼¾ã®ã¿ã‚’æ¶ˆå»ã—ã¦æ•µãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã«ã®ã¿ãƒ€ãƒ¡ãƒ¼ã‚¸ã‚’ä¸ãˆã‚‹é˜²å¾¡ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã€‚
 /// </summary>
 [RequireComponent(typeof(CircleCollider2D), typeof(SpriteRenderer))]
 public class DefensiveField : MonoBehaviour
 {
-    private Transform _owner; // Š—LÒ‚ÌTransform
+    private Transform _owner; // æ‰€æœ‰è€…ã®Transform
     private BulletData _data;
     private float _duration;
 
     [Header("Size Settings")]
-    [SerializeField] private float _maxScale = 2.0f;
-    [SerializeField] private float _expandTime = 0.2f;
-    [SerializeField] private float _shrinkTime = 0.5f;
+    [SerializeField] private float _maxScale = 2.0f; //
+    [SerializeField] private float _expandTime = 0.2f; //
+    [SerializeField] private float _shrinkTime = 0.5f; //
 
     /// <summary>
-    /// ‰Šú‰»BŠ—LÒ‚Ìî•ñ‚ğƒZƒbƒg‚µAƒ^ƒO‚ÆƒŒƒCƒ„[‚ğŠ„‚è“–‚Ä‚éB
+    /// åˆæœŸåŒ–ã€‚æ‰€æœ‰è€…ã®æƒ…å ±ã‚’ã‚»ãƒƒãƒˆã—ã€ã‚¿ã‚°ã¨ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’å‰²ã‚Šå½“ã¦ã‚‹ã€‚
     /// </summary>
-    public void Initialize(Transform owner, BulletData data, float duration, string bulletTag, int layer)
+    // ğŸ¯ã€å¼•æ•°æ‹¡å¼µã€‘ï¼šå¤–éƒ¨ã‹ã‚‰å‹•çš„ã«æœ€å¤§ã‚¹ã‚±ãƒ¼ãƒ«ï¼ˆoverrideScaleï¼‰ã‚’ç›´æ¥æŒ‡å®šã§ãã‚‹ã‚ˆã†ã«èª¿åœï¼
+    public void Initialize(Transform owner, BulletData data, float duration, string bulletTag, int layer, float overrideScale = -1f)
     {
-        _owner = owner;
-        _data = data;
-        _duration = duration;
+        _owner = owner; //
+        _data = data; //
+        _duration = duration; //
 
-        // Š—LÒ‚ÉŠî‚Ã‚¢‚½‘®«İ’è
-        gameObject.tag = bulletTag;
-        gameObject.layer = layer;
+        // ğŸ’¡ å¤–éƒ¨ã‹ã‚‰æœ‰åŠ¹ãªã‚µã‚¤ã‚ºæŒ‡å®šãŒã‚ã‚Œã°ã€ã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼åˆæœŸå€¤ã‚’ã‚ªãƒ¼ãƒãƒ¼ãƒ©ã‚¤ãƒ‰ï¼
+        if (overrideScale > 0f)
+        {
+            _maxScale = overrideScale;
+        }
 
-        // ƒRƒ‰ƒCƒ_[‚Ìİ’è[cite: 4]
-        var col = GetComponent<CircleCollider2D>();
-        col.isTrigger = true;
-        col.radius = data.radius;
-        col.offset = data.colliderOffset;
+        // æ‰€æœ‰è€…ã«åŸºã¥ã„ãŸå±æ€§è¨­å®š
+        gameObject.tag = bulletTag; //
+        gameObject.layer = layer; //
 
-        StartCoroutine(FieldRoutine());
+        // ã‚³ãƒ©ã‚¤ãƒ€ãƒ¼ã®è¨­å®š
+        var col = GetComponent<CircleCollider2D>(); //
+        if (col != null)
+        {
+            col.isTrigger = true; //
+            col.radius = data.radius; //
+            col.offset = data.colliderOffset; //
+        }
+
+        StartCoroutine(FieldRoutine()); //
     }
 
-    private IEnumerator FieldRoutine()
+    private IEnumerator FieldRoutine() //
     {
-        // 1. oŒ»iŠg‘åj
-        float elapsed = 0;
-        while (elapsed < _expandTime)
+        // 1. å‡ºç¾ï¼ˆæ‹¡å¤§ï¼‰
+        float elapsed = 0; //
+        while (elapsed < _expandTime) //
         {
-            elapsed += Time.deltaTime;
-            transform.localScale = Vector3.one * Mathf.SmoothStep(0, _maxScale, elapsed / _expandTime);
-            yield return null;
+            elapsed += Time.deltaTime; //
+            transform.localScale = Vector3.one * Mathf.SmoothStep(0, _maxScale, elapsed / _expandTime); //
+            yield return null; //
         }
-        transform.localScale = Vector3.one * _maxScale;
+        transform.localScale = Vector3.one * _maxScale; //
 
-        // 2. ‘±ƒtƒF[ƒY
-        float stayElapsed = 0;
-        while (stayElapsed < _duration)
+        // 2. æŒç¶šãƒ•ã‚§ãƒ¼ã‚º
+        float stayElapsed = 0; //
+        while (stayElapsed < _duration) //
         {
-            // ƒ‰ƒEƒ“ƒhI—¹‚Í’†’f‚µ‚ÄÁ–Å‚Ö[cite: 5]
-            if (!PlayerMove.CanShoot) break;
+            // ãƒ©ã‚¦ãƒ³ãƒ‰çµ‚äº†æ™‚ã¯ä¸­æ–­ã—ã¦æ¶ˆæ»…ã¸
+            if (!PlayerMove.CanShoot) break; //
 
-            stayElapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        // 3. Á–Åik¬j
-        elapsed = 0;
-        while (elapsed < _shrinkTime)
-        {
-            elapsed += Time.deltaTime;
-            transform.localScale = Vector3.one * Mathf.SmoothStep(_maxScale, 0, elapsed / _shrinkTime);
-            yield return null;
+            stayElapsed += Time.deltaTime; //
+            yield return null; //
         }
 
-        Destroy(gameObject);
+        // 3. æ¶ˆæ»…ï¼ˆç¸®å°ï¼‰
+        elapsed = 0; //
+        while (elapsed < _shrinkTime) //
+        {
+            elapsed += Time.deltaTime; //
+            transform.localScale = Vector3.one * Mathf.SmoothStep(_maxScale, 0, elapsed / _shrinkTime); //
+            yield return null; //
+        }
+
+        Destroy(gameObject); //
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void OnTriggerEnter2D(Collider2D collision) //
     {
-        // Š—LÒ‚ª‚¢‚È‚¢ê‡‚Í‰½‚à‚µ‚È‚¢iƒtƒF[ƒ‹ƒZ[ƒtj[cite: 5]
-        if (_owner == null) return;
+        if (_owner == null) return; //
 
-        // --- ’eÁ‚µ”»’è ---
-        // Õ“Ë‘Šè‚ª’eŠÛƒ^ƒO‚ğ‚Á‚Ä‚¨‚èA‚©‚Â©•ªiŠ—LÒj‚Æ“¯‚¶ƒ^ƒO‚Å‚È‚¢ê‡i“G‚Ì’ej[cite: 4]
-        if ((collision.CompareTag("PlayerBullet") || collision.CompareTag("EnemyBullet")) &&
-            !collision.CompareTag(gameObject.tag))
+        // --- å¼¾æ¶ˆã—åˆ¤å®š ---
+        if ((collision.CompareTag("PlayerBullet") || collision.CompareTag("EnemyBullet")) && //
+            !collision.CompareTag(gameObject.tag)) //
         {
-            DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
-            if (bullet != null)
+            DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>(); //
+            if (bullet != null) //
             {
-                // Á–ÅƒGƒtƒFƒNƒg‚ğ‹N“®‚µ‚Ä’e‚ğÁ‚·[cite: 4]
-                bullet.Deactivate(true);
+                bullet.Deactivate(true); //
             }
-            else
+            else //
             {
-                Destroy(collision.gameObject);
+                Destroy(collision.gameObject); //
             }
         }
 
-        // --- “GƒvƒŒƒCƒ„[‚Ö‚Ìƒ_ƒ[ƒW”»’è ---
-        // ‘Šè‚ªƒvƒŒƒCƒ„[‚Å‚ ‚èA©•ª©giŠ—LÒj‚Å‚Í‚È‚¢ê‡
-        if (collision.CompareTag("Player") && collision.transform != _owner)
+        // --- æ•µãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã¸ã®ãƒ€ãƒ¡ãƒ¼ã‚¸åˆ¤å®š ---
+        if (collision.CompareTag("Player") && collision.transform != _owner) //
         {
-            collision.SendMessage("OnHit", _data.damage, SendMessageOptions.DontRequireReceiver);
+            collision.SendMessage("OnHit", _data.damage, SendMessageOptions.DontRequireReceiver); //
         }
     }
 }

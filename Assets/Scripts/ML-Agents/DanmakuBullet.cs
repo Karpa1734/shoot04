@@ -113,6 +113,7 @@ public class DanmakuBullet : MonoBehaviour
     }
 
     // ★ 追加：オブジェクトプールに対応したカウンターナイフ専用の初期化メソッド
+    // 📄 DanmakuBullet.cs 内の InitializeKnifeCounter メソッド【白アセットオーラ溶接版】
     public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
     {
         this.owner = shooter;
@@ -123,23 +124,22 @@ public class DanmakuBullet : MonoBehaviour
         this.maxSpeed = shootSpeed;
         this.angularVelocity = 0;
 
-        // 🌟 修正の核心：時間停止ナイフ用でもプレハブ本来のサイズ（1.3など）をベースに乗算
+        // プレハブ本来のサイズ（1.3など）をベースに乗算
         Vector3 baseScaleKn = transform.localScale;
         float multiplierKn = (data.bulletScale > 0f) ? data.bulletScale : 1.0f;
         transform.localScale = new Vector3(baseScaleKn.x * multiplierKn, baseScaleKn.y * multiplierKn, baseScaleKn.z * multiplierKn);
 
-        // 秒数をFixedUpdate基準のフレーム数に変換（例: 0.5秒 ➔ 30フレーム）
+        // 秒数をFixedUpdate基準のフレーム数に変換
         this.delayFrames = Mathf.RoundToInt(delayDuration * 60f);
         this.totalDelay = this.delayFrames;
 
         this.isConverging = false;
-        this._isKnifeCounter = true; // ★ 強欲カウンターモードをオン
+        this._isKnifeCounter = true;
         this.isAnimated = false;
 
         sr.sprite = data.bulletSprite;
-        // 🎯【マテリアル生存権の調停】：
-        // 💡 エミッター側で既にオーラカラー（_AuraColor）がマテリアルにインジェクションされている場合は、
-        // 💡 それを最優先として残し、空（デフォルトマテリアル）の時だけ data.material を適用します！
+
+        // 🎯【マテリアル生存権の調停】
         if (sr.material == null || !sr.material.HasProperty("_AuraColor"))
         {
             if (data.material != null) sr.material = data.material;
@@ -156,6 +156,71 @@ public class DanmakuBullet : MonoBehaviour
             col.radius = data.radius;
             col.offset = data.colliderOffset;
             col.enabled = false;
+        }
+
+        // =========================================================================
+        // 🔮【新設：強欲カウンターナイフ専用・白アセットカラー着色オーラインフラ】
+        // =========================================================================
+        // 💡 既存の多重生成を防ぐため、すでに子供がいれば削除（プール返却対策）
+        Transform oldAura = transform.Find("PureColorAuraObject");
+        if (oldAura != null) Destroy(oldAura.gameObject);
+
+        if (sr != null && data != null)
+        {
+            // 💡 1. オーラ専用の子供オブジェクトを生成してバインド
+            GameObject auraChild = new GameObject("PureColorAuraObject");
+            auraChild.transform.SetParent(transform);
+
+            // 💡 2. 位置・回転を本体と完全同期させ、サイズを一回り（1.4倍）拡張！
+            auraChild.transform.localPosition = Vector3.zero;
+            auraChild.transform.localRotation = Quaternion.identity;
+            auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
+
+            SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
+
+            // 💡 3. レイヤー順（SortingOrder）を本体スプライトの「真後ろ（-1）」へ
+            auraSR.sortingLayerID = sr.sortingLayerID;
+            auraSR.sortingOrder = sr.sortingOrder - 1;
+
+            // 💡 4. BulletDataに直接登録されたマテリアルから最速で静的共有（Resources不使用）
+            if (data.auraMaterial != null)
+            {
+                auraSR.material = data.auraMaterial;
+            }
+            else
+            {
+                auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+            }
+
+            // 💡 5. 白スプライトをアサイン（空なら本体スプライトをフォールバックコピー）
+            if (data.auraWhiteSprite != null)
+            {
+                auraSR.sprite = data.auraWhiteSprite;
+            }
+            else
+            {
+                auraSR.sprite = sr.sprite;
+            }
+
+            // 💡 6. 大元の持ち主のイメージカラー（imageColor）を精密抽出して着色インジェクション！
+            PlayerStatusManager myStatus = shooter.GetComponent<PlayerStatusManager>();
+            if (myStatus == null) myStatus = shooter.GetComponentInParent<PlayerStatusManager>();
+
+            if (myStatus != null && myStatus.characterData != null)
+            {
+                Color charImageColor = myStatus.characterData.imageColor;
+
+                // 通常弾幕の仕様（アルファ1.0fのフル発光）と完全に歩調を同期！
+                charImageColor.a = 1.0f;
+                auraSR.color = charImageColor;
+            }
+            else
+            {
+                // セーフティ安全弁
+                Color defaultColor = Color.yellow; // カウンターのデフォルト色
+                defaultColor.a = 1.0f;
+                auraSR.color = defaultColor;
+            }
         }
 
         isInitialized = true;

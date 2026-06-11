@@ -16,6 +16,7 @@ MonoBehaviour:
   laserColor: 2
   bulletPrefab: {fileID: 4456364604320642973, guid: a9f1e03cdf9d3b3429be1484fec91f5c, type: 3}
   sizeType: 1
+  bulletScale: 1
   radius: 0.06
   colliderOffset: {x: 0, y: 0}
   damage: 20
@@ -25,3 +26,5 @@ MonoBehaviour:
   delaySprite: {fileID: 7099077274376888169, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
   breakColor: {r: 1, g: 1, b: 0, a: 1}
   material: {fileID: 0}
+  auraMaterial: {fileID: 2100000, guid: b955a6fe290ae404496e5fc9dc6bd3da, type: 2}
+  auraWhiteSprite: {fileID: 9082429109045791810, guid: 3b428c8542c1f3b4eb841f34c211c23e, type: 3}

@@ -4,8 +4,7 @@ using UnityEngine;
 // --- ロジック制御クラス：座標計算と移動の実行（Rigidbody2D） ---
 public class DanmakuController : MonoBehaviour
 {
-    [SerializeField] private float highSpeed = 4.5f;
-    [SerializeField] private float lowSpeed = 2.0f;
+    // 🛡️【パージ】：固定値の highSpeed, lowSpeed は評価ランクの不整合（バグ）の原因となるため破棄しました。
 
     [Header("Movement Bounds")]
     public float minX = -4.0f;
@@ -45,7 +44,13 @@ public class DanmakuController : MonoBehaviour
         // 3. 入力と速度の計算
         var input = shell.currentFrameInput;
         Vector2 inputVec = new Vector2(input.h, input.v);
-        float baseSpeed = input.slow ? lowSpeed : highSpeed;
+
+        // =========================================================================
+        // 🎯【核心修正】：インスペクターの固定値をパージし、溶接されたランク速度へ直撃結合！
+        // =========================================================================
+        // 💡 シフト（低速移動）中であれば、shell側で「高速速度の0.4倍」に完全クランプされた focusSpeed を適用。
+        // 💡 通常時であれば、敏捷ランクから算出された固有の normalSpeed をダイレクトスキャンします！
+        float baseSpeed = input.slow ? shell.focusSpeed : shell.normalSpeed;
 
         // ★ 重要：PlayerMove のスキル倍率をここで掛け合わせる
         float finalSpeed = baseSpeed * shell.skillSpeedMultiplier;

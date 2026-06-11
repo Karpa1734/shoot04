@@ -21,6 +21,11 @@ public class PlayerMove : MonoBehaviour
     [Header("Ultimate Energy")]
     public float ultimateEnergy = 0f;
     public const float MAX_ULTIMATE_ENERGY = 300f;
+
+    // 💡[HideInInspector] を外し、PlayerStatusManagerから直接叩き込める正式な実数値プロパティとして一本化！
+    // 💡ランク(rankMMPRegen)から逆算されたマナ秒間回復量がここに格納されます。
+    public float energyRegenRate = 15f;
+
     [System.Serializable]
     public struct ReplayFrame // もし class で定義されている場合は public class ReplayFrame
     {
@@ -63,6 +68,21 @@ public class PlayerMove : MonoBehaviour
             if (ultimateEnergy >= MAX_ULTIMATE_ENERGY) return 1.0f;
             return (ultimateEnergy % 100f) / 100f;
         }
+    }
+    // 💡【新設：機体IDロック型・速度主権絶対防壁システム】
+    public void SetSpeedFromRank(float speed)
+    {
+        // 🎯 核心：このコンポーネントがアタッチされている「自身の playerId (1 or 2)」を完全にロック！
+        // 💡 外部（他プレイヤー）のリセットルーチンからの誤混入を完全に弾き返します。
+        this.normalSpeed = speed;
+        this.focusSpeed = speed * 0.4f;
+
+        // 💡【上書き負け撲滅】：現在のフレームで速度倍率（skillSpeedMultiplier）が
+        // 💡 他の干渉によって不当に変調されているリスクをパージするため、
+        // 💡 固有の速度が確定したこの瞬間に、等速の「1.0f」を自身の体にガチッと上書き再溶接します！
+        this.skillSpeedMultiplier = 1.0f;
+
+        Debug.Log($"<color=cyan>🏃【敏捷同期・主権確定】Player {this.playerId} ➔ 高速速度: {this.normalSpeed} (倍率:{this.skillSpeedMultiplier}) / 低速速度: {this.focusSpeed} の独立バインドに成功！</color>");
     }
     void Awake()
     {
