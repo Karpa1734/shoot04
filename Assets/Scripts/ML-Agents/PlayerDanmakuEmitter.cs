@@ -276,9 +276,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
         }
 
-        // 次のセットまでの待機
         yield return new WaitForSeconds(s.cooldown);
-
         // 状態を戻す
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
@@ -434,9 +432,10 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
         }
 
+        yield return null;
         // 2. ★ 重要：次の射撃が可能になるまで（cooldown秒間）状態を維持する
         // これにより、連射中に「速度制限」と「コスト回復停止」が継続します
-        float waitTime = Mathf.Max(0.1f, s.cooldown);
+        float waitTime = Mathf.Max(0.1f, 0.4f);
         yield return new WaitForSeconds(waitTime);
 
         // 3. 速度制限を解除し、実行中カウントを減らす
@@ -518,6 +517,13 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 case StatusRank.EX: atkMultiplier = 1.3f; break;
             }
 
+            // 🧬【パッシブスキル割り込み】：被弾時攻撃力強化バフが有効なら、さらに1.3倍
+            if (myStatus.IsAttackBoostActive)
+            {
+                atkMultiplier *= 1.3f;
+            }
+            // 👁️【新規追加パッシブ】：相手のゲージ量に応じた嫉妬倍率を動的に乗算
+            atkMultiplier *= myStatus.GetJealousyMultiplier();
             runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
         }
 
@@ -661,7 +667,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 case StatusRank.EX: atkMultiplier = 1.3f; break;
             }
 
-            // 💡 キャラクター固有の攻撃ランク倍率を、生まれたての弾幕にダイレクト乗算！
+            // 🧬【パッシブスキル割り込み】：被弾時攻撃力強化バフが有効なら、さらに1.3倍
+            if (myStatus.IsAttackBoostActive)
+            {
+                atkMultiplier *= 1.3f;
+            }
+
+            // 👁️【新規追加パッシブ】：相手のゲージ量に応じた嫉妬倍率を動的に乗算
+            atkMultiplier *= myStatus.GetJealousyMultiplier();
+
+            // 💡 キャラクター固有の攻撃ランク倍率 ＆ パッシブ倍率を、生まれたての弾幕にダイレクト乗算！
             runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
         }
 
@@ -961,9 +976,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
         }
 
-        // 次のキャストまでのクールタイム待機
-        yield return new WaitForSeconds(s.cooldown); //
-
+        yield return new WaitForSeconds(s.cooldown);
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f; //
         _activeSkillCoroutines--; //
     }
@@ -1413,25 +1426,22 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
 
     }
-   /// <summary>
-    /// 🌟【領域展開専用】：45度差トリプル一閃（中央1本：通常完全同調・自機狙い確定版）
-    /// 🌟 【仕様変更】：120度分散をパージし、ターゲット正面を中心に左右45度（0度、+45度、-45度）に開く扇形3連撃へ調停。
-    /// 🌟 基準角の計算を「自機の現在地」に復旧させたことで、中央の1本目が通常時と1ミリの狂いもなく完璧に敵の芯を捉えます。
+    /// <summary>
+    /// 🌟【領域展開専用】：トリプル一閃（中央1本：通常完全同調・自機狙い確定版）
+    /// 💡【数理修復】：子スレッドへ渡すオフセット配列と、軌道回転行列の結合バグを完全根治しました。
     /// </summary>
     private IEnumerator ExecuteKarinTripleScalesSlashRoutine(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
-        
-        // 🎯【自機狙い完全復旧】：
-        // 💡 ステージ中央固定ではなく、現在の「自機の座標（transform.position）」から敵機を見据えた
-        // 💡 正規のターゲット角度を取得することで、通常時と100%同一のジャストミート自機狙い軸を確立します！
+
+        // 1. 現在の自機の位置から敵機を見据えた、絶対的な基準ターゲット角度を取得
         float absoluteCenterAngle = GetAngleToTarget(transform.position);
 
-        // 🎯【仕様変更】：ターゲットの正面を中心に、左右45度ずつ扇形に開くトリプルオフセット配列
+        // 🎯 ターゲット正面を中心に、指定のオフセットで扇形に展開する3連撃配列
         // 💡 1本目（i=0）➔ 敵機のど真ん中（0度）
-        // 💡 2本目（i=1）➔ 敵機の右上（+45度）
-        // 💡 3本目（i=2）➔ 敵機の左下（-45度）
-        float[] tripleOffsets = new float[] { 0f, 120f, -120f };
+        // 💡 2本目（i=1）➔ 敵機の右上（+120度）
+        // 💡 3本目（i=2）➔ 敵機の左下（-120度）
+        float[] tripleOffsets = new float[] { 0f, 45f, -45f };
 
         // 3連コンボ開始時の往復フラグをローカルにロック
         bool comboBaseDirection = _isArcReversed;
@@ -1441,13 +1451,14 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         {
             if (!PlayerMove.CanShoot) break;
 
-            // 💡 基準となる自機狙い軸から、45度ずつ綺麗に変調をかけます
+            // 💡 基準となる自機狙い軸から、オフセット分綺麗に変調をかけた絶対ターゲット角度を算出！
             float customAngle = absoluteCenterAngle + tripleOffsets[i];
 
             PlaySkillSE(s.sePath);
-            // 💡 各スレッドの極性を完全にカプセル化して非同期射出
+
+            // 💡 散らした角度（customAngle）をサブルーチンへ確実にパッシングして射出
             StartCoroutine(ExecuteSingleScalesSlashTrack(s, customAngle, comboBaseDirection));
-            
+
             // 🎯 ご指定の「3フレームの時間差ディレイ」を正確にホールド
             for (int f = 0; f < 3; f++)
             {
@@ -1455,33 +1466,39 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
         }
 
+        yield return new WaitForSeconds(s.cooldown);
         _activeSkillCoroutines--;
     }
 
     /// <summary>
-    /// トリプル展開用：指定された絶対角度に向けて「1wayしの字」の軌跡を1本走らせるサブルーチン（自機狙い完全同期版）
+    /// トリプル展開用：指定された絶対角度に向けて「1wayしの字」の軌跡を1本走らせるサブルーチン（角度完全適合版）
     /// </summary>
     private IEnumerator ExecuteSingleScalesSlashTrack(PlayerSkillData.SkillSettings s, float targetAngle, bool forcedReverse)
     {
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        
-        float startAngleFromTangent = 10f;
-        float totalRotationAmount = 20f;
-        float baseRadiusX = 2.5f;
+
+        float startAngleFromTangent = 27f;
+        float totalRotationAmount = 3;
+
+        float baseRadiusX = 2.0f;
         float baseRadiusY = 0.8f;
 
-        // 親から手渡しされた不変のローカルフラグをバインド（スレッド安全）
+        // 親から引き継いだ往復極性をカプセル化
         bool currentDirectionReversed = forcedReverse;
 
-        float startLocalAngle = currentDirectionReversed ? 150f : -150f;
-        float localAngleStep = currentDirectionReversed ? -15f : 15f;
+        float startLocalAngle = currentDirectionReversed ? 152f : -152f;
+        float localAngleStep = currentDirectionReversed ? -18f : 18f;
 
-        // 🎯 補正された自機狙い軸（0度、+45度、-45度）を元に回転マトリクスの基底ベクトルを構築
+        // =========================================================================
+        // 🌟【大修復】：親から受け取った引数 `targetAngle` を回転行列のベースに直撃結合！
+        // =========================================================================
+        // 💡 理由：GetAngleToTarget をここで再計算してしまうと、オフセットが0度に戻ってしまいます。
+        //          引き渡された targetAngle をラジアン化することで、指定方向に綺麗な扇形として直交展開されます。
         float baseRad = targetAngle * Mathf.Deg2Rad;
         float cosRot = Mathf.Cos(baseRad);
         float sinRot = Mathf.Sin(baseRad);
 
-        int totalStepsCount = 13;
+        int totalStepsCount = 11;
 
         // 1発目のローカル接線の先読み計算
         float f_localAngRad = startLocalAngle * Mathf.Deg2Rad;
@@ -1512,13 +1529,15 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             float localX = Mathf.Cos(localAngleRad) * baseRadiusX * radiusModifier;
             float localY = Mathf.Sin(localAngleRad) * baseRadiusY * radiusModifier;
 
-            // 回転行列により、自機狙い基準の扇形空間へ座標を歪みなく100%直交変換
+            // 歪みのない直交行列により、指定角度（targetAngle）の空間へ完全に変換！
             Vector3 worldOffset = new Vector3(localX * cosRot - localY * sinRot, localX * sinRot + localY * cosRot, 0);
             Vector3 spawnPos = transform.position + worldOffset;
 
             float rotationSign = currentDirectionReversed ? -1f : 1f;
             float baseStartAngle = lockedInitialTangentAngle + (startAngleFromTangent * rotationSign);
             float currentMoveAngle = baseStartAngle + (totalRotationAmount * t * rotationSign);
+
+            // 💡 弾自体の進行方向角度（finalBulletAngle）も、s.angleOffset を乗算ブレンドして美しく同期
             float finalBulletAngle = currentMoveAngle + s.angleOffset;
 
             // 高速弾・低速残響弾のツインブレードレイヤー射出
@@ -1529,7 +1548,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 float randomizedSpeed = s.speed * speedPercent;
                 randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
 
-                // 鋭い「1way」として完璧なアライメントで射出
+                // 鋭い「1way」として完璧なアライメントで射出！
                 CreateShot(s.bulletData, spawnPos, randomizedSpeed, finalBulletAngle, s.delay);
             }
 
@@ -1548,24 +1567,24 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
-        float startAngleFromTangent = 10f;
-        float totalRotationAmount = 20f;
+        float startAngleFromTangent = 27f;
+        float totalRotationAmount = 3;
 
-        float baseRadiusX = 2.5f;
+        float baseRadiusX = 2.0f;
         float baseRadiusY = 0.8f;
 
         bool currentDirectionReversed = _isArcReversed;
         _isArcReversed = !_isArcReversed;
 
-        float startLocalAngle = currentDirectionReversed ? 150f : -150f;
-        float localAngleStep = currentDirectionReversed ? -15f : 15f;
+        float startLocalAngle = currentDirectionReversed ? 152f : -152f;
+        float localAngleStep = currentDirectionReversed ? -18f : 18f;
 
         float absoluteCenterAngle = GetAngleToTarget(transform.position);
         float baseRad = absoluteCenterAngle * Mathf.Deg2Rad;
         float cosRot = Mathf.Cos(baseRad);
         float sinRot = Mathf.Sin(baseRad);
 
-        int totalStepsCount = 13;
+        int totalStepsCount = 11;
 
         // 1発目の接線角度（ベースの向き）をローカル座標から先読みしてロック
         float f_t = 0f;
@@ -1628,7 +1647,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             int layerCount = 2; // 高速・低速ペア
             for (int l = 0; l < layerCount; l++)
             {
-                float speedPercent = Mathf.Lerp(1.1f, 0.8f, (float)l / (layerCount - 1));
+                float speedPercent = Mathf.Lerp(1.1f, 0.9f, (float)l / (layerCount - 1));
                 float randomizedSpeed = s.speed * speedPercent;
                 randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
 
@@ -1654,6 +1673,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             yield return new WaitForFixedUpdate();
         }
 
+        yield return new WaitForSeconds(s.cooldown);
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
@@ -1766,7 +1786,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
             yield return new WaitForFixedUpdate();
         }
-
+        yield return new WaitForSeconds(s.cooldown);
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }

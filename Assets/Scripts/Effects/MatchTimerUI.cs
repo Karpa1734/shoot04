@@ -319,33 +319,30 @@ public class MatchTimerUI : MonoBehaviour
             HandleStoryTimeUp();
             return;
         }
-        PlayerStatusManager p1 = null;
-        PlayerStatusManager p2 = null;
 
-        foreach (var p in PlayerMove.AllPlayers)
+        // =========================================================================
+        // ⏳【タイムアップ勝敗判定インフラとの完全溶接】
+        // =========================================================================
+        // 💡 理由：古い生HP数値による格差バグ（ランクEが必ず負ける現象）を完全にパージし、
+        //          PlayerHitHandlerに実装した「HP残量割合（％）比較＆初期化ラグガード」へ主導権を委譲します。
+        if (PlayerMove.AllPlayers != null && PlayerMove.AllPlayers.Count > 0)
         {
-            var status = p.GetComponent<PlayerStatusManager>();
-            if (status != null)
+            // 画面内にいる1プレイヤー（1P）のHitHandlerコンポーネントを経由して、全体ジャッジを執行！
+            PlayerHitHandler referee = PlayerMove.AllPlayers[0].GetComponentInChildren<PlayerHitHandler>();
+            if (referee != null)
             {
-                if (status.playerId == 1) p1 = status;
-                else if (status.playerId == 2) p2 = status;
-            }
-        }
-
-        if (p1 != null && p2 != null)
-        {
-            if (p1.currentHP > p2.currentHP)
-            {
-                TriggerTimeUpWin(p2);
-            }
-            else if (p2.currentHP > p1.currentHP)
-            {
-                TriggerTimeUpWin(p1);
+                Debug.Log("<color=orange>⏳ [MatchTimerUI] タイムアップを検知。PlayerHitHandlerの割合ジャッジシステムを起動します。</color>");
+                referee.EvaluateTimeUpVictory();
             }
             else
             {
-                PlayerHitHandler h1 = p1.GetComponentInChildren<PlayerHitHandler>();
-                if (h1 != null) h1.StartCoroutine("TriggerDrawSequence");
+                // 万が一コンポーネントが見つからなかった場合の安全なフォールバック（ドロー救済）
+                Debug.LogWarning("PlayerHitHandler not found on TimeUp. Failsafe draw triggered.");
+                foreach (var p in PlayerMove.AllPlayers)
+                {
+                    var h = p.GetComponentInChildren<PlayerHitHandler>();
+                    if (h != null) { h.StartCoroutine("TriggerDrawSequence"); break; }
+                }
             }
         }
     }

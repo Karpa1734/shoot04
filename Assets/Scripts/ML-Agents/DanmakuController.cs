@@ -46,25 +46,55 @@ public class DanmakuController : MonoBehaviour
         Vector2 inputVec = new Vector2(input.h, input.v);
 
         // =========================================================================
-        // 🎯【核心修正】：インスペクターの固定値をパージし、溶接されたランク速度へ直撃結合！
+        // 👑【新規追加：傲慢領域による高速・低速移動の完全反転ハッキング】
         // =========================================================================
-        // 💡 シフト（低速移動）中であれば、shell側で「高速速度の0.4倍」に完全クランプされた focusSpeed を適用。
-        // 💡 通常時であれば、敏捷ランクから算出された固有の normalSpeed をダイレクトスキャンします！
-        float baseSpeed = input.slow ? shell.focusSpeed : shell.normalSpeed;
+        // 💡 目的：シフトキーホールド状態（input.slow）の論理フラグを内部で一時的にひっくり返します。
+        bool isSlowMovementMode = input.slow;
 
-        // ★ 重要：PlayerMove のスキル倍率をここで掛け合わせる
+        if (shell.Opponent != null)
+        {
+            // 対戦相手のステータスマネージャーをスキャン
+            PlayerStatusManager oppStatus = shell.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null)
+            {
+                // 相手が現在「傲慢（PrideInversion）」の領域を展開している場合
+                if (oppStatus.characterData.vjtEffectType == VJTEffectType.PrideInversion)
+                {
+                    // 🚨 例外救済盾：自分が「虚無パッシブ（NihilityFieldCancel）」を持っているなら、この反転デバフを完全シャットアウト！
+                    if (hitHandler != null && hitHandler.GetComponentInParent<PlayerStatusManager>() != null &&
+                        !hitHandler.GetComponentInParent<PlayerStatusManager>().HasPassiveSkill(PassiveSkillType.NihilityFieldCancel))
+                    {
+                        // 💡 核心：シフトキーを押していれば「false(高速速度)」、離していれば「true(低速速度)」へと論理反転！
+                        isSlowMovementMode = !input.slow;
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // 🎯【敏捷ランク結合】：算出された速度（isSlowMovementMode）をダイレクトスキャン
+        // =========================================================================
+        // 💡 反転状態が適用されたフラグに基づいて、通常速度（normalSpeed）か低速クランプ（focusSpeed）かを選択
+        float baseSpeed = isSlowMovementMode ? shell.focusSpeed : shell.normalSpeed;
         float finalSpeed = baseSpeed * shell.skillSpeedMultiplier;
 
-        // 4. 次の座標を計算
-        Vector2 velocity = inputVec.normalized * finalSpeed;
-        Vector2 nextPosition = rb.position + velocity * Time.fixedDeltaTime;
+        // 🌟【重力ブレンドアルゴリズム】：自身の純粋な移動入力ベクトル
+        Vector2 moveVelocity = inputVec.normalized * finalSpeed;
 
-        // 5. ★ 座標を更新する「前」にクランプする
-        // これにより、画面外へ出ること自体を防ぎ、引き戻される挙動を解消します
+        // 🍰【暴食の引力合算】：引力ベクトルとのクリーンな足し合わせ
+        Vector2 finalCompositeVelocity = moveVelocity + shell.externalPullVelocity;
+
+        // 4. 次の座標を計算
+        Vector2 nextPosition = rb.position + finalCompositeVelocity * Time.fixedDeltaTime;
+
+        // 5. 座標を更新する「前」にクランプ（画面外ハミ出し防止）
         nextPosition.x = Mathf.Clamp(nextPosition.x, minX, maxX);
         nextPosition.y = Mathf.Clamp(nextPosition.y, minY, maxY);
 
         // 6. 物理的に正しい位置へ移動
         rb.MovePosition(nextPosition);
+
+        // このフレームでかかった外部引力をクリアして、次のフレームの注入に備える
+        shell.externalPullVelocity = Vector2.zero;
     }
 }

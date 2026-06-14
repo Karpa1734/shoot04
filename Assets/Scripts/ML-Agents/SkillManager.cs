@@ -1,4 +1,4 @@
-﻿// --- SkillManager.cs 【Skill_VJTインプット完全溶接版・リキャスト1.5倍型ペナルティ適合版】 ---
+﻿// --- SkillManager.cs 【アセット入力完全パージ・PlayerMove一元化適合版】 ---
 using KanKikuchi.AudioManager;
 using UnityEngine;
 
@@ -40,7 +40,9 @@ public class SkillManager : MonoBehaviour
 
     private bool _isExExecutedInThisWindow = false;
     private PlayerMove.ReplayFrame _lastInput;
-
+    // 🌟【新設】：スキルを撃ち終わってからマナの自動回復が再開されるまでの「待ち時間タイマー」
+    private float _recoveryCooldownTimer = 0f;
+    private float CostRegenMultiplier = 0;
     void Start()
     {
         playerMove = GetComponentInParent<PlayerMove>();
@@ -58,10 +60,14 @@ public class SkillManager : MonoBehaviour
             skillData = statusManager.characterData;
         }
 
+        // =========================================================================
+        // 🎯【修正】：ScriptableObjectの古い手動入力枠(skillData.maxEnergy)を完全パージ！
+        // =========================================================================
+        // 💡 ライフサイクルの壁を越えて、PlayerStatusManagerがランクから算出した
+        // 💡 確定初期値（playerMove.maxEnergy）をそのまま満タンとして初期化に用います！
         if (playerMove != null && skillData != null)
         {
-            playerMove.maxEnergy = skillData.maxEnergy;
-            playerMove.currentEnergy = skillData.maxEnergy;
+            playerMove.currentEnergy = playerMove.maxEnergy;
             if (energyGauge != null) energyGauge.Initialize(playerMove);
         }
 
@@ -78,44 +84,113 @@ public class SkillManager : MonoBehaviour
     {
         if (playerMove == null || skillData == null || statusManager == null) return;
 
-        // 1. エネルギーの自然回復処理（焼き切れデバフ・領域バフ連動型）
+        // =========================================================================
+        // 🎯【リファクタリング】：直感的な「秒数指定型」マナ自動回復ディレイ制御
+        // =========================================================================
+        // 💡 通常時の「スキル使用後にマナ回復が始まるまでの待ち時間」をここで直感的に秒数指定！
+        const float BASE_WAIT_SECONDS = 0.5f;
+
         if (emitter.IsAnySkillActive)
         {
-            _recoveryDelayTimer = 0f;
-        }
-        else
-        {
-            // =========================================================================
-            // ⏳【新機能】：術式焼き切れ中は次の回復が始まるまでのディレイ消化スピードを「半分」に遅延！
-            // =========================================================================
-            float delaySpeedMultiplier = 1.0f;
+            // 💡 パッシブ「回復ディレイ短縮」を持っている場合は0.8倍、持っていなければ1.0倍
+            float passiveDelayRate = 1.0f;
+            if (statusManager != null && statusManager.HasPassiveSkill(PassiveSkillType.GreedReduction))
+            {
+                passiveDelayRate = 0.7f; // ⚡ 30%短縮
+            }
 
+            // 💡 現在いずれかのスキルを撃ちまくっている最中は、常に待ち時間を最大値でロックホールド！
             if (statusManager.isSpellCardActive)
             {
-                delaySpeedMultiplier = 2.0f; // 🟢 領域展開中：2倍の速さでディレイが解ける（実質0.25秒で回復開始）
+                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 0.5f) * passiveDelayRate; // ⚡ 領域展開中 + パッシブ
             }
             else if (statusManager.isOverheated)
             {
-                delaySpeedMultiplier = 0.5f; // 🚨 術式焼き切れ中：1/2の遅さでしかディレイが溜まらない（実質1.0秒待つまで回復が始まらない！）
+                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 2.0f) * passiveDelayRate; // 🚨 焼き切れ中 + パッシブ
             }
-
-            _recoveryDelayTimer += Time.deltaTime * delaySpeedMultiplier;
+            else
+            {
+                _recoveryCooldownTimer = BASE_WAIT_SECONDS * passiveDelayRate; // 🟢 平常時 + パッシブ
+            }
+        }
+        else
+        {
+            // 💡 スキルの硬直が解け、何もしていない平和な状態（アイドル時）であれば、
+            //    目標の0秒に向かってタイマーを純粋にカウントダウン減算していきます。
+            if (_recoveryCooldownTimer > 0f)
+            {
+                _recoveryCooldownTimer -= Time.deltaTime;
+            }
         }
 
-        // 💡 通常は0.5秒の猶予。上記の消化スピード変調により、焼き切れ中はきっちり「1.0秒」の完全な硬直に変化します
-        if (_recoveryDelayTimer >= 1.0f)
+        // 💡 3.【回復の執行】：待ち時間タイマーが完全に0秒以下（消化完了）になった場合のみ、
+        //    PlayerMove側に集約されたランク実数値のスピードでマナが自動回復を執行します！
+        // 💡 3.【回復の執行】：待ち時間タイマーが完全に0秒以下（消化完了）になった場合のみ、
+        // 💡 3.【回復の執行】：待ち時間タイマーが完全に0秒以下（消化完了）になった場合のみ、
+        if (_recoveryCooldownTimer <= 0f)
         {
-            // 🌟【回復速度マルチプライヤー】：通常1.0f、焼き切れ0.5f、領域バフ2.0f
+            // 自身のリスク・リターン状態によるベース倍率の決定
             float regenMultiplier = 1.0f;
             if (statusManager.isOverheated) regenMultiplier = 0.5f;
-            else if (statusManager.isSpellCardActive) regenMultiplier = 2.0f;
+            else if (statusManager.isSpellCardActive)
+            {
 
+                regenMultiplier = 2.0f; // 他の領域なら従来通りの2倍
+
+                // 💡【強欲強化】：自身が「強欲(ActionTax)」の領域を展開しているなら3.0倍、それ以外の通常領域なら2.0倍
+                if (statusManager.characterData != null && statusManager.characterData.vjtEffectType == VJTEffectType.GreedCast)
+                {
+                    regenMultiplier *= 1.5f;
+                }
+
+            }
+
+            // 🌀【対戦相手からの強欲領域デバフ検知インフラ】
+            // 相手が現在領域展開中で、かつその効果が「強欲（ActionTax）」だった場合、自分の回復倍率をさらに半分（x0.5）に叩き落とす
+            if (playerMove != null && playerMove.Opponent != null)
+            {
+                PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null)
+                {
+                    if (oppStatus.characterData.vjtEffectType == VJTEffectType.GreedCast)
+                    {
+                        regenMultiplier *= 0.5f; // 回復量を強制的に半減
+                    }
+                }
+            }
+
+            // =========================================================================
+            // 🦥【新規追加：怠惰領域による移動中マナ回復フリーズ割り込み】
+            // =========================================================================
+            // 💡 核心：自分が現在「怠惰領域」に捕まっており、かつ「移動中」であるならば、
+            //          マナ回復の加算計算を丸ごとスキップさせて回復量を【完全ゼロ】へと叩き落とします！
+            if (statusManager != null && statusManager.IsSlothRegenBlocked())
+            {
+                regenMultiplier = 0f;
+            }
+
+            // ランク逆算ベースのクリーンな一元化プロパティを参照してマナを加算
+            if (regenMultiplier > 0f) // 0の時は加算を行わないガード
+            {
+                playerMove.currentEnergy = Mathf.Min(
+                    playerMove.maxEnergy,
+                    playerMove.currentEnergy + (playerMove.energyRegenRate * regenMultiplier * Time.deltaTime)
+                ); //
+            }
+
+            // 🦥【新規追加：怠惰のコスト回復力1.3倍ブースト】
+            if (statusManager != null && statusManager.IsSlothBoostActive())
+            {
+                regenMultiplier *= 1.5f; // 停止時マナ回復スピードを1.3倍に加速
+            }
+
+
+            // ランク逆算ベースのクリーンな一元化プロパティを参照してマナを加算
             playerMove.currentEnergy = Mathf.Min(
-                skillData.maxEnergy,
-                playerMove.currentEnergy + (skillData.energyRegenRate * regenMultiplier * Time.deltaTime)
+                playerMove.maxEnergy,
+                playerMove.currentEnergy + (playerMove.energyRegenRate * regenMultiplier * Time.deltaTime)
             );
         }
-
         // 2. タイマー更新
         UpdateTimers();
         UpdateAllCooldownUI();
@@ -133,15 +208,27 @@ public class SkillManager : MonoBehaviour
 
         DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
 
+        // =========================================================================
+        // 🤖 A. 敵AI（自動回避・自律駆動モード）またはリプレイ再生時の入力完全抽出
+        // =========================================================================
         if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing))
         {
             var input = playerMove.currentFrameInput;
+
+            // 💡 核心修正：AIが脳内で選んだスキル（Z,X,C,V,ULT）を1ミリの上書きもなくダイレクトに結合！
             zPressed = input.shotZ;
             xPressed = input.shotX;
             cPressed = input.shotC;
             vPressed = input.shotV;
             exPressed = input.ultimate;
+
+            // AIの戦術思考が領域展開を要求しており、かつ自分がまだ領域を展開していない場合
+            vjtPressed = (agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
+                          playerMove.ultimateEnergy >= 200f && !statusManager.isSpellCardActive);
         }
+        // =========================================================================
+        // ⌨️ B. 人間操作（キーボード・パッドデバイス）の入力スキャン
+        // =========================================================================
         else
         {
             if (InputManager.Instance != null)
@@ -174,7 +261,7 @@ public class SkillManager : MonoBehaviour
         }
 
         // =========================================================================
-        // 🌟 ① 【Skill_VJT 結合】：聖少女領域（VJT）発動処理の実行ジャッジ
+        // 🚀 各種アクションの執行判定ルーチン（ここからはAI・人間共通で稼働）
         // =========================================================================
         if (vjtPressed && !statusManager.isSpellCardActive)
         {
@@ -182,22 +269,17 @@ public class SkillManager : MonoBehaviour
             return;
         }
 
-        // =========================================================================
-        // ② EXスキル ＆ アルティメットスキル（ULT）の排他制御
-        // =========================================================================
         if (exPressed)
         {
             if (statusManager.isSpellCardActive)
             {
                 if (timerEX <= 0f)
                 {
-                    // 🎯【ULTインフラの始動】：発動の瞬間にアルカナゲージ（アルティメットゲージ）を0%にリセットしつつ、
-                    // 🚨 DeactivateSpellCard をパージすることで、領域を破棄させずに引き伸ばします！
                     playerMove.ultimateEnergy = 0f;
                     emitter.FireEX(skillData.skillEX);
 
                     timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
-                    Debug.Log("<color=magenta>👑【アルティメットスキル(ULT)】領域を維持したまま、究極必殺技をキックしました！</color>");
+                    Debug.Log("<color=magenta>👑【AI/Player ULT】領域を維持したまま、究極必殺技をキックしました！</color>");
                 }
             }
             else
@@ -214,18 +296,12 @@ public class SkillManager : MonoBehaviour
             return;
         }
 
-        // =========================================================================
-        // ③ 通常スキルの実行判定（🚨古いC/V封印のif文を撤廃し、全スキルを等価に解放！）
-        // =========================================================================
         HandleSkillInput(zPressed, ref timerZ, skillData.skillZ);
         HandleSkillInput(xPressed, ref timerX, skillData.skillX);
         HandleSkillInput(cPressed, ref timerC, skillData.skillC);
         HandleSkillInput(vPressed, ref timerV, skillData.skillV);
     }
 
-    /// <summary>
-    /// 🌟【最新仕様溶接】：スキル発動時に術式焼き切れ状態をフックし、リキャストを1.5倍に延長する
-    /// </summary>
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings)
     {
         if (isPressed && timer <= 0 && playerMove.currentEnergy >= settings.cost)
@@ -234,7 +310,6 @@ public class SkillManager : MonoBehaviour
             playerMove.currentEnergy -= settings.cost;
             emitter.Fire(settings);
 
-            // 🚨 仕様適合：術式焼き切れ（isOverheated）中に放ったスキルは、クールダウンを「1.5倍」へ強制遅延ペナルティ加算！
             float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f;
             timer = settings.cooldown * cooldownMultiplier;
         }
@@ -242,7 +317,15 @@ public class SkillManager : MonoBehaviour
 
     private void UpdateTimers()
     {
-        float dt = Time.deltaTime;
+        // 🦥 怠惰パッシブ発動中で停止していれば、クールダウン消費速度を1.3倍にブースト！
+        float dtMultiplier = 1.0f;
+        if (statusManager != null && statusManager.IsSlothBoostActive())
+        {
+            dtMultiplier = 1.3f;
+        }
+
+        float dt = Time.deltaTime * dtMultiplier;
+
         if (timerZ > 0) timerZ -= dt;
         if (timerX > 0) timerX -= dt;
         if (timerC > 0) timerC -= dt;
@@ -266,12 +349,16 @@ public class SkillManager : MonoBehaviour
         if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
     }
 
+    // =========================================================================
+    // 🎯【修正】：ScriptableObjectのパラメータ削除に伴い、
+    // 🎯          ここも playerMove 一元化プロパティを参照するように変更
+    // =========================================================================
     public void InstantFullRecovery()
     {
         ResetAllTimers();
-        if (playerMove != null && skillData != null)
+        if (playerMove != null)
         {
-            playerMove.currentEnergy = skillData.maxEnergy;
+            playerMove.currentEnergy = playerMove.maxEnergy; // 💡変更
         }
         _recoveryDelayTimer = 0f;
         UpdateAllCooldownUI();

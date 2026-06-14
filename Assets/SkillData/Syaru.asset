@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
   m_Name: Syaru
   m_EditorClassIdentifier: 
-  rankHP: 1
-  rankMP: 4
+  rankHP: 3
+  rankMP: 2
   rankAttack: 2
   rankAgility: 1
   rankMMPRegen: 5
@@ -31,10 +31,11 @@ MonoBehaviour:
   baseScrollSpeed: {x: 0, y: -0.4}
   additiveRotateSpeed: 25
   additiveScrollSpeed: {x: 0.2, y: 0.2}
-  vjtEffectType: 4
-  vjtEffectValue: 3
-  maxEnergy: 100
-  energyRegenRate: 90
+  passiveSkills:
+  - skillType: 2
+    passiveName: 
+    description: 
+  vjtEffectType: 3
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
@@ -48,8 +49,8 @@ MonoBehaviour:
     wideAngle: 60
     moveSpeedMultiplier: 0.4
     delay: 2
-    cost: 10
-    ultimateGain: 3
+    cost: 20
+    ultimateGain: 5
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
     skillIcon: {fileID: 21300000, guid: 13dbdf5257202324b9450961f7d450a0, type: 3}
@@ -64,7 +65,7 @@ MonoBehaviour:
     moveSpeedMultiplier: 0
     delay: 1
     cost: 30
-    ultimateGain: 120
+    ultimateGain: 8
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}

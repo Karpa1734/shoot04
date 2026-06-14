@@ -1,7 +1,9 @@
-﻿// --- PlayerSkillData.cs 修正完全版 ---
+﻿// --- PlayerSkillData.cs 6大ステータス完全同期版 ---
 using UnityEngine;
+
 // 💡 6段階のステータスランクを完全定義
 public enum StatusRank { E, D, C, B, A, EX }
+
 public enum SkillPatternType
 {
     Standard, nWay, Round, Polygon, Line, Custom,
@@ -16,28 +18,66 @@ public enum SkillPatternType
     KarinScalesSlash,
     KarinFireSlash,
 }
+
+public enum PassiveSkillType
+{
+    None,
+    WrathCounter,     // ⚔️ 逆境の咆哮：被弾時に8秒間、攻撃力が1.3倍に上昇
+    GreedReduction,  // ⚡ 術式最適化：マナ回復開始までのディレイ（待ち時間）が0.8倍に短縮
+    LustSmall,          // 🛡️ 零式光学迷彩：常時、自身の当たり判定を0.8倍に縮小
+    JealousyAtkBoost,     // 👁️ 嫉妬の相剋：相手のアルカナゲージが高いほど攻撃力上昇（最大1.5倍）
+    GluttonyRegen,        // 🍰 暴食の超再生：毎秒アルカナゲージを消費し体力を回復（領域中は消費ゼロ）
+    SlothStandStillBoost, // 🦥 怠惰の停滞：自機停止時(移動速度0)にコスト回復力＆リキャスト速度1.3倍
+    PrideStatusSteal,     // 👑 傲慢の超越：相手の低ステータストップ2をスキャンし、自身の該当ステータスを1ランク上昇
+    NihilityFieldCancel   // 🌌 虚無の境界：相手が展開する領域（VJT）のデバフ効果を一切受け付けない
+}
+
 public enum VJTEffectType
 {
     None,
-    HpDrain,       // 🔷 憤怒：【命の摩耗】（時間経過でじわじわスリップダメージ）
-    SlowDown,      // 🟢 相手の移動速度を低下させる（既存の鈍化用）
-    SizeUp,        // 🔶 色欲：【肉体の無防備化】（相手の当たり判定を巨大化させる）
-    ActionTax      // 🪙 強欲：【行動への重税】（相手が攻撃スキルを撃つたびに自傷ダメージ）
+    WrathBurn,       // 🔷 憤怒：【命の摩耗】（時間経過でじわじわスリップダメージ）
+    LustHit,        // 🔶 色欲：【肉体の無防備化】（相手の当たり判定を巨大化させる）
+    GreedCast,      // 🪙 強欲：【行動への重税】（相手が攻撃スキルを撃つたびに自傷ダメージ）
+    JealousyFog,    // 👁️ 嫉妬：【目隠し霧】（視界を遮る霧を展開）
+    GluttonyPull,
+    SlothStagnation,
+    PrideInversion,
+    NihilityField,
+}
+
+
+[System.Serializable]
+public struct PassiveSkillSlot
+{
+    public PassiveSkillType skillType;
+    [Tooltip("パッシブスキルの名前")] public string passiveName;
+    [Tooltip("フレーバーテキスト（説明文）")] public string description;
 }
 
 [CreateAssetMenu(fileName = "NewPlayerSkillData", menuName = "Danmaku/PlayerSkillData")]
 public class PlayerSkillData : ScriptableObject
 {
     // =========================================================================
-    // 📊【新設：6大パラメーター・ランクインフラ】
+    // 📊【修復・完全溶接】：6大パラメーター・ランクインフラ
     // =========================================================================
     [Header("📊 キャラクター基礎ステータス評価（E ～ EX）")]
-    [Tooltip("体力(最大HP)の高さ評価")] public StatusRank rankHP = StatusRank.C;
-    [Tooltip("魔力(最大マナ)の高さ評価")] public StatusRank rankMP = StatusRank.C;
-    [Tooltip("攻撃(弾幕の基礎攻撃力倍率)評価")] public StatusRank rankAttack = StatusRank.C;
-    [Tooltip("敏捷(高速移動速度の速さ倍率)評価")] public StatusRank rankAgility = StatusRank.C;
-    [Tooltip("マナ再生(マナゲージの自動回復速度)評価")] public StatusRank rankMMPRegen = StatusRank.C;
-    [Tooltip("領域(聖少女領域の最大持続時間)評価")] public StatusRank rankSpellZone = StatusRank.C;
+    [Tooltip("体力(最大HP)の高さ評価")]
+    public StatusRank rankHP = StatusRank.C;
+
+    [Tooltip("魔力(最大マナ)の高さ評価")]
+    public StatusRank rankMP = StatusRank.C;
+
+    [Tooltip("攻撃(弾幕の基礎攻撃力倍率)の高さ評価")]
+    public StatusRank rankAttack = StatusRank.C; // ⚔️【修復】：不足していた6つ目のステータスを完全溶接！
+
+    [Tooltip("敏捷(高速移動速度の速さ倍率)評価")]
+    public StatusRank rankAgility = StatusRank.C;
+
+    [Tooltip("マナ再生(マナゲージの自動回復速度)評価")]
+    public StatusRank rankMMPRegen = StatusRank.C;
+
+    [Tooltip("領域(聖少女領域の最大持続時間)評価")]
+    public StatusRank rankSpellZone = StatusRank.C;
 
 
     [Header("Character Info")]
@@ -79,11 +119,13 @@ public class PlayerSkillData : ScriptableObject
     [Tooltip("【加算上画像】のスクロール速度（X, Y）を設定します")]
     public Vector2 additiveScrollSpeed = new Vector2(0.2f, 0.2f);
 
+    [Header("🧬 Passive Skills List")]
+    [Tooltip("このキャラクターが常時、または特定条件で発動するパッシブスキルのリスト（複数所持可能）")]
+    public System.Collections.Generic.List<PassiveSkillSlot> passiveSkills;
+
     [Header("--- VJT Spell Field Effects ---")]
     [Tooltip("このキャラクターがVJTを展開した際に相手に与える領域効果の種類")]
     public VJTEffectType vjtEffectType = VJTEffectType.None;
-    [Tooltip("効果の強度（例：HpDrainなら1秒間のダメージ、SizeUpならコライダースケール倍率）")]
-    public float vjtEffectValue = 10f;
 
     [System.Serializable]
     public struct SkillSettings

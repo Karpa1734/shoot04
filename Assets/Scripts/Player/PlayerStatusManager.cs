@@ -91,13 +91,33 @@ public class PlayerStatusManager : MonoBehaviour
     public float overheatDuration = 5f;        // 術式焼き切れのデバフ持続時間（5秒）
     private float overheatTimer = 0f;
 
-    private Vector3 originalColliderScale = Vector3.one;
-    private Collider2D playerCollider;
 
     private float appearanceElapsed = 0f;
     private float animatedSpellHP = 0f;
     private bool isAnimatingSpellBar = false;
     private const float SPELL_BAR_ANIM_DURATION = 0.4f;
+
+    // =========================================================================
+    // 🎯【インスペクターアタッチ拡張】：コライダーと2つのスプライトを直接登録
+    // =========================================================================
+    [Header("🎯 Hitbox & Sprite Assignments (Inspector)")]
+    [Tooltip("子オブジェクトにある当たり判定用コライダーをここにドラッグ＆ドロップしてください")]
+    public Collider2D playerCollider;
+
+    [Tooltip("当たり判定を視覚化している1つ目のスプライト（例：コア画像など）")]
+    public SpriteRenderer hitboxSprite1;
+
+    [Tooltip("当たり判定を視覚化している2つ目のスプライト（例：外枠・オーラ画像など）")]
+    public SpriteRenderer hitboxSprite2;
+
+    // 内部キャッシュ用変数
+    [HideInInspector] public Vector3 originalColliderScale;
+    private float originalColliderRadius = 0.2f;
+
+    // スプライトそれぞれの初期等倍サイズを正確に記憶するための変数
+    private Vector3 originalSprite1Scale = Vector3.one;
+    private Vector3 originalSprite2Scale = Vector3.one;
+
     // =========================================================================
     // 🌟【排他制御・同時発動防止インフラ】：世界で一度に展開できるのは1人まで
     // =========================================================================
@@ -108,109 +128,185 @@ public class PlayerStatusManager : MonoBehaviour
     private static int lastRequestFrame = -1;
     private static PlayerStatusManager p1Requester = null;
     private static PlayerStatusManager p2Requester = null;
+
+    [Header("👁️ Jealousy Field Settings (Internal)")]
+    [Tooltip("JealousyFogEffectスクリプトと画像がセットされた【黒い霧のプレハブ】をここに登録してください")]
+    public GameObject jealousyFogPrefab;
+    private float _fogSpawnTimer = 0f; // 霧の発生間隔を数える内部タイマー
+
+    // =========================================================================
+    // 🧬【新規拡張】：パッシブスキル状態管理用モニタータイマー
+    // =========================================================================
+    private float _passiveAtkBoostTimer = 0f; // 被弾時攻撃力アップの残り維持タイマー
+    public bool IsAttackBoostActive => _passiveAtkBoostTimer > 0f; // 外部（Emitter等）からカンニングされるバフ点灯フラグ
+    // 🚨【バグ根治用追加】：他人のスプライトを誤認取得しないための、自分専用の純粋な自機レンダラーキャッシュ
+    private SpriteRenderer _myOwnCharacterRenderer;
+    // =========================================================================
+    // 🔍【新設】：デバッグ数値リアルタイム可視化TMP枠
+    // =========================================================================
+    [Header("🔧 Debug UI Slots")]
+    [Tooltip("HP/MP/アルカナの生数値を小数点第一位まで表示するデバッグ用Textアタッチ枠")]
+    public TextMeshProUGUI debugStatusText;
+
+    // 🎯【新設】：デバッグ中断時のランク永続化を防ぐためのキャッシュ
+    private StatusRank _originalCharacterRank;
+    private bool _hasCachedRank = false;
+
+    // 🎯【デバッグ安全弁】：アセットの永続上書きバグを根絶するためのディープキャッシュ構造体
+    private struct CharacterRankBackup
+    {
+        public StatusRank hp;
+        public StatusRank mp;
+        public StatusRank attack; // ⚔️【修復】：不足していた攻撃ランクのバックアップポケットを完全溶接！
+        public StatusRank agility;
+        public StatusRank mmpRegen;
+        public StatusRank spellZone;
+    }
+    private CharacterRankBackup _originalBackup;
+
+
     void Awake()
     {
-        _playerMove = GetComponent<PlayerMove>();
+        _playerMove = GetComponent<PlayerMove>(); //
 
-        if (BossPracticeManager.IsPracticeMode)
+        if (characterData != null)
         {
-            stockLives = 0; life = 0;
-        }
-        else if (GameModeManager.IsStoryMode)
-        {
-            life = 3;
-            stockLives = 3;
-        }
-        else
-        {
-            life = 0;
-            stockLives = 0;
+            characterData = Instantiate(characterData);
         }
 
-        playerCollider = GetComponentInChildren<Collider2D>();
-        if (playerCollider != null)
-        {
-            originalColliderScale = playerCollider.transform.localScale;
-        }
+        if (BossPracticeManager.IsPracticeMode) //
+        { //
+            stockLives = 0; life = 0; //
+        } //
+        else if (GameModeManager.IsStoryMode) //
+        { //
+            life = 3; //
+            stockLives = 3; //
+        } //
+        else //
+        { //
+            life = 0; //
+            stockLives = 0; //
+        } //
+
+        if (playerCollider == null) //
+        { //
+            playerCollider = GetComponentInChildren<Collider2D>(); //
+        } //
+
+        if (playerCollider != null) //
+        { //
+            originalColliderScale = playerCollider.transform.localScale; //
+
+            if (playerCollider is CircleCollider2D circle) //
+            { //
+                originalColliderRadius = circle.radius; //
+            } //
+        } //
+
+        if (hitboxSprite1 != null) originalSprite1Scale = hitboxSprite1.transform.localScale; //
+        if (hitboxSprite2 != null) originalSprite2Scale = hitboxSprite2.transform.localScale; //
+
+        _myOwnCharacterRenderer = GetComponent<SpriteRenderer>(); //
+        if (_myOwnCharacterRenderer == null) _myOwnCharacterRenderer = GetComponentInChildren<SpriteRenderer>(); //
+
+        if (HasPassiveSkill(PassiveSkillType.LustSmall) && playerCollider != null) //
+        { //
+            CircleCollider2D startCircle = playerCollider as CircleCollider2D; //
+            if (startCircle != null) //
+            { //
+                startCircle.radius = originalColliderRadius * 0.8f; //
+                Debug.Log($"<color=lime>🛡️【パッシブ】SmallHitboxによりコライダー半径およびスプライト2種を常時0.8倍に縮小しました。</color>"); //
+            } //
+        } //
+
+        // 🌟 核心：初期ランクデコードをメソッドへ一本化
+        ApplyCharacterRanks();
+    }
+
+    /// <summary>
+    /// 📊 6大パラメーター・ランクインフラの動的展開マトリクス
+    /// </summary>
+    private void ApplyCharacterRanks()
+    {
+        if (characterData == null) return;
+
+        // 🟥 ① 体力 (最大HP) の反映
+        switch (characterData.rankHP) //
+        { //
+            case StatusRank.E: maxHP = 70f; break; //
+            case StatusRank.D: maxHP = 85f; break; //
+            case StatusRank.C: maxHP = 100f; break; //
+            case StatusRank.B: maxHP = 115f; break; //
+            case StatusRank.A: maxHP = 130f; break; //
+            case StatusRank.EX: maxHP = 145f; break; //
+        } //
+
+        // 🟦 ② 魔力 (最大マナの高さ rankMP)
+        float convertedMaxEnergy = 100f; //
+        switch (characterData.rankMP) //
+        { //
+            case StatusRank.E: convertedMaxEnergy = 70f; break; //
+            case StatusRank.D: convertedMaxEnergy = 85f; break; //
+            case StatusRank.C: convertedMaxEnergy = 100f; break; //
+            case StatusRank.B: convertedMaxEnergy = 115f; break; //
+            case StatusRank.A: convertedMaxEnergy = 130f; break; //
+            case StatusRank.EX: convertedMaxEnergy = 145f; break; //
+        } //
+        if (_playerMove != null) _playerMove.maxEnergy = convertedMaxEnergy; //
+
+        // 🟨 ③ 敏捷 (高速移動時の移動速度 rankAgility)
+        if (_playerMove != null) //
+        { //
+            float calculatedAgilitySpeed = 5.0f; //
+            switch (characterData.rankAgility) //
+            { //
+                case StatusRank.E: calculatedAgilitySpeed = 3.8f; break; //
+                case StatusRank.D: calculatedAgilitySpeed = 4.4f; break; //
+                case StatusRank.C: calculatedAgilitySpeed = 5.0f; break; //
+                case StatusRank.B: calculatedAgilitySpeed = 5.6f; break; //
+                case StatusRank.A: calculatedAgilitySpeed = 6.2f; break; //
+                case StatusRank.EX: calculatedAgilitySpeed = 6.8f; break; //
+            } //
+            _playerMove.SetSpeedFromRank(calculatedAgilitySpeed); //
+        } //
+
+        // 🟩 ④ マナ再生 (マナゲージ再生の速さ rankMMPRegen)
+        if (_playerMove != null) //
+        { //
+            switch (characterData.rankMMPRegen) //
+            { //
+                case StatusRank.E: _playerMove.energyRegenRate = 50f; break; //
+                case StatusRank.D: _playerMove.energyRegenRate = 60f; break; //
+                case StatusRank.C: _playerMove.energyRegenRate = 70f; break; //
+                case StatusRank.B: _playerMove.energyRegenRate = 80f; break; //
+                case StatusRank.A: _playerMove.energyRegenRate = 90f; break; //
+                case StatusRank.EX: _playerMove.energyRegenRate = 100f; break; //
+            } //
+        } //
+
+        // 🔮 ⑤ 領域維持時間 (rankSpellZone)
+        switch (characterData.rankSpellZone) //
+        { //
+            case StatusRank.E: maxSpellDuration = 20f; characterOverheatDuration = maxSpellDuration * 0.8f; break; //
+            case StatusRank.D: maxSpellDuration = 25f; characterOverheatDuration = maxSpellDuration * 0.8f; break; //
+            case StatusRank.C: maxSpellDuration = 30f; characterOverheatDuration = maxSpellDuration * 0.8f; break; //
+            case StatusRank.B: maxSpellDuration = 35f; characterOverheatDuration = maxSpellDuration * 0.8f; break; //
+            case StatusRank.A: maxSpellDuration = 40f; characterOverheatDuration = maxSpellDuration * 0.8f; break; //
+            case StatusRank.EX: maxSpellDuration = 45f; characterOverheatDuration = maxSpellDuration * 0.8f; break; //
+        } //
+        minSpellDuration = maxSpellDuration * 0.6f; //
     }
 
     // 📄 PlayerStatusManager.cs 内の Start メソッドおよび拡張インフラ層
     // 📄 PlayerStatusManager.cs 内の Start メソッド（6大パラメーター完全適合版）
     void Start()
     {
-        // ========================================================================
-        // 🎯【完全調停】：6大パラメーターランクの動的デコード・反映マトリクス
-        // =========================================================================
-        if (characterData != null)
+        // 🚨【新規追加】：お互いのAwakeデータ展開が完全に完了したこの瞬間に、
+        // 🚨                 相手の弱点をサーチして自身のランクをハッキング・引き上げます！
+        if (HasPassiveSkill(PassiveSkillType.PrideStatusSteal))
         {
-            // 🟥 ① 体力 (最大HP) の反映
-            switch (characterData.rankHP)
-            {
-                case StatusRank.E: maxHP = 80f; break;
-                case StatusRank.D: maxHP = 90f; break;
-                case StatusRank.C: maxHP = 100f; break;
-                case StatusRank.B: maxHP = 110f; break;
-                case StatusRank.A: maxHP = 120f; break;
-                case StatusRank.EX: maxHP = 130f; break;
-            }
-
-            // 🟦 ② 魔力 (マナの最大値の高さ rankMP) ➔ Dataの maxEnergy と完全対応！
-            float convertedMaxEnergy = 100f;
-            switch (characterData.rankMP)
-            {
-                case StatusRank.E: convertedMaxEnergy = 80f; break;
-                case StatusRank.D: convertedMaxEnergy = 90f; break;
-                case StatusRank.C: convertedMaxEnergy = 100f; break;
-                case StatusRank.B: convertedMaxEnergy = 110f; break;
-                case StatusRank.A: convertedMaxEnergy = 120f; break;
-                case StatusRank.EX: convertedMaxEnergy = 130f; break;
-            }
-            if (_playerMove != null) _playerMove.maxEnergy = convertedMaxEnergy;
-
-            // 🟨 ③ 敏捷 (高速移動時の移動速度 rankAgility) ➔ 基準値5.0、規律数値を100%ジャスト適合！
-            if (_playerMove != null)
-            {
-                float calculatedAgilitySpeed = 5.0f; // 💡 基準値5.0に完全修正
-                switch (characterData.rankAgility)
-                {
-                    case StatusRank.E: calculatedAgilitySpeed = 4.0f; break; // 💡 規律通りの4.0
-                    case StatusRank.D: calculatedAgilitySpeed = 4.5f; break; // 💡 規律通りの4.5
-                    case StatusRank.C: calculatedAgilitySpeed = 5.0f; break; // 💡 規律通りの5.0
-                    case StatusRank.B: calculatedAgilitySpeed = 5.5f; break; // 💡 規律通りの5.5
-                    case StatusRank.A: calculatedAgilitySpeed = 6.0f; break; // 💡 規律通りの6.0
-                    case StatusRank.EX: calculatedAgilitySpeed = 6.5f; break; // 💡 規律通りの6.5
-                }
-
-                // 💡 PlayerMove側の SetSpeedFromRank をキックし、focusSpeed (0.4倍) と共に物理完全固定！
-                _playerMove.SetSpeedFromRank(calculatedAgilitySpeed);
-            }
-
-            // 🟩 ④ マナ再生 (マナゲージ再生の速さ rankMMPRegen) ➔ Dataの energyRegenRate と完全対応！
-            if (_playerMove != null)
-            {
-                switch (characterData.rankMMPRegen)
-                {
-                    case StatusRank.E: _playerMove.energyRegenRate = 60f; break;
-                    case StatusRank.D: _playerMove.energyRegenRate = 65f; break;
-                    case StatusRank.C: _playerMove.energyRegenRate = 70f; break;
-                    case StatusRank.B: _playerMove.energyRegenRate = 75f; break;
-                    case StatusRank.A: _playerMove.energyRegenRate = 80f; break;
-                    case StatusRank.EX: _playerMove.energyRegenRate = 85f; break;
-                }
-            }
-
-            // 🔮 ⑤ 領域維持時間 (rankSpellZone) ＆ 術式焼き切れ（Overheat）秒数の完全連動
-            switch (characterData.rankSpellZone)
-            {
-                case StatusRank.E: maxSpellDuration = 20f; characterOverheatDuration = 20f; break;
-                case StatusRank.D: maxSpellDuration = 25f; characterOverheatDuration = 25f; break;
-                case StatusRank.C: maxSpellDuration = 30f; characterOverheatDuration = 30f; break;
-                case StatusRank.B: maxSpellDuration = 35f; characterOverheatDuration = 35f; break;
-                case StatusRank.A: maxSpellDuration = 40f; characterOverheatDuration = 40f; break;
-                case StatusRank.EX: maxSpellDuration = 45f; characterOverheatDuration = 45f; break;
-            }
-            // 最小持続時間は、最大持続時間の0.6倍に数理同期
-            minSpellDuration = maxSpellDuration * 0.6f;
+            ExecutePrideStatusSteal();
         }
 
         // --- 既存のUI初期化インフラへ完全結合 ---
@@ -274,6 +370,49 @@ public class PlayerStatusManager : MonoBehaviour
 
     void Update()
     {
+        // --- 🧬 パッシブ：攻撃力アップバフの制限時間カウントダウン ---
+        if (_passiveAtkBoostTimer > 0f)
+        {
+            _passiveAtkBoostTimer -= Time.deltaTime;
+        }
+
+        // =========================================================================
+        // 🍰【新規実装】暴食：【生命への超還元】（通常時：毎秒アルカナ0.5%消費➔体力0.5%自動回復 / 領域中：消費なしで再生力10倍）
+        // =========================================================================
+        if (HasPassiveSkill(PassiveSkillType.GluttonyRegen) && currentHP > 0f)
+        {
+            // すでに通常HP（または領域バー）が満タンの場合はゲージを消費せず処理をスキップ
+            float currentLimitHP = isSpellCardActive ? spellMaxHP : maxHP;
+            float currentCheckHP = isSpellCardActive ? spellHP : currentHP;
+
+            if (currentCheckHP < currentLimitHP)
+            {
+                // 💡 ベースとなる回復量：毎秒0.5%（Time.deltaTime を掛けて毎フレーム滑らかに加算）
+                float baseRegenAmount = maxHP * 0.005f * Time.deltaTime;
+
+                if (isSpellCardActive)
+                {
+                    // 🔶 聖少女領域（VJT）展開中：【コスト消費なし】で再生力が15倍（毎秒7.5%回復）に超ブースト！
+                    float areaRegenAmount = baseRegenAmount * 30f;
+                    spellHP = Mathf.Min(spellHP + areaRegenAmount, spellMaxHP);
+                }
+                else
+                {
+                    // 🔷 通常時：アルカナゲージ（ultimateEnergy）が消費量（毎秒0.5% = 毎秒0.5f）以上あるかチェック
+                    //    ※ 1秒間に 0.5f 消費するため、毎フレームの必要量は 0.5f * Time.deltaTime
+                    float requiredEnergy = 0.5f * Time.deltaTime;
+
+                    if (_playerMove != null && _playerMove.ultimateEnergy >= requiredEnergy)
+                    {
+                        // 資源を消費して、本体のHPを安全に回復
+                        _playerMove.ultimateEnergy -= requiredEnergy;
+                        currentHP = Mathf.Min(currentHP + baseRegenAmount, maxHP);
+                    }
+                }
+            }
+        }
+
+
         PlayerDanmakuEmitter myEmitter = GetComponentInChildren<PlayerDanmakuEmitter>();
         if (myEmitter != null && myEmitter.IsSyaruBitEXActive)
         {
@@ -422,27 +561,10 @@ public class PlayerStatusManager : MonoBehaviour
             _wasCounterReadyLastFrame = false;
             _wasVJTReadyLastFrame = false;
         }
-        // =========================================================================
-        // 🌟【新機能】：術式焼き切れ（Overheat）中の自機赤色パルス明滅制御
-        // =========================================================================
-        // Awakeでキャッシュされている「playerCollider」の親や子供から、自機のメインSpriteRendererを安全にスキャン
-        SpriteRenderer myRenderer = playerCollider != null ? playerCollider.GetComponentInParent<SpriteRenderer>() : GetComponentInChildren<SpriteRenderer>();
 
-        if (myRenderer != null)
-        {
-            if (isOverheated)
-            {
-                // 💡 焼き切れ中：通常の白（1,1,1）から、G（緑）とB（青）の成分だけをサイン波で周期的に減算することで、
-                // 💡 元のキャラドット絵の質感を100%残したまま、妖しく美しく「赤くカチカチと明滅」させます。
-                float pulse = Mathf.Lerp(0.3f, 1.0f, Mathf.Abs(Mathf.Sin(Time.time * 12f))); // 高速パルス
-                myRenderer.color = new Color(1.0f, pulse, pulse, 1.0f);
-            }
-            else
-            {
-                // 通常時、および領域展開中はカラーを標準（真っ白＝元のドット絵そのまま）に安全復元
-                myRenderer.color = Color.white;
-            }
-        }
+
+
+
         UpdateUI(); // 👈 元々あったこの行の直前に割り込ませる形になります
     }
 
@@ -688,8 +810,10 @@ public class PlayerStatusManager : MonoBehaviour
     {
         if (!isSpellCardActive) return; // 既に解除されている場合は処理をスキップ
         isSpellCardActive = false; // フラグを解除
+
         // 🌟【大修正】：世界共有ロックをここで完全解放！ これでもう片方も発動できるようになります
         isAnyVJTActive = false;
+
         // 🌟 破砕（被弾による終了）時のみ1.0秒間の無敵保護を発動、時間切れやULT時はスキップしてクールダウンへ
         if (isDefeatedByDamage)
         {
@@ -710,7 +834,60 @@ public class PlayerStatusManager : MonoBehaviour
 
         if (playerCollider != null)
         {
-            playerCollider.transform.localScale = originalColliderScale; // 当たり判定のスケールを通常サイズに復元
+            playerCollider.transform.localScale = originalColliderScale; // 通常サイズに復元
+
+            // 🎯【新規追加】：領域終了に伴い、コライダーの半径をパッシブを考慮した適正値へリセット
+            if (playerCollider is CircleCollider2D circle)
+            {
+                float targetRadius = originalColliderRadius;
+                if (HasPassiveSkill(PassiveSkillType.LustSmall))
+                {
+                    targetRadius *= 0.8f; // パッシブ持ちなら0.8倍、無いなら等倍
+                }
+                circle.radius = targetRadius;
+            }
+        }
+
+        // 🎯【修正】：対戦相手のコライダー半径、スプライト色、および「子オブジェクトの当たり判定演出」を通常状態へ解放リセット
+        if (_playerMove != null && _playerMove.Opponent != null)
+        {
+            PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null)
+            {
+                // 1. 相手の判定コライダーの半径を元に戻す
+                if (oppStatus.playerCollider is CircleCollider2D oppCircle)
+                {
+                    float oppTargetRadius = oppStatus.originalColliderRadius;
+                    if (oppStatus.HasPassiveSkill(PassiveSkillType.LustSmall)) oppTargetRadius *= 0.8f;
+                    oppCircle.radius = oppTargetRadius;
+                }
+
+                // 2. 相手本体の色調を標準（白）に戻す（本体のスケールは一切触らない）
+                SpriteRenderer oppMainSR = _playerMove.Opponent.GetComponentInChildren<SpriteRenderer>();
+                if (oppMainSR != null)
+                {
+                    oppMainSR.color = Color.white;
+                }
+
+                // 3. ✨【大修正】：子オブジェクトにある「当たり判定スプライト2種」のスケールを等倍に完全復元！
+                // 相手オブジェクトの配下（ComponentsInChildren）から、全てのSpriteRendererを走査
+                SpriteRenderer[] allOppSRs = _playerMove.Opponent.GetComponentsInChildren<SpriteRenderer>(true);
+                foreach (var sr in allOppSRs)
+                {
+                    // 💡 相手本体（親またはメイングラフィック）のスプライトはスキップする
+                    if (sr == oppMainSR) continue;
+
+                    // 💡 オプション：もし当たり判定オブジェクトの名前が決まっている場合（例: "Hitbox" や "Atari"）は
+                    // if (sr.gameObject.name.Contains("Hitbox")) の条件を挟むとより安全です。
+                    // ここでは「子オブジェクトにあるスプライト＝当たり判定表示用」としてスケールを等倍(Vector3.one)に戻します。
+                    if (sr.transform != _playerMove.Opponent.transform)
+                    {
+                        sr.transform.localScale = Vector3.one;
+                        // もし「パッシブ：SmallHitbox」の時に当たり判定スプライトの見た目も小さくしていた場合は、
+                        // ここを「oppStatus.HasPassiveSkill(PassiveSkillType.SmallHitbox) ? Vector3.one * 0.8f : Vector3.one;」にすると完全に一致します。
+                    }
+                }
+            }
         }
 
         // =========================================================================
@@ -733,11 +910,9 @@ public class PlayerStatusManager : MonoBehaviour
             }
 
             // 2. 領域バーの残り％を、通常HP（100満点）の目標体力値（0 〜 100）にダイレクト変換
-            // 例：領域バーが79%なら、targetHP は 79f になります。
             float targetHP = maxHP * spellHpRatio;
 
             // 3. 🌟【条件適合】：発動時の体力が目標値（79%など）以上なら元の体力をキープ、以下なら目標値まで引き上げて回復！
-            // Mathf.Max を使うことで、preSpellHP と targetHP の大きい方の値が自動的に currentHP に代入されます。
             currentHP = Mathf.Max(preSpellHP, targetHP);
 
             // 念のため最大HP（100）を絶対に突破しないようにクランプ保護
@@ -755,8 +930,7 @@ public class PlayerStatusManager : MonoBehaviour
 
         isOverheated = true; // 術式焼き切れ（冷却期間デバフ）へ移行
 
-        // 🌟【修正】：固定の「overheatDuration (5秒)」ではなく、
-        // 🌟 キャラクターデータアセット（Data）から固有の時間を引き抜いて適用！未設定なら20秒でフォールバック。
+        // 🌟【修正】：キャラクターデータアセット（Data）から固有の時間を引き抜いて適用！未設定なら20秒でフォールバック。
         overheatTimer = (characterData != null) ? characterData.characterOverheatDuration : 20f;
 
         if (MatchTimerUI.Instance != null)
@@ -766,6 +940,7 @@ public class PlayerStatusManager : MonoBehaviour
 
         UpdateUI(); // UIの表示を最新情報に更新
         SyncBarsImmediately(); // 各種スライダー位置を即時同期
+
         // =========================================================================
         // 🌟【完全パージ】：領域終了時に、生成した魔法陣オブジェクトを安全にメモリから消去
         // =========================================================================
@@ -777,10 +952,10 @@ public class PlayerStatusManager : MonoBehaviour
                 ringScript.Deactivate();
             }
 
-            // オブジェクトの物理破棄
             Destroy(spawnedRingInstance);
             spawnedRingInstance = null; // 参照のクリア化
         }
+
         // =========================================================================
         // 🌟【完全パージ】：領域終了時に、生成した魔法陣（Circle）も安全にメモリから消去
         // =========================================================================
@@ -797,10 +972,12 @@ public class PlayerStatusManager : MonoBehaviour
                 spawnedCircleInstance = null;
             }
         }
+
         if (EnemySpellCardUI.Instance != null)
         {
             EnemySpellCardUI.Instance.HideSpell(); // 🌟領域終了と同時に看板UIを画面外へ滑らかに退場
         }
+
         // =========================================================================
         // 🌟【専用2D背景連動】：領域解除（または被弾全損）と同時に通常2D背景へ滑らかに復帰
         // =========================================================================
@@ -895,6 +1072,12 @@ public class PlayerStatusManager : MonoBehaviour
 
     public bool ApplyDamage(int amount)
     {
+        // 🚨 ダメージを受けた瞬間にパッシブ「被弾時攻撃力強化」を持っているかスキャン
+        if (HasPassiveSkill(PassiveSkillType.WrathCounter))
+        {
+            _passiveAtkBoostTimer = 8.0f; // 8秒間持続バフ点灯！
+            Debug.Log($"<color=orange>⚔️【パッシブ発動】被弾をトリガーに8秒間、攻撃力1.3倍バフが起動しました！</color>");
+        }
         if (isSpellCardActive)
         {
             spellHP -= amount;
@@ -920,6 +1103,47 @@ public class PlayerStatusManager : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// 🧬 キャラクターが特定のパッシブスキルを習得しているかを安全にスキャンします
+    /// 💡【虚無領域適合】：対戦相手が「虚無の領域（NihilityField）」を展開している場合、すべてのパッシブは強制的に無効化(false)されます。
+    /// </summary>
+    public bool HasPassiveSkill(PassiveSkillType type)
+    {
+        if (characterData == null || characterData.passiveSkills == null) return false; //
+
+        // 🌌【核心：虚無領域によるパッシブ完全無効化割り込みマトリクス】
+        // 💡 理由：自分がパッシブを評価しようとした際、相手が「虚無」の聖少女領域を展開中であれば、
+        //          パッシブスキルを1つも持っていないものとして扱い、強制的にfalseを突き返します。
+        if (_playerMove != null && _playerMove.Opponent != null)
+        {
+            PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null)
+            {
+                if (oppStatus.characterData.vjtEffectType == VJTEffectType.NihilityField)
+                {
+                    // 🚨 例外救済盾（虚無 VS 虚無）：
+                    // 自分が領域デバフ完全無効化パッシブ「NihilityFieldCancel」のチェックを行っている場合だけは、
+                    // 相手のパッシブ消去デバフそのものを無効化してすり抜ける必要があるため、判定のジャミング（false化）をスキップします。
+                    if (type != PassiveSkillType.NihilityFieldCancel)
+                    {
+                        // 自身が領域無効化パッシブ（NihilityFieldCancel）を真に持っているなら、相手の虚無領域を突っぱねて通常通りパッシブを有効化！
+                        // 持っていない（デバフが直撃している）なら、ここでパッシブを完全消失（falseリターン）させます。
+                        if (!HasPassiveSkill(PassiveSkillType.NihilityFieldCancel))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 📊 通常通りのパッシブ配列スキャン（デバフを喰らっていない、または耐え切った時のみ到達） ---
+        foreach (var slot in characterData.passiveSkills) //
+        { //
+            if (slot.skillType == type) return true; //
+        } //
+        return false; //
+    }
     /// <summary>
     /// 被弾時に残機または星の計算を行い、【このダウンで完全に勝負（マッチ）が決着するか】を論理評価する
     /// </summary>
@@ -1065,6 +1289,136 @@ public class PlayerStatusManager : MonoBehaviour
                 orangeBar.value = isSpellCardActive ? spellMaxHP : maxHP;
             }
         }
+        if (debugStatusText != null)
+        {
+            float displayCurrentHP = isSpellCardActive ? spellHP : currentHP;
+            float displayMaxHP = isSpellCardActive ? spellMaxHP : maxHP;
+            string hpLabel = isSpellCardActive ? "<color=gold>SP-HP</color>" : "HP";
+
+            float displayCurrentMP = (_playerMove != null) ? _playerMove.currentEnergy : 0f;
+            float displayMaxMP = (_playerMove != null) ? _playerMove.maxEnergy : 100f;
+            float arcanaPercentage = (_playerMove != null) ? _playerMove.ultimateEnergy : 0f;
+
+            string rHP = characterData != null ? characterData.rankHP.ToString() : "C";
+            string rMP = characterData != null ? characterData.rankMP.ToString() : "C";
+            string rAtk = characterData != null ? characterData.rankAttack.ToString() : "C";
+            string rAgi = characterData != null ? characterData.rankAgility.ToString() : "C";
+            string rReg = characterData != null ? characterData.rankMMPRegen.ToString() : "C";
+            string rSpl = characterData != null ? characterData.rankSpellZone.ToString() : "C";
+
+            float atkMult = 1.0f;
+            if (characterData != null)
+            {
+                switch (characterData.rankAttack)
+                {
+                    case StatusRank.E: atkMult = 0.8f; break;
+                    case StatusRank.D: atkMult = 0.9f; break;
+                    case StatusRank.C: atkMult = 1.0f; break;
+                    case StatusRank.B: atkMult = 1.1f; break;
+                    case StatusRank.A: atkMult = 1.2f; break;
+                    case StatusRank.EX: atkMult = 1.3f; break;
+                }
+            }
+
+            float speedAgi = (_playerMove != null) ? _playerMove.normalSpeed : 5.0f;
+            float speedFoc = (_playerMove != null) ? _playerMove.focusSpeed : 2.0f;
+
+            float regenRate = (_playerMove != null) ? _playerMove.energyRegenRate : 15f;
+
+            string passiveStatusStr = "<color=gray>Inactive</color>";
+            float finalAtkMult = atkMult;
+
+            if (IsAttackBoostActive)
+            {
+                finalAtkMult = atkMult * 1.3f;
+                passiveStatusStr = $"<color=gold>ACTIVE ({_passiveAtkBoostTimer:F1}s)</color>";
+            }
+
+            // 🌟【新規追加】：嫉妬パッシブによる動的な上乗せ倍率を取得
+            float jealousyMult = GetJealousyMultiplier();
+            finalAtkMult *= jealousyMult; // 最終攻撃倍率に嫉妬倍率を乗算結合
+
+            // 🍰【新規追加】：暴食パッシブのステータス文字列を動的に生成
+            string gluttonyStatusStr = "<color=gray>OFF</color>";
+            if (HasPassiveSkill(PassiveSkillType.GluttonyRegen))
+            {
+                float currentLimitHP = isSpellCardActive ? spellMaxHP : maxHP;
+                float currentCheckHP = isSpellCardActive ? spellHP : currentHP;
+
+                if (currentCheckHP >= currentLimitHP)
+                {
+                    gluttonyStatusStr = "<color=green>FULL (Idle)</color>";
+                }
+                else if (isSpellCardActive)
+                {
+                    gluttonyStatusStr = "<color=cyan>VJT FREE REGEN (+1%/s)</color>"; // 領域中無料モード
+                }
+                else
+                {
+                    float requiredEnergy = 1.0f * Time.deltaTime;
+                    if (_playerMove != null && _playerMove.ultimateEnergy >= requiredEnergy)
+                        gluttonyStatusStr = "<color=lime>CONSUMING REGEN (+1%/s)</color>"; // 通常消費モード
+                    else
+                        gluttonyStatusStr = "<color=red>NO ENERGY (Paused)</color>"; // ゲージ不足モード
+                }
+            }
+
+            // 既存の slothStatusStr の下あたりに追記
+            string prideStatusStr = "<color=gray>OFF</color>";
+            if (HasPassiveSkill(PassiveSkillType.PrideStatusSteal))
+            {
+                prideStatusStr = "<color=gold>ACTIVE (Transcendence)</color>";
+            }
+
+            // 🍰 暴食パッシブのステータス表示の下あたりに追記
+            string slothStatusStr = "<color=gray>OFF</color>";
+            if (HasPassiveSkill(PassiveSkillType.SlothStandStillBoost))
+            {
+                slothStatusStr = IsSlothBoostActive() ? "<color=lime>ACTIVE (x1.5)</color>" : "<color=yellow>MOVING (Idle)</color>";
+            }
+
+            // 既存の prideStatusStr の下あたりに追記
+            string nihilityStatusStr = "<color=gray>OFF</color>";
+            if (HasPassiveSkill(PassiveSkillType.NihilityFieldCancel))
+            {
+                // 自分が虚無持ちで、かつ相手が領域を展開しているなら「BLOCKING」と点灯させる
+                bool isOpponentVJTActive = (_playerMove != null && _playerMove.Opponent != null &&
+                                            _playerMove.Opponent.GetComponent<PlayerStatusManager>() != null &&
+                                            _playerMove.Opponent.GetComponent<PlayerStatusManager>().isSpellCardActive);
+
+                nihilityStatusStr = isOpponentVJTActive ? "<color=cyan>ABSORB (Blocking!)</color>" : "<color=lime>ON (Ready)</color>";
+            }
+
+            float currentRadius = 0f;
+            if (playerCollider is CircleCollider2D circle)
+            {
+                currentRadius = circle.radius;
+            }
+
+            string debugInfo =
+                            $"<b>== REALTIME RESOURCE ==</b>\n" + //
+                            $"{hpLabel}: {displayCurrentHP:F1} / {displayMaxHP:F1}\n" + //
+                            $"MP: {displayCurrentMP:F1} / {displayMaxMP:F1}\n" + //
+                            $"ARCANA: {arcanaPercentage:F1}%\n\n" + //
+                            $"<b>==🧬 PASSIVE SKILL STATUS ==</b>\n" + //
+                            $"AtkBoostOnHit: {passiveStatusStr}\n" + //
+                            $"SmallHitbox(0.8x): {(HasPassiveSkill(PassiveSkillType.LustSmall) ? "<color=lime>ON</color>" : "<color=gray>OFF</color>")}\n" + //
+                            $"JealousyBoost(Max1.5x): {(HasPassiveSkill(PassiveSkillType.JealousyAtkBoost) ? $"<color=orange>x{jealousyMult:F2}</color>" : "<color=gray>OFF</color>")}\n" + //
+                            $"GluttonyRegen(1%/s): {gluttonyStatusStr}\n" + //
+                            $"SlothBoost(1.3x): {slothStatusStr}\n" + //
+                            $"PrideSteal: {prideStatusStr}\n" + // 👑 ここに追記
+                            $"NihilityCancel: {nihilityStatusStr}\n" + // 🌌 ここに追記
+                            $"[判定半径] Hitbox Radius: <color=cyan>{currentRadius:F3}</color> (Base: {originalColliderRadius:F2})\n\n" + //
+                            $"<b>== 6-STATUS RANKS & VALUE ==</b>\n" + //
+                            $"[体力] HP_Max: {maxHP:F1} ({rHP})\n" +
+                $"[魔力] MP_Max: {displayMaxMP:F1} ({rMP})\n" +
+                $"[攻撃] ATK_Mult: x{finalAtkMult:F2} (Base: x{atkMult:F1}) ({rAtk})\n" +
+                $"[敏捷] SPD_High: {speedAgi:F1} / Low: {speedFoc:F1} ({rAgi})\n" +
+                $"[再生] MP_Regen: {regenRate:F1}/s ({rReg})\n" +
+                $"[領域] VJT_Time: {maxSpellDuration:F1}s / Min: {minSpellDuration:F1}s ({rSpl})";
+
+            debugStatusText.text = debugInfo;
+        }
     }
 
     public void SyncBarsImmediately()
@@ -1203,6 +1557,213 @@ public class PlayerStatusManager : MonoBehaviour
         koText.gameObject.SetActive(false);
         koText.color = startColor;
     }
+    /// <summary>
+    /// 👁️【嫉妬の相剋】：対戦相手のアルカナゲージ残量（0% 〜 300%）に比例した攻撃倍率を動的に算出します。
+    /// 💡【仕様拡張】：自身または対戦相手が聖少女領域（VJT）を展開中の場合、ゲージ量に関わらず『固定で1.5倍（最大値）』にロックされます。
+    /// </summary>
+    public float GetJealousyMultiplier()
+    {
+        // 自身がこのパッシブ（JealousyAtkBoost）を所持していない場合は等倍(1.0f)で安全リターン
+        if (!HasPassiveSkill(PassiveSkillType.JealousyAtkBoost))
+        {
+            return 1.0f;
+        }
+
+        // 🌟【領域中固定1.5倍マックスロックガード】
+        // 自分自身がVJT展開中（isSpellCardActive）であるか、
+        // または世界で誰かがVJT展開中（isAnyVJTActive）で、かつ相手がVJT展開中の場合、無条件で1.5倍を確定させます。
+        if (isSpellCardActive)
+        {
+            return 1.5f;
+        }
+
+        if (_playerMove != null && _playerMove.Opponent != null)
+        {
+            PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null && oppStatus.isSpellCardActive)
+            {
+                return 1.5f; // 相手が領域展開している場合も、嫉妬の炎が最大化して固定1.5倍
+            }
+
+            // --- 📊 通常時のアルカナゲージ比例計算（0%〜300%） ---
+            PlayerMove oppMove = _playerMove.Opponent.GetComponent<PlayerMove>();
+            if (oppMove != null)
+            {
+                // アルカナゲージ（ultimateEnergy）は 0 〜 300 の範囲で蓄積
+                float oppGauge = Mathf.Clamp(oppMove.ultimateEnergy, 0f, 300f);
+
+                // ゲージ0で 0、ゲージ300で 1.0 になる割合を算出
+                float gaugeRatio = oppGauge / 300f;
+
+                // 1.0f から 最大 1.5f までの線形補間をかけて倍率を動的算出
+                return Mathf.Lerp(1.0f, 1.5f, gaugeRatio);
+            }
+        }
+
+        return 1.0f;
+    }
+
+    /// <summary>
+    /// 🦥【怠惰の停滞】：自機が現在完全に停止している（方向キー・パッド・AIの移動入力が完全にゼロである）かつ、
+    /// パッシブスキル（SlothStandStillBoost）を習得しているかをフレーム単位で精密に判定します。
+    /// </summary>
+    public bool IsSlothBoostActive()
+    {
+        // 自身がこのパッシブを所持していない、または移動コンポーネントがない場合は即座に遮断
+        if (!HasPassiveSkill(PassiveSkillType.SlothStandStillBoost) || _playerMove == null)
+        {
+            return false;
+        }
+
+        // 🚨【値型(struct)構造完全適合アルゴリズム】
+        // 💡 理由：currentFrameInput は参照型(class)ではなく値型(struct)のため、nullチェックを行うとコンパイルエラーになります。
+        //          そのため、_playerMove自体の生存チェックのみを行い、入力データ(h, v)の絶対値をダイレクトに評価します。
+
+        // 水平入力(h)または垂直入力(v)のどちらかに少しでも数値が入っていれば「移動中」と判定
+        bool isMovingInputActive = Mathf.Abs(_playerMove.currentFrameInput.h) > 0.001f ||
+                                   Mathf.Abs(_playerMove.currentFrameInput.v) > 0.001f;
+
+        // 「移動入力が上下左右ともに一切ない（false）」の時だけ、真の怠惰状態として true を返します！
+        return !isMovingInputActive;
+    }
+
+    // =========================================================================
+    // 👑【新規拡張】傲慢パッシブ：ステータススキャン＆ランクアップマトリクス
+    // =========================================================================
+    private class StatusEvaluator
+    {
+        public string Name;
+        public StatusRank Rank;
+        public int Order; // 同率時のプライオリティ（上からの順：HP=0, MP=1, Agility=2, MMPRegen=3, SpellZone=4）
+    }
+
+    /// <summary>
+    /// 👑【傲慢の超越】：対戦相手の【全6大基礎ステータス】をリアルタイムに一斉スキャンし、
+    /// 最も低いステータス第1位・第2位を特定して自身のランクを1段階引き上げ、パラメーターを再展開します。
+    /// </summary>
+    private void ExecutePrideStatusSteal()
+    {
+        if (!HasPassiveSkill(PassiveSkillType.PrideStatusSteal) || _playerMove == null || _playerMove.Opponent == null) return;
+
+        PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+        if (oppStatus == null || oppStatus.characterData == null) return;
+
+        // 🚨【安全弁】：上書き前のピュアな初期6大ランクを構造体キャッシュに一括完全ロック記憶！
+        if (characterData != null && !_hasCachedRank)
+        {
+            _originalBackup.hp = characterData.rankHP;
+            _originalBackup.mp = characterData.rankMP;
+            _originalBackup.attack = characterData.rankAttack; // ⚔️ 構造体へ綺麗に格納
+            _originalBackup.agility = characterData.rankAgility;
+            _originalBackup.mmpRegen = characterData.rankMMPRegen;
+            _originalBackup.spellZone = characterData.rankSpellZone;
+            _hasCachedRank = true;
+        }
+
+        // 1. 完全な6大ステータスを評価用リストに格納（インスペクターの並び順に準拠）
+        var oppStats = new System.Collections.Generic.List<StatusEvaluator>
+        {
+            new StatusEvaluator { Name = "HP",        Rank = oppStatus.characterData.rankHP,        Order = 0 },
+            new StatusEvaluator { Name = "MP",        Rank = oppStatus.characterData.rankMP,        Order = 1 },
+            new StatusEvaluator { Name = "Attack",    Rank = oppStatus.characterData.rankAttack,    Order = 2 },
+            new StatusEvaluator { Name = "Agility",   Rank = oppStatus.characterData.rankAgility,   Order = 3 },
+            new StatusEvaluator { Name = "MMPRegen",  Rank = oppStatus.characterData.rankMMPRegen,  Order = 4 },
+            new StatusEvaluator { Name = "SpellZone", Rank = oppStatus.characterData.rankSpellZone, Order = 5 }
+        };
+
+        // 2. ランクが低い順（E->EX）でソート。同率の場合は Order が小さい順に安定ソート
+        oppStats.Sort((a, b) =>
+        {
+            if (a.Rank != b.Rank) return a.Rank.CompareTo(b.Rank);
+            return a.Order.CompareTo(b.Order);
+        });
+
+        // 3. 1番目と2番目に低いステータスを抽出し、自身の該当ステータスを1ランクアップ
+        Debug.Log($"<color=gold>👑【傲慢のスキャン】相手({oppStatus.characterData.characterName})の低スペック上位: 1位 {oppStats[0].Name}({oppStats[0].Rank}), 2位 {oppStats[1].Name}({oppStats[1].Rank})</color>");
+
+        for (int i = 0; i < 2; i++)
+        {
+            UpgradeTargetStatus(oppStats[i].Name);
+        }
+
+        // 4. 自身のパラメーター評価マトリクスを一から再計算して適用
+        ApplyCharacterRanks();
+    }
+
+    private void UpgradeTargetStatus(string statName)
+    {
+        if (characterData == null) return;
+
+        switch (statName)
+        {
+            case "HP":        characterData.rankHP = GetNextRank(characterData.rankHP); break;
+            case "MP": characterData.rankMP = GetNextRank(characterData.rankMP); break;
+            case "Attack": characterData.rankAttack = GetNextRank(characterData.rankAttack); break; // ⚔️ ランクアップ対象
+            case "Agility": characterData.rankAgility = GetNextRank(characterData.rankAgility); break;
+            case "MMPRegen": characterData.rankMMPRegen = GetNextRank(characterData.rankMMPRegen); break;
+            case "SpellZone": characterData.rankSpellZone = GetNextRank(characterData.rankSpellZone); break;
+        }
+    }
+
+    /// <summary>
+    /// 🎯 戦闘終了時やデバッグ中断時に、構造体から元のランクを完全復元するアセット保護安全弁
+    /// </summary>
+    public void RestoreOriginalRank()
+    {
+        if (_hasCachedRank && characterData != null)
+        {
+            characterData.rankHP = _originalBackup.hp;
+            characterData.rankMP = _originalBackup.mp;
+            characterData.rankAttack = _originalBackup.attack; // ⚔️ 構造体から美しく一括復元！
+            characterData.rankAgility = _originalBackup.agility;
+            characterData.rankMMPRegen = _originalBackup.mmpRegen;
+            characterData.rankSpellZone = _originalBackup.spellZone;
+
+            Debug.Log($"<color=cyan>🔄【デバッグ安全弁】{characterData.characterName} の6大ステータスランクを初期状態へ完全復元しました。</color>");
+        }
+    }
+    /// <summary>
+    /// 🦥【怠惰の牢獄】：自身が現在、対戦相手の展開する「怠惰領域」に囚われており、
+    /// かつ自身が上下左右に移動中（移動入力がON）であるためマナ自動回復がフリーズされる状態かを判定します。
+    /// </summary>
+    public bool IsSlothRegenBlocked()
+    {
+        // 相手が無事に存在しており、かつその相手が聖少女領域（VJT）を展開中かチェック
+        if (_playerMove != null && _playerMove.Opponent != null)
+        {
+            PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
+            if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null)
+            {
+                // 相手の領域効果が「怠惰（SlothStagnation）」である場合
+                if (oppStatus.characterData.vjtEffectType == VJTEffectType.SlothStagnation)
+                {
+                    // 🚨 自分が「虚無パッシブ（NihilityFieldCancel）」を持っているなら、この領域デバフごと完全に踏み倒して無効化！
+                    if (HasPassiveSkill(PassiveSkillType.NihilityFieldCancel)) return false;
+
+                    // 自身が現在、キーボードやAIによって「上下左右に移動中」であるかをチェック
+                    bool isCurrentlyMoving = Mathf.Abs(_playerMove.currentFrameInput.h) > 0.001f ||
+                                             Mathf.Abs(_playerMove.currentFrameInput.v) > 0.001f;
+
+                    // 「移動中」であれば、マナ回復をフリーズさせるために true を返します
+                    return isCurrentlyMoving;
+                }
+            }
+        }
+        return false;
+    }
+
+    void OnDestroy()
+    {
+        // 🚨【重要】エディタで再生を途中で停止した場合も、このOnDestroyは高確率で走ります。
+        // ここで元のランクに戻すことで、アセットの書き換わりを物理的にガードします。
+        RestoreOriginalRank();
+    }
+
+    private StatusRank GetNextRank(StatusRank current)
+    {
+        if (current == StatusRank.EX) return StatusRank.EX;
+        return (StatusRank)((int)current + 1);
+    }
 
     public void SetInvincible(float duration)
     {
@@ -1239,16 +1800,27 @@ public class PlayerStatusManager : MonoBehaviour
         // 💡 相手が無敵状態（IsInvincible）なら領域効果を完全ガード
         if (oppStatus.IsInvincible) return;
 
-        float value = characterData.vjtEffectValue;
+        // =========================================================================
+        // 🌌【新規追加：虚無の境界デバフ無効化】
+        // =========================================================================
+        // 💡 核心：デバフを受けようとしている対戦相手（oppStatus）がパッシブ「虚用」を所持している場合、
+        //          これ以降の憤怒（スリップダメ）、色欲（判定巨大化）、強欲（自傷）のスイッチ処理を100%完全遮断します！
+        if (oppStatus.HasPassiveSkill(PassiveSkillType.NihilityFieldCancel))
+        {
+            return;
+        }
+
+        float value_W = 1.0f;
+        float value_L = 1.5f;
 
         switch (characterData.vjtEffectType)
         {
             // =========================================================================
             // 🔥 1. 憤怒：【命の摩耗】（小数点蓄積型スリップダメージ）
             // =========================================================================
-            case VJTEffectType.HpDrain:
+            case VJTEffectType.WrathBurn:
                 // 1秒間に value 分だけ削る純粋な小数ダメージ（例: 20 * 0.016 = 0.32）をプールに加算
-                _hpDrainAccumulator += value * Time.deltaTime;
+                _hpDrainAccumulator += value_W * Time.deltaTime;
 
                 // プールされたダメージが「1.0（1ダメージ分）」を超えたかジャッジ
                 if (_hpDrainAccumulator >= 1f)
@@ -1265,56 +1837,89 @@ public class PlayerStatusManager : MonoBehaviour
                 break;
 
             // =========================================================================
-            // ❤️ 2. 色欲：【肉体の無防備化】（当たり判定の巨大化）
+            // ❤️ 2. 色欲：【肉体の無防備化】（コライダー半径の巨大化 ＆ 魂の蒼色同調のみを執行）
             // =========================================================================
-            case VJTEffectType.SizeUp:
-                if (oppStatus.playerCollider != null)
+            case VJTEffectType.LustHit:
+                if (oppStatus.playerCollider is CircleCollider2D oppCircle)
                 {
-                    oppStatus.playerCollider.transform.localScale = oppStatus.originalColliderScale * value;
+                    // 💡 A. 当たり判定（半径）の巨大化：
+                    //    相手がパッシブを持っていれば縮小された（0.8倍）状態の半径から、領域倍率（value = 1.5fなど）を正確に乗算結合！
+                    float currentBaseRadius = oppStatus.HasPassiveSkill(PassiveSkillType.LustSmall) ? oppStatus.originalColliderRadius * 0.8f : oppStatus.originalColliderRadius;
+                    oppCircle.radius = currentBaseRadius * value_L;
                 }
                 break;
             // =========================================================================
-            // 🪙 3. 強欲：【行動への重税】（攻撃フレーム持続型・確定徴税システム）
+            // 🪙 3. 強欲：【行動への重税】（攻撃フレーム持続型・確定徴税システム＋コスト領域）
             // =========================================================================
-            case VJTEffectType.ActionTax:
+            case VJTEffectType.GreedCast:
                 SkillManager oppSkill = oppObj.GetComponentInChildren<SkillManager>();
                 if (oppSkill != null)
                 {
-                    // 相手の入力フレームから、何らかの攻撃行動をトリガーしているかを判定
-                    bool isOpponentAttacking = oppMove.currentFrameInput.shotZ ||
-                                               oppMove.currentFrameInput.shotX ||
-                                               oppMove.currentFrameInput.shotC ||
-                                               oppMove.currentFrameInput.shotV ||
-                                               oppMove.currentFrameInput.ultimate;
+                    // 💡【設計変更ノート】：
+                    // コスト回復率の半減（相手）および1.5倍（自分）の制御は、
+                    // 領域フラグをトリガーとして SkillManager 側のマナ自動回復システム内で
+                    // 安全に一元計算（毎フレーム自動判定）されるため、ここではダメージ徴税のみを執行します。
 
-                    // 🚨 相手が能動的に攻撃中で、かつシステム的に射撃が許可されている場合
-                    if (isOpponentAttacking && PlayerMove.CanShoot)
+                }
+                break;
+            // =========================================================================
+            // 👁️ 5. 嫉妬：【視界の剥奪】（超高速・超高密度目隠し結界マトリクス）
+            // =========================================================================
+            case VJTEffectType.JealousyFog:
+                if (jealousyFogPrefab == null) return;
+
+                // 💡【内部固定設計】：出る間隔をさらに短縮！「0.05秒(毎秒20回)」の極小スパンで大連射を执行
+                _fogSpawnTimer += Time.deltaTime;
+                if (_fogSpawnTimer >= 0.01f)
+                {
+                    _fogSpawnTimer = 0f;
+
+                    // 💡【出る個数を多く】：1回のトリガーにつき「12個」の霧を同時に実体化！
+                    for (int i = 0; i < 12; i++)
                     {
-                        // 💡【タイムベース徴税アルゴリズム】：
-                        // value を「1秒間押しっぱなしにした時の総税率（総ダメージ）」として扱います。
-                        // 例：value = 40f なら、攻撃ボタンを1秒間ホールドし続けると合計40ダメージ。
-                        // これを毎フレームの経過時間（Time.deltaTime）で割ってプールに加算します。
-                        _actionTaxAccumulator += value * Time.deltaTime;
+                        // 相手の現在地を中心に、半径 1.8 ユニット以内の広範囲にばらつかせて画面を覆い尽くします
+                        Vector2 randomOffset = Random.insideUnitCircle * 1.8f;
+                        Vector3 spawnPosition = oppObj.transform.position + new Vector3(randomOffset.x, randomOffset.y, 0f);
 
-                        // 蓄積された税金が 1.0 (1ダメージ分) を超えた瞬間に、安全に徴税を執行！
-                        if (_actionTaxAccumulator >= 1f)
+                        // 霧オブジェクトを生成
+                        GameObject fogInstance = Instantiate(jealousyFogPrefab, spawnPosition, Quaternion.identity);
+
+                        // 相手が巨大化しているなら、目隠しの霧のベースサイズもその大きさに自動追従拡張
+                        if (oppStatus.playerCollider != null)
                         {
-                            int taxToApply = Mathf.FloorToInt(_actionTaxAccumulator);
-
-                            oppStatus.ApplyDamage(taxToApply);
-
-                            _actionTaxAccumulator -= taxToApply;
-
-                            Debug.Log($"<color=gold>🪙【強欲の重税】相手の攻撃ホールドを検知。税金プールから {taxToApply} ダメージを確定徴税しました！</color>");
+                            fogInstance.transform.localScale = oppStatus.playerCollider.transform.localScale;
                         }
                     }
-                    else
-                    {
-                        // 💡 相手が攻撃をやめた（指を離した）ら、プール内の端数は綺麗にリセットしてあげる親切設計
-                        // これにより、単発撃ちの瞬間に中途半端な端数ダメージが残るのを防ぎます
-                        _actionTaxAccumulator = 0f;
-                    }
                 }
+                break;
+            // =========================================================================
+            // 🍰 6. 暴食：【無限の重力圏】（移動ベクトル干渉型・抵抗可能引力システム）
+            // =========================================================================
+            case VJTEffectType.GluttonyPull:
+                // 💡【パワーバランス調停】：相手がキー入力でギリギリ抵抗できる適正値（1.5f）に調整
+                //    相手の通常の最高敏捷速度（3.8f〜6.8f）より低く設定することで、キーを入れれば脱出可能にします。
+                const float PULL_FORCE = 1.0f;
+
+                Vector2 myPosition = transform.position;
+                Vector2 oppPosition = oppObj.transform.position;
+
+                // 相手から自分（使用者）へ向かう引力の正規化ベクトルを計算
+                Vector2 pullDir = (myPosition - oppPosition).normalized;
+
+                if ((myPosition - oppPosition).sqrMagnitude > 0.01f)
+                {
+                    // 🚨 座標を直接上書きするのを完全に廃止！
+                    // 💡 相手のPlayerMoveコンポーネントに対し、「毎秒 PULL_FORCE の速度で引き寄せるベクトル」をパッシング注入します。
+                    oppMove.AddExternalPull(pullDir * PULL_FORCE);
+                }
+                break;
+            // =========================================================================
+            // 🦥 7. 怠惰：【停滞の牢獄】（移動速度0.9倍化デバフの執行）
+            // =========================================================================
+            case VJTEffectType.SlothStagnation:
+                // 💡【内部固定設計】：相手の移動速度倍率を常時「0.9倍」にデバフ変調クランプ！
+                //    ※ 固定値 1.0f に戻る処理は、領域終了時の既存のリセットインフラ層が自動で通常等速へと安全ケアします。
+                oppMove.skillSpeedMultiplier = 0.9f;
                 break;
         }
     }

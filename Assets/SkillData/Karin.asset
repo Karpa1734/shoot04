@@ -15,9 +15,9 @@ MonoBehaviour:
   rankHP: 3
   rankMP: 3
   rankAttack: 4
-  rankAgility: 2
+  rankAgility: 3
   rankMMPRegen: 1
-  rankSpellZone: 3
+  rankSpellZone: 2
   characterName: Player1
   imageColor: {r: 1, g: 0, b: 0, a: 1}
   spellCardName: "\u25CB\u7B26\u300C\u25CB\u25CB\u25CB\u25CB\u300D"
@@ -31,10 +31,11 @@ MonoBehaviour:
   baseScrollSpeed: {x: 0, y: -0.4}
   additiveRotateSpeed: 25
   additiveScrollSpeed: {x: 0.2, y: 0.2}
+  passiveSkills:
+  - skillType: 3
+    passiveName: 
+    description: 
   vjtEffectType: 1
-  vjtEffectValue: 1
-  maxEnergy: 100
-  energyRegenRate: 90
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
     skillIcon: {fileID: 21300000, guid: 8cc885d7fad1f0b43ac224300fc02e4a, type: 3}

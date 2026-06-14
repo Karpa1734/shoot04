@@ -57,6 +57,18 @@ public class PlayerMove : MonoBehaviour
 
     private SpriteRenderer sr;
 
+    [Header("🌀 External Field Forces")]
+    [Tooltip("相手の暴食領域などから受けている、現在のフレームの外部引力ベクトル（自動クリア型）")]
+    public Vector2 externalPullVelocity = Vector2.zero;
+
+    /// <summary>
+    /// 🍰 外部の領域から、この機体に対して強制的な引力速度ベクトルを注入します。
+    /// </summary>
+    public void AddExternalPull(Vector2 pullForce)
+    {
+        externalPullVelocity += pullForce;
+    }
+
     // UIや外部マネージャーが参照する、現在の実質的な「アルカナストック数（0〜3）」
     public int ArcanaStockCount => Mathf.FloorToInt(ultimateEnergy / 100f);
 

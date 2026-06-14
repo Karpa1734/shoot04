@@ -128,12 +128,12 @@ public class GreedTaxPossessionField : MonoBehaviour
                         float atkMultiplier = 1.0f;
                         switch (myStatus.characterData.rankAttack)
                         {
-                            case StatusRank.E: atkMultiplier = 0.8f; break;
-                            case StatusRank.D: atkMultiplier = 0.9f; break;
+                            case StatusRank.E: atkMultiplier = 0.6f; break;
+                            case StatusRank.D: atkMultiplier = 0.8f; break;
                             case StatusRank.C: atkMultiplier = 1.0f; break;
-                            case StatusRank.B: atkMultiplier = 1.1f; break;
-                            case StatusRank.A: atkMultiplier = 1.2f; break;
-                            case StatusRank.EX: atkMultiplier = 1.3f; break;
+                            case StatusRank.B: atkMultiplier = 1.2f; break;
+                            case StatusRank.A: atkMultiplier = 1.4f; break;
+                            case StatusRank.EX: atkMultiplier = 1.6f; break;
                         }
                         runtimeKnifeData.damage = Mathf.RoundToInt(runtimeKnifeData.damage * atkMultiplier);
                     }

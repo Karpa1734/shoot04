@@ -1,4 +1,4 @@
-﻿// --- SlowEffect.cs 入力デバイス・AI完全連動修正版 ---
+﻿// --- SlowEffect.cs 【パッシブ0.8倍 × 色欲領域1.5倍・色干渉完全パージ版】 ---
 using UnityEngine;
 
 public class SlowEffect : MonoBehaviour
@@ -14,19 +14,15 @@ public class SlowEffect : MonoBehaviour
     public bool isCounterClockwise = false;
 
     private float currentAlpha = 0f;
-
-    // 🌟【追加】自分の機体のPlayerMoveを参照するためのキャッシュ用変数
     private PlayerMove cachedPlayerMove;
 
     void Start()
     {
         if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
 
-        // 最初は非表示
         spriteRenderer.color = new Color(1, 1, 1, 0);
         transform.localScale = new Vector3(baseScale, baseScale, 1);
 
-        // 🌟【追加】親オブジェクトの階層から、この機体をコントロールしている本物のPlayerMoveを取得
         cachedPlayerMove = GetComponentInParent<PlayerMove>();
 
         if (cachedPlayerMove == null)
@@ -39,28 +35,66 @@ public class SlowEffect : MonoBehaviour
     {
         if (Time.timeScale <= 0) return;
 
-        // 🌟【完全同期修正】：PlayerMoveの構造体内の最新入力パケット（currentFrameInput.slow）を直接覗き込む！
-        // これにより、キーボード、コントローラー（ゲームパッド）、AI自動回避のどれが低速になっても完全に100%連動します。
+        // 🌟 最新の低速移動（フォーカス）入力をデコード
         bool isSlow = false;
-
         if (cachedPlayerMove != null)
         {
             isSlow = cachedPlayerMove.currentFrameInput.slow;
         }
 
-        // アルファ値のフェード処理
-        currentAlpha = Mathf.MoveTowards(currentAlpha, isSlow ? maxAlpha : 0f, fadeSpeed * Time.deltaTime);
-        spriteRenderer.color = new Color(1, 1, 1, currentAlpha);
+        // =========================================================================
+        // 🛡️🔮【パッシブ縮小（0.8倍） ＆ 色欲領域デバフ（1.5倍）の自己自律型・掛け算インフラ】
+        // =========================================================================
+        float finalTargetScale = baseScale;
+        float sizeUpMultiplier = 1.0f;
 
+        if (cachedPlayerMove != null)
+        {
+            PlayerStatusManager myStatus = cachedPlayerMove.GetComponent<PlayerStatusManager>();
+
+            // 🛡️ A. [パッシブチェック]：自身が SmallHitbox を持っていたら、ベーススケールを0.8倍に変調
+            if (myStatus != null && myStatus.HasPassiveSkill(PassiveSkillType.LustSmall))
+            {
+                finalTargetScale = baseScale * 0.8f;
+            }
+
+            // 🔮 B. [領域デバフチェック]：対戦相手が色欲（SizeUp）を展開しているかリアルタイム逆算感知
+            if (cachedPlayerMove.Opponent != null)
+            {
+                PlayerStatusManager oppStatus = cachedPlayerMove.Opponent.GetComponent<PlayerStatusManager>();
+                if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null && oppStatus.characterData.vjtEffectType == VJTEffectType.LustHit)
+                {
+                    // 相手のScriptableObjectにアタッチされている巨大化倍率（1.5倍など）をダイレクトに吸い上げる
+                    sizeUpMultiplier = 1.5f;
+                }
+            }
+        }
+
+        // 💡 通常通り「低速移動ボタンを押している時（isSlow == true）」のみ魔法陣が表示されるフェード処理
+        float targetAlpha = isSlow ? maxAlpha : 0f;
+        currentAlpha = Mathf.MoveTowards(currentAlpha, targetAlpha, fadeSpeed * Time.deltaTime);
+
+        if (spriteRenderer != null)
+        {
+            Color c = spriteRenderer.color;
+            c.a = currentAlpha;
+            spriteRenderer.color = c;
+        }
+
+        // 魔法陣が表示されている時（低速時）のみ、回転と精密なスケール計算を反映
         if (currentAlpha > 0)
         {
-            // 回転処理
             float dir = isCounterClockwise ? 1f : -1f;
             transform.Rotate(0, 0, rotationSpeed * dir);
 
-            // 演出としてわずかにスケールを拍動させるとより再現度が高まります
-            float pulse = isSlow ? Mathf.Sin(Time.time * 10f) * 0.02f : 0f;
-            transform.localScale = new Vector3(baseScale + pulse, baseScale + pulse, 1);
+            // 🛡️パッシブの縮小（等倍 or 0.8）に、🔮色欲デバフの拡大（等倍 or 1.5）を数学的に美しく結合乗算！
+            // 例：パッシブで0.8倍、色欲で1.5倍なら、0.8 * 1.5 = 通常時の「1.2倍」の魔法陣がジャストサイズで実体化します。
+            float dynamicBaseScale = finalTargetScale * sizeUpMultiplier;
+
+            // 魔法陣のドクンドクンという鼓動（拍動アニメーション）の振幅幅も、巨大化スケールに綺麗に追従させます
+            float pulse = Mathf.Sin(Time.time * 10f) * (0.02f * sizeUpMultiplier);
+
+            transform.localScale = new Vector3(dynamicBaseScale + pulse, dynamicBaseScale + pulse, 1);
         }
     }
 }
