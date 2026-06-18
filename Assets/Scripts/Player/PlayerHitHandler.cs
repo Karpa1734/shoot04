@@ -54,10 +54,7 @@ public class PlayerHitHandler : MonoBehaviour
 
     void Update()
     {
-        if (playerMove != null && playerAnim != null)
-        {
-            playerAnim.isInvincible = playerMove.IsInvincible;
-        }
+     
     }
 
     void LateUpdate()

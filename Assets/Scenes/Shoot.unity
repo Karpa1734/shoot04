@@ -9926,7 +9926,7 @@ SpriteRenderer:
   m_SortingLayerID: 515225517
   m_SortingLayer: 2
   m_SortingOrder: 0
-  m_Sprite: {fileID: -5439486401381164067, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
+  m_Sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -10032,31 +10032,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spriteRenderer: {fileID: 695556675}
-  allSprites:
-  - {fileID: -5439486401381164067, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 5342181373759126872, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 4439162278453976921, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -1223123917788658834, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 817201444132613419, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -8140957750357990777, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 4890124139542400879, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6343131611983795412, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -110541036291153338, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6559618467843704460, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -4696235278531261074, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 468720433956586930, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -8375958153901097979, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -7079128936270726634, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 2811797967255108086, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 3928442713320334927, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6747632944501106820, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -3862582843135937000, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6156482003511039784, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 7557959153332560709, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -2947057012721839039, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -2344134847285729123, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 650425908069959906, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 8869250122688350337, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
+  playerMove: {fileID: 695556678}
+  statusManager: {fileID: 695556694}
   isInvincible: 0
 --- !u!114 &695556688
 MonoBehaviour:
@@ -28423,7 +28400,7 @@ MonoBehaviour:
   opponent: {fileID: 695556676}
   playerID: 2
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -28522,31 +28499,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spriteRenderer: {fileID: 1872656872}
-  allSprites:
-  - {fileID: -5439486401381164067, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 5342181373759126872, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 4439162278453976921, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -1223123917788658834, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 817201444132613419, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -8140957750357990777, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 4890124139542400879, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6343131611983795412, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -110541036291153338, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6559618467843704460, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -4696235278531261074, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 468720433956586930, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -8375958153901097979, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -7079128936270726634, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 2811797967255108086, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 3928442713320334927, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6747632944501106820, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -3862582843135937000, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 6156482003511039784, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 7557959153332560709, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -2947057012721839039, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: -2344134847285729123, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 650425908069959906, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
-  - {fileID: 8869250122688350337, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
+  playerMove: {fileID: 1872656870}
+  statusManager: {fileID: 1872656874}
   isInvincible: 0
 --- !u!114 &1872656870
 MonoBehaviour:
@@ -28652,7 +28606,7 @@ SpriteRenderer:
   m_SortingLayerID: 515225517
   m_SortingLayer: 2
   m_SortingOrder: 0
-  m_Sprite: {fileID: -5439486401381164067, guid: f7800f838a7cc2249a987ec4ce331176, type: 3}
+  m_Sprite: {fileID: 7482667652216324306, guid: 75f5f34dc1b5347e0b8351032682f224, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

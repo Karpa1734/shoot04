@@ -32,7 +32,7 @@ MonoBehaviour:
   additiveRotateSpeed: 25
   additiveScrollSpeed: {x: 0.2, y: 0.2}
   passiveSkills:
-  - skillType: 3
+  - skillType: 1
     passiveName: 
     description: 
   vjtEffectType: 1

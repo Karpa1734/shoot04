@@ -866,7 +866,7 @@ public class PlayerStatusManager : MonoBehaviour
                 SpriteRenderer oppMainSR = _playerMove.Opponent.GetComponentInChildren<SpriteRenderer>();
                 if (oppMainSR != null)
                 {
-                    oppMainSR.color = Color.white;
+                    //oppMainSR.color = Color.white;
                 }
 
                 // 3. ✨【大修正】：子オブジェクトにある「当たり判定スプライト2種」のスケールを等倍に完全復元！

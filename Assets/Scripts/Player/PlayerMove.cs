@@ -152,8 +152,8 @@ public class PlayerMove : MonoBehaviour
     }
     void LateUpdate()
     {
-        if (IsInvincible) UpdateInvincibleVisual();
-        else if (sr != null && sr.color != Color.white) ResetVisual();
+       // if (IsInvincible) UpdateInvincibleVisual();
+        //else if (sr != null && sr.color != Color.white) ResetVisual();
     }
     void FixedUpdate()
     {/*
