@@ -282,18 +282,20 @@ public class SkillManager : MonoBehaviour
     /// <summary>
     /// 各通常スキルの入力・リキャスト・コストを統合評価して射出する中枢サブルーチン
     /// </summary>
+    /// <summary>
+    /// 各通常スキルの入力・リキャスト・コストを統合評価して射出する中枢サブルーチン
+    /// </summary>
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings, bool isVjtActive)
     {
-        bool isCostAllowed = isVjtActive || (playerMove.currentEnergy >= settings.cost);
+        // 👑【システム復旧】：領域中であっても、無限化をパージし、純粋に発動コスト以上のマナがあるかチェックします
+        bool isCostAllowed = (playerMove.currentEnergy >= settings.cost);
 
         if (isPressed && timer <= 0 && isCostAllowed)
         {
             _recoveryDelayTimer = 0f;
 
-            if (!isVjtActive)
-            {
-                playerMove.currentEnergy -= settings.cost;
-            }
+            // 👑【システム復旧】：領域展開中（VJT）であっても、きっちりスキル設定分のコストを減算消費させます！
+            playerMove.currentEnergy -= settings.cost;
 
             emitter.Fire(settings);
 

@@ -777,7 +777,33 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
             else
             {
-                laser.SetupA(_rootOwner, targetTag, s.bulletData.damage,
+                // =========================================================================
+                // ⚔️【最核心修正】：通常レーザーへの攻撃ランク＆憤怒・嫉妬バフの動的結合
+                // =========================================================================
+                int finalNormalLaserDamage = s.bulletData.damage;
+                PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+                if (myStatus != null && myStatus.characterData != null)
+                {
+                    float atkMultiplier = 1.0f;
+                    switch (myStatus.characterData.rankAttack)
+                    {
+                        case StatusRank.E: atkMultiplier = 0.8f; break;
+                        case StatusRank.D: atkMultiplier = 0.9f; break;
+                        case StatusRank.C: atkMultiplier = 1.0f; break;
+                        case StatusRank.B: atkMultiplier = 1.1f; break;
+                        case StatusRank.A: atkMultiplier = 1.2f; break;
+                        case StatusRank.EX: atkMultiplier = 1.3f; break;
+                    }
+
+                    // 🧬 憤怒パッシブの1.3倍を乗算
+                    if (myStatus.IsAttackBoostActive) atkMultiplier *= 1.3f;
+                    // 👁️ 嫉妬パッシブを乗算
+                    atkMultiplier *= myStatus.GetJealousyMultiplier();
+
+                    finalNormalLaserDamage = Mathf.RoundToInt(finalNormalLaserDamage * atkMultiplier);
+                }
+
+                laser.SetupA(_rootOwner, targetTag, finalNormalLaserDamage, // 💡計算済みの実数値を代入
                              transform.position.x, transform.position.y, s.count, s.wideAngle,
                              color, (int)s.delay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
             }
@@ -809,11 +835,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
         if (isSpellActive)
         {
-            LaserWay = 48;    
+            LaserWay = 48;
         }
 
         // --- 設定パラメータ ---
-        int laserCount = Mathf.Max(1, LaserWay); // 18本
+        int laserCount = Mathf.Max(1, LaserWay);
         float radius = 1.6f;             // 弾源の半径
         int stopFrame = 40;              // 回転が止まり始めるフレーム
         int warningFrame = stopFrame + 60; // 完全に止まってから実線化するまでの「タメ」
@@ -836,6 +862,34 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         BulletManager.LaserColor color = s.bulletData.laserColor;
         var laserSet = BulletManager.Instance.GetLaserSet(color);
 
+        // =========================================================================
+        // ⚔️【最核心修正】：ループ突入前に、攻撃ランク＆憤怒・嫉妬バフの倍率を動的合算
+        // =========================================================================
+        int finalLaserDamage = s.bulletData.damage;
+        if (myStatus != null && myStatus.characterData != null)
+        {
+            float atkMultiplier = 1.0f;
+            switch (myStatus.characterData.rankAttack)
+            {
+                case StatusRank.E: atkMultiplier = 0.8f; break;
+                case StatusRank.D: atkMultiplier = 0.9f; break;
+                case StatusRank.C: atkMultiplier = 1.0f; break;
+                case StatusRank.B: atkMultiplier = 1.1f; break;
+                case StatusRank.A: atkMultiplier = 1.2f; break;
+                case StatusRank.EX: atkMultiplier = 1.3f; break;
+            }
+
+            // 🧬【憤怒パッシブ】：被弾時バフ（IsAttackBoostActive）が有効なら1.3倍を直撃乗算！
+            if (myStatus.IsAttackBoostActive)
+            {
+                atkMultiplier *= 1.3f;
+            }
+            // 👁️【嫉妬パッシブ】：相手のゲージ量に応じた倍率を同期乗算
+            atkMultiplier *= myStatus.GetJealousyMultiplier();
+
+            finalLaserDamage = Mathf.RoundToInt(finalLaserDamage * atkMultiplier);
+        }
+
         for (int i = 0; i < laserCount; i++)
         {
             GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, transform.position, Quaternion.identity);
@@ -845,16 +899,15 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             {
                 spawnedLasers.Add(laser);
 
-                // ★ 発射時の自機座標を centerPos として固定する SetupB を使用
-                // ✨ 修正後
-                laser.SetupB(_rootOwner, targetTag, s.bulletData.damage,
+                // 💡 修正：s.bulletData.damage の生データではなく、バフ計算を終えた finalLaserDamage をインジェクション！
+                laser.SetupB(_rootOwner, targetTag, finalLaserDamage,
                              transform.position.x, transform.position.y,
                              s.count, s.wideAngle, color, warningFrame,
                              BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
 
                 float currentStartAngle = baseAngle + (360f / laserCount * i);
 
-                // 初期オフセット（150度は渦を巻くような大きな曲がり）
+                // 初期オフセット（120度は渦を巻くような大きな曲がり）
                 float aimOffset = 120f * rotDir;
                 float initialLaserAngle = currentStartAngle + aimOffset;
 
@@ -866,7 +919,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                     distAngle = currentStartAngle, // 弾源の公転角
                     laserAngle = initialLaserAngle, // レーザー自体の向き（曲げる）
                     distAngleVel = initialRotSpeed,
-                    laserAngleVel = initialRotSpeed + driftVelocity, // ★徐々にズレるように自転速度を微調整
+                    laserAngleVel = initialRotSpeed + driftVelocity, // 徐々にズレるように自転速度を微調整
                     isSmooth = true
                 });
 
@@ -1987,11 +2040,38 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                     // 重なり防止の時差タイマーグラデーション
                     int dynamicDelay = isEnhancedLines ? (20 + (i * 1)) : 20;
 
-                    zessenLaser.SetupA(_rootOwner, targetTag, s.bulletData.damage * 2,
+                    // =========================================================================
+                    // ⚔️【最核心修正】：究極EX斬撃レーザーへの攻撃ランク＆憤怒・嫉妬バフの動的結合
+                    // =========================================================================
+                    int finalLaserDamage = s.bulletData.damage; // ベース（一閃固有の2倍化）
+                    if (myStatus != null && myStatus.characterData != null)
+                    {
+                        float atkMultiplier = 1.0f;
+                        switch (myStatus.characterData.rankAttack)
+                        {
+                            case StatusRank.E: atkMultiplier = 0.8f; break;
+                            case StatusRank.D: atkMultiplier = 0.9f; break;
+                            case StatusRank.C: atkMultiplier = 1.0f; break;
+                            case StatusRank.B: atkMultiplier = 1.1f; break;
+                            case StatusRank.A: atkMultiplier = 1.2f; break;
+                            case StatusRank.EX: atkMultiplier = 1.3f; break;
+                        }
+
+                        // 🧬【憤怒パッシブ割り込み】：被弾時バフ（IsAttackBoostActive）が有効なら1.3倍を直撃乗算！
+                        if (myStatus.IsAttackBoostActive)
+                        {
+                            atkMultiplier *= 1.3f;
+                        }
+                        // 👁️【嫉妬パッシブ】：相手のゲージ量に応じた倍率を同期乗算
+                        atkMultiplier *= myStatus.GetJealousyMultiplier();
+
+                        finalLaserDamage = Mathf.RoundToInt(finalLaserDamage * atkMultiplier);
+                    }
+
+                    zessenLaser.SetupA(_rootOwner, targetTag, finalLaserDamage, // 💡計算済みの実数値を代入
                                      finalLaserSpawnPos.x, finalLaserSpawnPos.y,
                                      laserDistance, 0.5f,
                                      color, dynamicDelay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
-
                     SpriteRenderer laserSR = laserObj.GetComponentInChildren<SpriteRenderer>();
                     bool isCustomSpriteAssigned = (s.bulletData.bulletSprite != null);
 

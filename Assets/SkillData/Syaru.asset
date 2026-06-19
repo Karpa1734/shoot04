@@ -20,7 +20,7 @@ MonoBehaviour:
   rankSpellZone: 2
   characterName: Player2
   imageColor: {r: 1, g: 1, b: 0, a: 1}
-  spellCardName: "\u25A1\u7B26\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
+  spellCardName: "\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
   spellCircleSprite: {fileID: 21300000, guid: 76012f8bd59ccaf4ba33831a5a621911, type: 3}
   characterOverheatDuration: 20
   characterSpellBGBase: {fileID: 21300000, guid: f1d0c95c39292994eb137aa55737abab, type: 3}

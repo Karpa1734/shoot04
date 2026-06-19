@@ -1,4 +1,4 @@
-﻿// --- DanmakuAgent.cs Hard/Lunatic超精密型流体回避・低速自動適合版 ---
+﻿// --- DanmakuAgent.cs Hard/Lunatic超精密型流体回避・しの字包囲網学習適合版 ---
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
@@ -17,6 +17,10 @@ public class DanmakuAgent : Agent
     [Header("AI Evade Settings (Rule-Based)")]
     [SerializeField] private float _detectionRadius = 3.5f;
     public bool _useAutoEvadeAI = false;
+
+    [Header("🎯 ML-Agents Training Settings (しの字・つの字対策空間)")]
+    [Tooltip("3方向以上を弾に囲まれた（袋小路に入った）際に、毎フレーム与えるペナルティの最大値（マイナス値で指定）")]
+    [SerializeField] private float _deadEndFramePenalty = -0.015f;
 
     private Vector3 _initialPosition;
     private float _timeSinceMatchEnd = 0f;
@@ -38,6 +42,9 @@ public class DanmakuAgent : Agent
     // 🦥【新規追加】：チョン避け（一方向引き付け）慣性ホールド用の内部ワーク変数
     private float _chonTimer = 0f;
     private Vector2 _chonLockedDirection = Vector2.zero;
+
+    // 🌟【デモ用新設】：EXスキル（ULT）と領域展開（VJT）のAI使用を完全に禁止するスイッチ
+    [SerializeField] private bool _disableEXAndVJTForDemo = false;
 
     public override void Initialize()
     {
@@ -77,33 +84,144 @@ public class DanmakuAgent : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        sensor.AddObservation(transform.localPosition);
-        if (opponent != null)
+        sensor.AddObservation(transform.localPosition); // (既存)
+        if (opponent != null) // (既存)
         {
-            sensor.AddObservation(opponent.localPosition);
-            Rigidbody2D oppRb = opponent.GetComponent<Rigidbody2D>();
-            sensor.AddObservation(oppRb != null ? oppRb.linearVelocity : Vector2.zero);
+            sensor.AddObservation(opponent.localPosition); // (既存)
+            Rigidbody2D oppRb = opponent.GetComponent<Rigidbody2D>(); // (既存)
+            sensor.AddObservation(oppRb != null ? oppRb.linearVelocity : Vector2.zero); // (既存)
         }
         else
         {
-            sensor.AddObservation(Vector3.zero);
+            sensor.AddObservation(Vector3.zero); // (既存)
+            sensor.AddObservation(Vector2.zero); // (既存)
+        }
+
+        if (playerMove != null) // (既存)
+        {
+            sensor.AddObservation(playerMove.currentEnergy / playerMove.maxEnergy); // (既存)
+            sensor.AddObservation(playerMove.ultimateEnergy); // (既存)
+        }
+        else
+        {
+            sensor.AddObservation(0f); // (既存)
+            sensor.AddObservation(0f); // (既存)
+        }
+
+        // =========================================================================
+        // 🔮【強化学習用・新規拡張】：しの字の包囲重心 ＆ 画面端のプレッシャー観測
+        // =========================================================================
+        // ① 壁際のプレッシャー度合い（四隅のどこにどれだけ追いつめられているか）
+        float wallX = 4.0f; // DanmakuControllerの境界値
+        float wallY = 4.5f;
+        float cornerX = Mathf.Clamp01((Mathf.Abs(transform.localPosition.x) - 2.5f) / (wallX - 2.5f));
+        float cornerY = Mathf.Clamp01((Mathf.Abs(transform.localPosition.y) - 3.0f) / (wallY - 3.0f));
+        sensor.AddObservation(cornerX); // 左右の壁への肉薄度 (0〜1)
+        sensor.AddObservation(cornerY); // 上下の壁への肉薄度 (0〜1)
+
+        // ② 周囲の敵弾の「重心ベクトル」と「平均速度ベクトル」
+        string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet"; // (既存)
+        Collider2D[] hitColliders = Physics2D.OverlapCircleAll(transform.position, _detectionRadius); // (既存)
+
+        int bulletCount = 0;
+        Vector2 bulletCenterGroup = Vector2.zero;
+        Vector2 bulletAverageVelocity = Vector2.zero;
+
+        foreach (var col in hitColliders)
+        {
+            if (col == null) continue;
+            if (col.CompareTag(targetBulletTag) || col.CompareTag("Laser")) // (既存)
+            {
+                Vector2 relativePos = col.transform.position - transform.position;
+                bulletCenterGroup += relativePos;
+                bulletCount++;
+
+                if (col.attachedRigidbody != null) // (既存)
+                {
+                    bulletAverageVelocity += col.attachedRigidbody.linearVelocity; // (既存)
+                }
+            }
+        }
+
+        if (bulletCount > 0)
+        {
+            bulletCenterGroup /= bulletCount;
+            bulletAverageVelocity /= bulletCount;
+            sensor.AddObservation(bulletCenterGroup);     // 迫りくる「しの字の丸まった頂点」の相対位置 (Vector2)
+            sensor.AddObservation(bulletAverageVelocity); // 弾幕が移動している方向ベクトル (Vector2)
+        }
+        else
+        {
+            sensor.AddObservation(Vector2.zero);
             sensor.AddObservation(Vector2.zero);
         }
 
-        if (playerMove != null)
+        if (PlayerMove.CanShoot) // (既存)
         {
-            sensor.AddObservation(playerMove.currentEnergy / playerMove.maxEnergy);
-            sensor.AddObservation(playerMove.ultimateEnergy);
+            AddReward(0.0005f); // (既存)
+
+            // 💡【重要】：観測のタイミング（毎フレーム）で、包囲網と切り返しの報酬評価を実行します
+            EvaluateDeadEndSurroundingPenalty();
         }
-        else
+    }
+
+    /// <summary>
+    /// 自機の周囲の弾の包囲網を4象限で計算し、袋小路（つの字の内部）にいる場合にペナルティを課す
+    /// </summary>
+    /// <summary>
+    /// 🧠 強化学習用：画面端でしの字に包囲された状態を減点し、中央・上空への「切り返し移動」を肯定調教する
+    /// </summary>
+    private void EvaluateDeadEndSurroundingPenalty()
+    {
+        string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet";
+        Collider2D[] hitColliders = Physics2D.OverlapCircleAll(transform.position, _detectionRadius);
+
+        int leftCount = 0; int rightCount = 0; int upCount = 0; int downCount = 0;
+
+        foreach (var col in hitColliders)
         {
-            sensor.AddObservation(0f);
-            sensor.AddObservation(0f);
+            if (col == null) continue;
+            if (col.CompareTag(targetBulletTag) || col.CompareTag("Laser"))
+            {
+                Vector2 relativePos = col.transform.position - transform.position;
+                if (relativePos.x < -0.3f) leftCount++;
+                if (relativePos.x > 0.3f) rightCount++;
+                if (relativePos.y > 0.3f) upCount++;
+                if (relativePos.y < -0.3f) downCount++;
+            }
         }
 
-        if (PlayerMove.CanShoot)
+        // 💡 壁際（四隅のいずれかのコーナー）に追い詰められているかの判定
+        float wallX = 4.0f; float wallY = 4.5f;
+        bool isCornered = (Mathf.Abs(transform.localPosition.x) > wallX - 1.5f) &&
+                          (Mathf.Abs(transform.localPosition.y) > wallY - 1.5f);
+
+        // 🚨 1. 【袋小路ペナルティ】：画面隅にハメられ、かつ目の前に弾の壁（4発以上）がある場合
+        if (isCornered && (leftCount + rightCount + upCount + downCount) >= 4)
         {
-            AddReward(0.0005f);
+            // 被弾する前のこの「詰み空間」にスタックしていること自体に持続的な減点を与える
+            AddReward(_deadEndFramePenalty);
+        }
+
+        // 🌟 2. 【切り返しの肯定】：左下や右下のピンチから、上方向や中央方向へダッシュして脱出しようとする入力を選んだら褒める
+        if (isCornered && playerMove != null)
+        {
+            // 左下 (x < 0, y < 0) にいる時、上(v > 0) や 右(h > 0) の脱出アクションを起こしていればインセンティブを支給
+            if (transform.localPosition.x < 0 && transform.localPosition.y < 0)
+            {
+                if (playerMove.currentFrameInput.v > 0 || playerMove.currentFrameInput.h > 0)
+                {
+                    AddReward(0.005f); // 切り返し誘導ボーナス
+                }
+            }
+            // 右下 (x > 0, y < 0) にいる時、上(v > 0) や 左(h < 0) の脱出アクションを起こしていればボーナス
+            else if (transform.localPosition.x > 0 && transform.localPosition.y < 0)
+            {
+                if (playerMove.currentFrameInput.v > 0 || playerMove.currentFrameInput.h < 0)
+                {
+                    AddReward(0.005f);
+                }
+            }
         }
     }
 
@@ -111,9 +229,6 @@ public class DanmakuAgent : Agent
     public void GiveGrazeReward() => AddReward(0.05f);
     public void GiveHitPenalty() => AddReward(-0.5f);
 
-    /// <summary>
-    /// AIの頭脳モデル、またはHeuristicから上がってきた確定アクションをReplayFrameへ安全にデコード・インジェクション
-    /// </summary>
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
@@ -130,20 +245,15 @@ public class DanmakuAgent : Agent
 
         int attackAction = discrete[2];
 
-        // 領域解除隙ガード制御
         if (attackAction == 5 && !IsVjtCancelAllowed())
         {
             attackAction = 0;
         }
 
-        // =========================================================================
-        // ⚡【核心の進化3】：危険域（半径1.2）での「超精密低速自動切り替えスイッチ」の自動割り込み
-        // =========================================================================
-        bool autoSlowToggle = (discrete[3] == 1); // AIの基本判断をベースラインとして取得
+        bool autoSlowToggle = (discrete[3] == 1);
 
         if (_useAutoEvadeAI)
         {
-            // 自機の肌に触れる超至近距離（1.2ユニット内）をOverlapCircleで1フレーム高速スキャン
             string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet";
             Collider2D[] closeColliders = Physics2D.OverlapCircleAll(transform.position, 1.2f);
             bool isImmediateDanger = false;
@@ -157,8 +267,6 @@ public class DanmakuAgent : Agent
                 }
             }
 
-            // 💡【ジャッジ】：肌に触れる距離まで弾が肉薄していれば、AIのボタン入力を上書きして強制的に低速（シフト）ON！
-            //                 これにより、隙間の大回り時は「高速移動」、いざ被弾寸前の微細回避時は「1コマ単位の精密ドット避け」へ自動変調します。
             if (isImmediateDanger)
             {
                 autoSlowToggle = true;
@@ -169,7 +277,7 @@ public class DanmakuAgent : Agent
         {
             h = h,
             v = v,
-            slow = autoSlowToggle, // 自動調停されたシフト判定を同期インジェクション
+            slow = autoSlowToggle,
             shotZ = (attackAction == 1),
             shotX = (attackAction == 2),
             shotC = (attackAction == 3),
@@ -182,6 +290,8 @@ public class DanmakuAgent : Agent
             statusManager.ActivateSpellCard();
         }
     }
+
+
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -254,10 +364,6 @@ public class DanmakuAgent : Agent
         return false;
     }
 
-    /// <summary>
-    /// 📐【Hard/Lunatic適合型】：弾幕クラスター、流体（横滑り）回避、画面下張り付き防止を統合した
-    /// プロフェッショナル仕様の回避物理ベクトル算出マトリクス。
-    /// </summary>
     private Vector2 CalculatePotentialEvadeDirection()
     {
         Vector2 totalRepulsion = Vector2.zero;
@@ -276,12 +382,10 @@ public class DanmakuAgent : Agent
         bool isNearTopWall = transform.position.y > (wallBound - padding);
         bool isNearBottomWall = transform.position.y < (-wallBound + padding);
 
-        // 弾幕塊（クラスター）の動的スキャンバッファ
         var singleBullets = new System.Collections.Generic.List<Collider2D>();
         var clusterPoints = new System.Collections.Generic.List<Vector2>();
         var analyzedCounted = new System.Collections.Generic.HashSet<Collider2D>();
 
-        // 1. 周囲の弾同士の距離を全走査し、塊（クラスター）を抽出
         foreach (var col in hitColliders)
         {
             if (col == null || !col.CompareTag(targetBulletTag) || analyzedCounted.Contains(col)) continue;
@@ -316,7 +420,6 @@ public class DanmakuAgent : Agent
             }
         }
 
-        // 2. 【塊（クラスター）】からの大回り大避ベクトル演算
         foreach (Vector2 clusterPos in clusterPoints)
         {
             Vector2 directionFromCluster = (Vector2)transform.position - clusterPos;
@@ -336,9 +439,6 @@ public class DanmakuAgent : Agent
             totalRepulsion += clusterRepulsion;
         }
 
-        // =========================================================================
-        // ⚡【核心の進化1】：単発弾に対する「流体（横滑り）回避ベクトル」の完全数理溶接
-        // =========================================================================
         foreach (var col in singleBullets)
         {
             if (col == null) continue;
@@ -348,34 +448,24 @@ public class DanmakuAgent : Agent
 
             hasDanger = true;
 
-            // ベースとなる斥力（距離の2乗に反比例）
             float force = 1.0f / (distance * distance);
             Vector2 bulletRepulsion = directionFromBullet.normalized * force;
-
             Vector2 finalBulletForce = bulletRepulsion;
 
-            // 弾のRigidbodyからリアルタイムな「進行ベクトル」を取得
             if (col.attachedRigidbody != null)
             {
                 Vector2 bulletVelocity = col.attachedRigidbody.linearVelocity;
                 if (bulletVelocity.sqrMagnitude > 0.1f)
                 {
                     Vector2 bulletDir = bulletVelocity.normalized;
-
-                    // 弾の進行方向に対して「真横（90度）」を向く左右の垂直ベクトルを生成
                     Vector2 sideForce1 = new Vector2(-bulletDir.y, bulletDir.x);
                     Vector2 sideForce2 = new Vector2(bulletDir.y, -bulletDir.x);
 
-                    // 自機の現在地から弾の横軸を評価し、より安全にすれ違える「近い方の横方向」をロック
                     Vector2 bestSideForce = (Vector2.Dot(directionFromBullet, sideForce1) > 0f) ? sideForce1 : sideForce2;
-
-                    // 💡【流体合算】：正面から離れる力(1.0) ＋ 弾の真横に滑り込む力(0.7) を絶妙にブレンド！
-                    //                 これより、Lunaticの超高速弾が来ても、チョン避けのように綺麗に脇をすり抜けます。
                     finalBulletForce += bestSideForce * (force * 0.7f);
                 }
             }
 
-            // 壁際クランプの適用
             if (isNearRightWall && finalBulletForce.x > 0) { finalBulletForce.y += (finalBulletForce.y >= 0 ? 1f : -1f) * finalBulletForce.x; finalBulletForce.x = 0; }
             else if (isNearLeftWall && finalBulletForce.x < 0) { finalBulletForce.y += (finalBulletForce.y >= 0 ? 1f : -1f) * Mathf.Abs(finalBulletForce.x); finalBulletForce.x = 0; }
             if (isNearTopWall && finalBulletForce.y > 0) { finalBulletForce.x += (finalBulletForce.x >= 0 ? 1f : -1f) * finalBulletForce.y; finalBulletForce.y = 0; }
@@ -384,7 +474,6 @@ public class DanmakuAgent : Agent
             totalRepulsion += finalBulletForce;
         }
 
-        // レーザー判定（既存ロジック完全維持）
         foreach (var col in hitColliders)
         {
             if (col == null || !col.CompareTag("Laser")) continue;
@@ -426,19 +515,62 @@ public class DanmakuAgent : Agent
             }
         }
 
-        // =========================================================================
-        // ⚡【核心の進化2】：画面最下段「張り付き圧殺」防止用・中央復帰アシストベクトルの溶接
-        // =========================================================================
-        // 💡 理由：AIが弾から逃げるあまり最下段（Y = -4.0付近）に固定されると、逃げ道がなくなって即詰みます。
-        //          そのため、周囲の弾がパラパラ（4発未満）で余裕がある時だけ、画面の少し上（Y = -1.5付近）へ戻そうとする
-        //          マイルドな引き戻しベクトルのテン力をかけ、前へ出る勇気を与えます。
         if (transform.position.y < -2.5f && singleBullets.Count < 4)
         {
             float pushUpForce = Mathf.Abs(transform.position.y - (-1.5f)) * 0.22f;
             totalRepulsion += Vector2.up * pushUpForce;
         }
 
-        // 外壁衝突防止（既存の処理）
+        // 💡【エラー根治】：既存の壁際判定フラグから、四隅（コーナー）に追い詰められているかを動的に算出
+        //                   上下のどちらかの壁、かつ左右のどちらかの壁に同時に触れている場合は危険度を1.0（最大）にします。
+        float wallDangerFactor = ((isNearLeftWall || isNearRightWall) && (isNearBottomWall || isNearTopWall)) ? 1.0f : 0.0f;
+
+        // =========================================================================
+        // 💫【最核心進化】：画面端・四隅に追い詰められた際の「切り返し（脱出）」ベクトルの結合
+        // =========================================================================
+        // 💡 理由：背後が壁、かつ前方が弾幕（4発以上）の際、ただ弾から離れようとすると壁に激突して静止します。
+        //          この絶対絶命のピンチを検知した瞬間、AIに「弾幕の隙間（高度の高い上方向、または中央）」へ
+        //          一気に滑り込んで位置を入れ替える（切り返す）ための強烈な推進力を与えます。
+        if (wallDangerFactor > 0.4f && singleBullets.Count + (clusterPoints.Count * 4) >= 4)
+        {
+            Vector2 escapeSwitchVector = Vector2.zero;
+
+            // 1. 左下の四隅に追い詰められている場合（カリンのしの字に捕まったスクショの状況）
+            if (isNearLeftWall && isNearBottomWall)
+            {
+                // 💡 左下からは「真上（コルーチン側で弾が薄くなる高度）」か「右（中央）」へ一気に切り返す！
+                escapeSwitchVector = (Vector2.up * 2.5f + Vector2.right * 1.0f).normalized;
+                Debug.Log("<color=orange>⚡【AI緊急切り返し】左下デッドロックを検知。上空の隙間へ高速カットイン！</color>");
+            }
+            // 2. 右下の四隅に追い詰められている場合
+            else if (isNearRightWall && isNearBottomWall)
+            {
+                escapeSwitchVector = (Vector2.up * 2.5f + Vector2.left * 1.0f).normalized;
+                Debug.Log("<color=orange>⚡【AI緊急切り返し】右下デッドロックを検知。上空の隙間へ高速カットイン！</color>");
+            }
+            // 3. 左側の壁際に張り付かされている場合
+            else if (isNearLeftWall)
+            {
+                escapeSwitchVector = Vector2.right * 2.0f; // 中央へ大きく切り返し
+            }
+            // 4. 右側の壁際に張り付かされている場合
+            else if (isNearRightWall)
+            {
+                escapeSwitchVector = Vector2.left * 2.0f;  // 中央へ大きく切り返し
+            }
+
+            // 💡【流体オーバーライド】：これまでのフリーズしていた斥力を完全にねじ伏せ、
+            //                          この切り返しベクトルを最大出力で運動エネルギーに直撃結合します！
+            if (escapeSwitchVector != Vector2.zero)
+            {
+                totalRepulsion = (totalRepulsion * 0.3f) + escapeSwitchVector * 2.2f;
+
+                // 🧠 ML-Agents 学習用報酬調教：切り返しに成功して生き残る選択肢を脳に強く肯定させるため、
+                //                            画面端のピンチから脱出方向へ動き出した瞬間に微小なボーナスを支給
+                AddReward(0.002f);
+            }
+        }
+
         if (transform.position.x > wallBound - padding) totalRepulsion += Vector2.left * (1.0f / Mathf.Max(0.1f, wallBound - transform.position.x));
         if (transform.position.x < -wallBound + padding) totalRepulsion += Vector2.right * (1.0f / Mathf.Max(0.1f, transform.position.x - (-wallBound)));
         if (transform.position.y > wallBound - padding) totalRepulsion += Vector2.down * (1.0f / Mathf.Max(0.1f, wallBound - transform.position.y));
@@ -472,58 +604,80 @@ public class DanmakuAgent : Agent
         int nearbyBulletCount = CountNearbyBullets();
         float distanceToEnemy = (opponent != null) ? Vector3.Distance(transform.position, opponent.position) : 10f;
 
-        if (PlayerStatusManager.isAnyVJTActive && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated && currentUltGauge >= 200f)
-        {
-            if (playerMove.Opponent != null)
-            {
-                PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
-                if (oppStatus != null && oppStatus.isSpellCardActive)
-                {
-                    float myProgress = Mathf.InverseLerp(200f, 300f, currentUltGauge);
-                    float myExpectedDuration = Mathf.Lerp(statusManager.minSpellDuration, statusManager.maxSpellDuration, myProgress);
-                    float oppRemainingTime = oppStatus.spellTimer;
+        bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
 
-                    if (myExpectedDuration - oppRemainingTime > 10f)
+        if (!_disableEXAndVJTForDemo)
+        {
+            if (PlayerStatusManager.isAnyVJTActive && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated && currentUltGauge >= 200f)
+            {
+                if (playerMove.Opponent != null)
+                {
+                    PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                    if (oppStatus != null && oppStatus.isSpellCardActive)
                     {
-                        Debug.Log($"<color=red>🤖【AI領域返し執行】敵の結界の隙を看破！ 割り込み領域返しをトリガーします！</color>");
-                        return 6;
+                        float myProgress = Mathf.InverseLerp(200f, 300f, currentUltGauge);
+                        float myExpectedDuration = Mathf.Lerp(statusManager.minSpellDuration, statusManager.maxSpellDuration, myProgress);
+                        float oppRemainingTime = oppStatus.spellTimer;
+
+                        if (myExpectedDuration - oppRemainingTime > 10f)
+                        {
+                            Debug.Log($"<color=red>🤖【AI領域返し執行】敵の結界の隙を看破！ 割り込み領域返しをトリガーします！</color>");
+                            return 6;
+                        }
                     }
+                }
+            }
+            if (!PlayerStatusManager.isAnyVJTActive && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated && currentUltGauge >= 200f)
+            {
+                if (distanceToEnemy <= 6.5f)
+                {
+                    Debug.Log($"<color=cyan>🤖【AI通常領域展開】必殺リソース2本以上蓄積。主導権掌握のためVJTを展開します！</color>");
+                    return 6;
                 }
             }
         }
 
-        if (!PlayerStatusManager.isAnyVJTActive && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated && currentUltGauge >= 200f)
+        if (isVReady && (isMyVjtActive ? (currentMP >= 20f) : (nearbyBulletCount >= 5 && currentMP >= 20f))) return 4;
+
+        float vjtMpReadyThreshold = 35f;
+        float vjtMpSaveThreshold = 15f;
+
+        if (isMyVjtActive)
         {
-            if (distanceToEnemy <= 6.5f)
+            if (_currentShootingState == ShootingState.Bursting)
             {
-                Debug.Log($"<color=cyan>🤖【AI通常領域展開】必殺リソース2本以上蓄積。主導権掌握のためVJTを展開します！</color>");
-                return 6;
+                if (currentMP <= vjtMpSaveThreshold) _currentShootingState = ShootingState.Charging;
+            }
+            else
+            {
+                if (currentMP >= vjtMpReadyThreshold) _currentShootingState = ShootingState.Bursting;
+                else return 0;
+            }
+        }
+        else
+        {
+            if (_currentShootingState == ShootingState.Bursting)
+            {
+                if (currentMP <= _mpSaveThreshold) _currentShootingState = ShootingState.Charging;
+            }
+            else
+            {
+                if (currentMP >= _mpReadyThreshold) _currentShootingState = ShootingState.Bursting;
+                else return 0;
             }
         }
 
-        if (isUltReady)
+        if (isXReady && (isMyVjtActive ? (currentMP >= 25f) : (currentMP >= 25f && distanceToEnemy >= 2.0f && distanceToEnemy <= 8.5f))) return 2;
+        if (isCReady && (isMyVjtActive ? (currentMP >= 30f) : (distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f))) return 3;
+        if (isZReady && currentMP >= 10f) return 1;
+
+        if (isUltReady && !_disableEXAndVJTForDemo)
         {
-            if (statusManager != null && statusManager.isSpellCardActive) return 5;
+            if (isMyVjtActive) return 5;
             if (currentUltGauge >= 300f) return 5;
             if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) return 5;
             if (currentUltGauge >= 100f && distanceToEnemy < 6.0f && nearbyBulletCount <= 2) return 5;
         }
-
-        if (nearbyBulletCount >= 5 && isVReady && currentMP >= 20f) return 4;
-
-        if (_currentShootingState == ShootingState.Bursting)
-        {
-            if (currentMP <= _mpSaveThreshold) _currentShootingState = ShootingState.Charging;
-        }
-        else
-        {
-            if (currentMP >= _mpReadyThreshold) _currentShootingState = ShootingState.Bursting;
-            else return 0;
-        }
-
-        if (isXReady && currentMP >= 25f && distanceToEnemy >= 2.0f && distanceToEnemy <= 8.5f) return 2;
-        if (isCReady && distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f) return 3;
-        if (isZReady && currentMP >= 10f) return 1;
 
         return 0;
     }

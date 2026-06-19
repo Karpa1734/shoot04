@@ -8736,7 +8736,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &639948841
 RectTransform:
   m_ObjectHideFlags: 0
@@ -10070,7 +10070,7 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   moveAction:
     m_Name: Move
     m_Type: 0
@@ -10125,6 +10125,7 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
+  _disableEXAndVJTForDemo: 1
 --- !u!114 &695556690
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12106,7 +12107,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &820645624
 RectTransform:
   m_ObjectHideFlags: 0
@@ -28455,6 +28456,7 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
+  _disableEXAndVJTForDemo: 1
 --- !u!114 &1872656868
 MonoBehaviour:
   m_ObjectHideFlags: 0

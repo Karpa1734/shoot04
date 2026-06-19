@@ -151,7 +151,10 @@ public class PlayerStatusManager : MonoBehaviour
     // 🎯【新設】：デバッグ中断時のランク永続化を防ぐためのキャッシュ
     private StatusRank _originalCharacterRank;
     private bool _hasCachedRank = false;
+    // 構造体 CharacterRankBackup _originalBackup; の下あたりに追加
 
+    // 🕒【新規追加】：AIによる領域返し不発SEの「マシンガン大連射」を防止するためのインターバルタイマー
+    private float _failedSpellSoundTimer = 0f;
     // 🎯【デバッグ安全弁】：アセットの永続上書きバグを根絶するためのディープキャッシュ構造体
     private struct CharacterRankBackup
     {
@@ -375,7 +378,11 @@ public class PlayerStatusManager : MonoBehaviour
         {
             _passiveAtkBoostTimer -= Time.deltaTime;
         }
-
+        // 🕒【新規加算】：連続不発SE防止タイマーを進める
+        if (_failedSpellSoundTimer > 0f)
+        {
+            _failedSpellSoundTimer -= Time.deltaTime;
+        }
         // =========================================================================
         // 🍰【新規実装】暴食：【生命への超還元】（通常時：毎秒アルカナ0.5%消費➔体力0.5%自動回復 / 領域中：消費なしで再生力10倍）
         // =========================================================================
@@ -613,9 +620,18 @@ public class PlayerStatusManager : MonoBehaviour
                 }
                 else
                 {
-                    // 条件（10秒以上の圧倒的エネルギー差）を満たしていなければ、領域展開を不発として弾く
-                    Debug.Log($"<color=yellow>🛡️【領域返し不発】エネルギー差が足りません。必要差分: 10秒以上 / 現在: {timeDifference:F2}秒</color>");
-                    if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.4f); // 弾かれ音
+                    // =========================================================================
+                    // 🛡️【核心修正】：AIの領域返し連打による不発SE（SPELL_OFF）のマシンガン連射の根治
+                    // =========================================================================
+                    // 💡 理由：AIがフラグを押しっぱなしにした際、毎フレームSEが重複再生されるのを防ぐため、
+                    //          0.5秒の再再生インターバルを設け、人間の耳に心地いい警告スパンへクランプ調停します。
+                    Debug.Log($"<color=yellow>🛡️【領域返し不発】... </color>");
+
+                    if (_failedSpellSoundTimer <= 0f)
+                    {
+                        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.4f);
+                        _failedSpellSoundTimer = 0.5f; // 💡 0.5秒間は連続不発音の発生をがっちりフリーズブロック！
+                    }
                     return;
                 }
             }
