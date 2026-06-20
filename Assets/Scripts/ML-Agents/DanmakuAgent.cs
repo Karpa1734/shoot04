@@ -64,7 +64,6 @@ public class DanmakuAgent : Agent
 
     void FixedUpdate()
     {
-        if (!_useAutoEvadeAI) return;
         if (!PlayerMove.CanShoot)
         {
             _timeSinceMatchEnd += Time.fixedDeltaTime;
@@ -245,9 +244,41 @@ public class DanmakuAgent : Agent
 
         int attackAction = discrete[2];
 
-        if (attackAction == 5 && !IsVjtCancelAllowed())
+        // =========================================================================
+        // 🧠【強化学婚専用：アルカナ温存・領域最優先ハッキング】
+        // =========================================================================
+        float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
+        bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
+
+        // 🚨 領域未展開かつ、ゲージが200%以上溜まっている「大チャンスフェーズ」の時
+        if (!isMyVjtActive && currentUltGauge >= 200f && !statusManager.isOverheated)
         {
-            attackAction = 0;
+            // AIが「何かしらの攻撃行動（1=Z, 2=X, 3=C, 4=V, 5=EX）」を起こそうとした場合、
+            // チマチマ通常弾を撃たずに、強制的に「領域展開（6）」へ入力を書き換えてレールに乗せます！
+            if (attackAction >= 1 && attackAction <= 5)
+            {
+                attackAction = 6;
+            }
+        }
+        // 🚨 それ以外の通常時（100%〜199%の間）のEXスキル暴発防止ガード
+        else if (attackAction == 5)
+        {
+            if (isMyVjtActive)
+            {
+                // 領域展開中の場合：終了間際のパージアタック以外は必殺技を絶対に禁止（領域破壊防止）
+                if (!IsVjtCancelAllowed())
+                {
+                    attackAction = 0;
+                }
+            }
+            else
+            {
+                if (currentUltGauge >= 100f && currentUltGauge < 200f)
+                {
+                    AddReward(-0.02f);
+                    attackAction = 0;
+                }
+            }
         }
 
         bool autoSlowToggle = (discrete[3] == 1);
@@ -285,9 +316,19 @@ public class DanmakuAgent : Agent
             ultimate = (attackAction == 5)
         };
 
+        // 💡 領域展開（VJT）のアクションが選ばれた時
         if (attackAction == 6 && statusManager != null && !statusManager.isSpellCardActive)
         {
-            statusManager.ActivateSpellCard();
+            // 領域展開に必要なゲージ（200以上）が本当に溜まっているか最終チェック
+            if (playerMove != null && playerMove.ultimateEnergy >= 200f && !statusManager.isOverheated)
+            {
+                statusManager.ActivateSpellCard();
+
+                // 🧠【領域調教インセンティブ】：
+                // 「ゲージを我慢して溜めて、領域を展開した」という偉い行動に対して、ドカンと高額のボーナスを支給！
+                // これにより、AIは「必殺技をチマチマ撃つより、溜めて領域を張った方が脳汁（報酬）が出る！」と学習します。
+                AddReward(0.5f);
+            }
         }
     }
 
@@ -621,7 +662,7 @@ public class DanmakuAgent : Agent
 
                         if (myExpectedDuration - oppRemainingTime > 10f)
                         {
-                            Debug.Log($"<color=red>🤖【AI領域返し執行】敵の結界の隙を看破！ 割り込み領域返しをトリガーします！</color>");
+                            Debug.Log($"<color=red>【AI領域返し執行】敵の結界の隙を看破！ 割り込み領域返しをトリガーします！</color>");
                             return 6;
                         }
                     }
@@ -671,12 +712,46 @@ public class DanmakuAgent : Agent
         if (isCReady && (isMyVjtActive ? (currentMP >= 30f) : (distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f))) return 3;
         if (isZReady && currentMP >= 10f) return 1;
 
+        // --- 必殺技（EX/ULT）のAI発動ジャッジ ---
         if (isUltReady && !_disableEXAndVJTForDemo)
         {
-            if (isMyVjtActive) return 5;
-            if (currentUltGauge >= 300f) return 5;
-            if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) return 5;
-            if (currentUltGauge >= 100f && distanceToEnemy < 6.0f && nearbyBulletCount <= 2) return 5;
+            // =========================================================================
+            // 👑【超重要：領域維持＆終了間際パージアタック戦略】
+            // =========================================================================
+            if (isMyVjtActive)
+            {
+                // 💡【破壊温存ロジック】：
+                // 領域中に必殺を撃つと領域が壊れるため、基本は「絶対温存」。
+                // ただし、IsVjtCancelAllowed() が true（残り時間わずか、または領域HPが瀕死）を
+                // 返してきた時だけ、消滅直前の最後の悪あがき（最大効率のパージアタック）として必殺技のトリガーを許可します！
+                if (IsVjtCancelAllowed())
+                {
+                    Debug.Log("<color=magenta>⚡【AI領域パージアタック】結界の限界を検知。消滅直前に必殺技を叩き込みます！</color>");
+                    return 5;
+                }
+
+                // まだ領域が元気な間は、マナ超回復を活かして通常スキルを連射させるため、必殺技は絶対に撃たせない
+                //（ここでリターンせず、下の溜め込み・温存ロジックにも進ませないようにガード）
+                return 0;
+            }
+
+            // =========================================================================
+            // 🔷 通常時（領域が張られていない時）の立ち回りロジック
+            // =========================================================================
+            // 💡【戦略的温存ロジック】：
+            // ゲージが150〜199の間など「あと少しで強力な領域展開（200）ができる」という超重要フェーズでは、
+            // 目先の必殺技でゲージを100消費してドブに捨てるのを防ぐため、あえて発動を「封印（温存）」させます。
+            if (currentUltGauge >= 150f && currentUltGauge < 200f)
+            {
+                // 領域展開のために我慢させる（何もしない）
+            }
+            else
+            {
+                if (currentUltGauge >= 300f) return 5;
+                if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) return 5;
+                // 1ストック(100)の時は、本当に敵が目の前にいて確実に仕留められる時だけ許可
+                if (currentUltGauge >= 100f && distanceToEnemy < 4.0f && nearbyBulletCount <= 2) return 5;
+            }
         }
 
         return 0;

@@ -311,7 +311,17 @@ public class PlayerStatusManager : MonoBehaviour
         {
             ExecutePrideStatusSteal();
         }
-
+        // =========================================================================
+        // 🧠【強化学習専用：HP100倍インフラ】
+        // =========================================================================
+        // 💡 目的：被弾しても1発で死なず、1つのラウンド内で「大量の避ける経験」をAIに積ませるため、
+        //          学習中（DanmakuAgentが存在する）であれば最大・現在HPを自動で100倍にします。
+        DanmakuAgent trainingAgent = GetComponent<DanmakuAgent>();
+        if (trainingAgent != null)
+        {
+            maxHP *= 100f; // 100 ➔ 10000 に増幅
+            Debug.Log($"<color=lime>🚀【AI調教ブースト】強化学習環境を検知。Player {playerId} の最大HPを100倍（{maxHP}）に引き上げました！</color>");
+        }
         // --- 既存のUI初期化インフラへ完全結合 ---
         currentHP = maxHP; //
         ApplyCharacterSettings(); //
@@ -1422,8 +1432,8 @@ public class PlayerStatusManager : MonoBehaviour
                             $"JealousyBoost(Max1.5x): {(HasPassiveSkill(PassiveSkillType.JealousyAtkBoost) ? $"<color=orange>x{jealousyMult:F2}</color>" : "<color=gray>OFF</color>")}\n" + //
                             $"GluttonyRegen(1%/s): {gluttonyStatusStr}\n" + //
                             $"SlothBoost(1.3x): {slothStatusStr}\n" + //
-                            $"PrideSteal: {prideStatusStr}\n" + // 👑 ここに追記
-                            $"NihilityCancel: {nihilityStatusStr}\n" + // 🌌 ここに追記
+                            $"PrideSteal: {prideStatusStr}\n" +
+                            $"NihilityCancel: {nihilityStatusStr}\n" + 
                             $"[判定半径] Hitbox Radius: <color=cyan>{currentRadius:F3}</color> (Base: {originalColliderRadius:F2})\n\n" + //
                             $"<b>== 6-STATUS RANKS & VALUE ==</b>\n" + //
                             $"[体力] HP_Max: {maxHP:F1} ({rHP})\n" +

@@ -1,4 +1,4 @@
-// --- GameStartCountdown.cs C³”Å ---
+ï»¿// --- GameStartCountdown.cs ä¿®æ­£ç‰ˆ ---
 using UnityEngine;
 using TMPro;
 using System.Collections;
@@ -17,22 +17,33 @@ public class GameStartCountdown : MonoBehaviour
 
     void Start()
     {
-        // Å‰‚ÌŠJniŠù‚ÉInstance‚Í‚ ‚é‚Ì‚Å‚»‚Ì‚Ü‚ÜŒÄ‚Ôj
+        // æœ€åˆã®é–‹å§‹ï¼ˆæ—¢ã«Instanceã¯ã‚ã‚‹ã®ã§ãã®ã¾ã¾å‘¼ã¶ï¼‰
         StartCountdown();
     }
 
     public void StartCountdown()
     {
-        // “®ì’†‚ÌƒRƒ‹[ƒ`ƒ“‚ğ‘S‚Ä~‚ß‚Ä‚©‚çŠJn
+        if (UnityEngine.Object.FindAnyObjectByType<DanmakuAgent>() != null)
+        {
+            PlayerMove.CanInput = true;
+            PlayerMove.CanShoot = true;
+            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+
+            // ã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³UIã®æ–‡å­—ï¼ˆTMPï¼‰ãŒã‚ã‚Œã°éè¡¨ç¤ºã«ã™ã‚‹
+            // if (countdownText != null) countdownText.gameObject.SetActive(false);
+
+            return; // ğŸ’¡ æ¼”å‡ºã‚³ãƒ«ãƒ¼ãƒãƒ³ã‚’ã‚­ãƒƒã‚¯ã•ã›ãšã«ã“ã“ã§å³åº§ã«çµ‚ã‚ã‚‰ã›ã‚‹ï¼
+        }
+        // å‹•ä½œä¸­ã®ã‚³ãƒ«ãƒ¼ãƒãƒ³ã‚’å…¨ã¦æ­¢ã‚ã¦ã‹ã‚‰é–‹å§‹
         StopAllCoroutines();
         StartCoroutine(CountdownRoutine());
-        // š ’Ç‰ÁFƒJƒEƒ“ƒgƒ_ƒEƒ“’†A’e–‹‚ğÁ‚µ‘±‚¯‚éƒ‹[ƒv‚ğŠJn
+        // â˜… è¿½åŠ ï¼šã‚«ã‚¦ãƒ³ãƒˆãƒ€ã‚¦ãƒ³ä¸­ã€å¼¾å¹•ã‚’æ¶ˆã—ç¶šã‘ã‚‹ãƒ«ãƒ¼ãƒ—ã‚’é–‹å§‹
         StartCoroutine(ConstantClearRoutine());
     }
 
     IEnumerator CountdownRoutine()
     {
-        // š C³FŠJn‚©‚çˆÚ“®‚Í‹–‰Â‚µAƒVƒ‡ƒbƒg‚Ì‚İ§ŒÀ‚·‚é
+        // â˜… ä¿®æ­£ï¼šé–‹å§‹æ™‚ã‹ã‚‰ç§»å‹•ã¯è¨±å¯ã—ã€ã‚·ãƒ§ãƒƒãƒˆã®ã¿åˆ¶é™ã™ã‚‹
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = false;
 
@@ -50,7 +61,7 @@ public class GameStartCountdown : MonoBehaviour
         yield return StartCoroutine(AnimateText("2"));
         yield return StartCoroutine(AnimateText("1"));
 
-        // š C³F‚±‚±‚Å‰ğ‹ÖBˆÚ“®‚ÆƒVƒ‡ƒbƒg‚Ì—¼•û‚ğ‹–‰Â‚·‚é
+        // â˜… ä¿®æ­£ï¼šã“ã“ã§è§£ç¦ã€‚ç§»å‹•ã¨ã‚·ãƒ§ãƒƒãƒˆã®ä¸¡æ–¹ã‚’è¨±å¯ã™ã‚‹
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = true;
 
@@ -58,24 +69,24 @@ public class GameStartCountdown : MonoBehaviour
 
         countdownText.gameObject.SetActive(false);
     }
-    // š ’Ç‰ÁFƒVƒ‡ƒbƒg‹Ö~ŠúŠÔ’†‚É’e–‹‚ğ‘|œ‚µ‘±‚¯‚é
+    // â˜… è¿½åŠ ï¼šã‚·ãƒ§ãƒƒãƒˆç¦æ­¢æœŸé–“ä¸­ã«å¼¾å¹•ã‚’æƒé™¤ã—ç¶šã‘ã‚‹
     private IEnumerator ConstantClearRoutine()
     {
         while (!PlayerMove.CanShoot)
         {
             ClearAllBulletsOnField();
-            // 0.1•b‚¨‚«‚É‰æ–Ê“à‚Ì’e‚ğ’T‚µ‚ÄÁ‹
+            // 0.1ç§’ãŠãã«ç”»é¢å†…ã®å¼¾ã‚’æ¢ã—ã¦æ¶ˆå»
             yield return new WaitForSecondsRealtime(0.1f);
         }
     }
 
     private void ClearAllBulletsOnField()
     {
-        // ƒvƒŒƒCƒ„[‚Ì’e
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å¼¾
         var bullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
-        foreach (var b in bullets) b.Deactivate(false); // ƒGƒtƒFƒNƒg‚È‚µ‚ÅÃ‚©‚ÉÁ‚·
+        foreach (var b in bullets) b.Deactivate(false); // ã‚¨ãƒ•ã‚§ã‚¯ãƒˆãªã—ã§é™ã‹ã«æ¶ˆã™
 
-        // “GEAI‚Ì’ei‚à‚µ‚ ‚ê‚Îj
+        // æ•µãƒ»AIã®å¼¾ï¼ˆã‚‚ã—ã‚ã‚Œã°ï¼‰
         var eBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
         foreach (var b in eBullets) b.Deactivate(false);
     }
@@ -83,7 +94,7 @@ public class GameStartCountdown : MonoBehaviour
     {
         countdownText.text = text;
 
-        // ŠJn‚ÉF‚ğ•s“§–¾‚É–ß‚·
+        // é–‹å§‹æ™‚ã«è‰²ã‚’ä¸é€æ˜ã«æˆ»ã™
         Color c = countdownText.color;
         c.a = 1f;
         countdownText.color = c;
@@ -95,10 +106,10 @@ public class GameStartCountdown : MonoBehaviour
         while (elapsed < duration)
         {
             float t = elapsed / duration;
-            // ƒXƒP[ƒ‹ƒAƒjƒ[ƒVƒ‡ƒ“
+            // ã‚¹ã‚±ãƒ¼ãƒ«ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³
             countdownText.transform.localScale = baseScale * Mathf.Lerp(fontSizePulse, 1f, t);
 
-            // ƒtƒF[ƒhƒAƒEƒg‰‰o
+            // ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆæ¼”å‡º
             if (elapsed > 0.5f)
             {
                 float fadeT = (elapsed - 0.5f) / (duration - 0.5f);
@@ -106,7 +117,7 @@ public class GameStartCountdown : MonoBehaviour
                 countdownText.color = c;
             }
 
-            elapsed += Time.unscaledDeltaTime; // ƒXƒ[’†‚Å‚àˆê’è‘¬“x‚Å“®‚©‚·
+            elapsed += Time.unscaledDeltaTime; // ã‚¹ãƒ­ãƒ¼ä¸­ã§ã‚‚ä¸€å®šé€Ÿåº¦ã§å‹•ã‹ã™
             yield return null;
         }
     }

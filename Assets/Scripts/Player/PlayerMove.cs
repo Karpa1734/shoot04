@@ -156,20 +156,9 @@ public class PlayerMove : MonoBehaviour
         //else if (sr != null && sr.color != Color.white) ResetVisual();
     }
     void FixedUpdate()
-    {/*
-        // 1. 基本速度（低速移動[cite: 8]判定を含む）
-        float currentBaseSpeed = currentFrameInput.slow ? focusSpeed : normalSpeed;
+    {
 
-        // 2. ★ 修正：倍率を掛けて最終速度を決定
-        // ここで skillSpeedMultiplier が 0 なら、finalSpeed は確実に 0 になります[cite: 11]
-        float finalSpeed = currentBaseSpeed * skillSpeedMultiplier;
-
-        // 3. 入力方向を計算
-        Vector3 moveDir = new Vector3(currentFrameInput.h, currentFrameInput.v, 0).normalized;
-
-        // 4. 移動。finalSpeed が 0 なら transform.position は変化しません[cite: 11]
-        transform.position += moveDir * finalSpeed * Time.fixedDeltaTime;
-    */}
+    }
 
     public void SetInvincible(float duration) => invincibleTimer = duration;
     public void StartDeathBombWindow(float duration) { if (!IsInvincible) deathBombTimer = duration; }

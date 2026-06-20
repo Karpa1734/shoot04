@@ -321,13 +321,65 @@ public class MatchTimerUI : MonoBehaviour
         }
 
         // =========================================================================
-        // ⏳【タイムアップ勝敗判定インフラとの完全溶接】
+        // 🧠【強化学習専用：タイムアップ即死即リセットインフラ】
         // =========================================================================
-        // 💡 理由：古い生HP数値による格差バグ（ランクEが必ず負ける現象）を完全にパージし、
-        //          PlayerHitHandlerに実装した「HP残量割合（％）比較＆初期化ラグガード」へ主導権を委譲します。
+        bool isTrainingMode = false;
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p != null && p.GetComponentInChildren<DanmakuAgent>() != null) isTrainingMode = true;
+        }
+
+        if (isTrainingMode)
+        {
+            // 1. スローモーションを完全に潰し、コマンド通りの爆速を維持
+            Time.timeScale = 1.0f;
+
+            // 2. 領域（VJT）の強制解除
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                PlayerStatusManager status = p.GetComponent<PlayerStatusManager>();
+                if (status != null && status.isSpellCardActive) status.DeactivateSpellCard(false);
+            }
+
+            // 3. エージェントにエピソード終了を通達（時間切れドロー、またはこの時点のHP割合でペナルティを振り分けてもOK）
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                DanmakuAgent agent = p.GetComponentInChildren<DanmakuAgent>();
+                if (agent != null) agent.EndEpisode(); // エピソード終了
+
+                // ステータス、マナを全回復
+                PlayerStatusManager status = p.GetComponent<PlayerStatusManager>();
+                if (status != null) status.currentHP = status.maxHP;
+                SkillManager sm = p.GetComponentInChildren<SkillManager>();
+                if (sm != null) sm.InstantFullRecovery();
+            }
+
+            // 4. お互いを一瞬で初期配置にワープ（巡航演出スキップ）
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                if (ps != null)
+                {
+                    float targetX = (ps.playerId == 2) ? 3.5f : -3.5f;
+                    p.transform.position = new Vector3(targetX, 0f, 0f);
+                }
+            }
+
+            // 5. カウントダウンなしで即座に次の試合を開始！
+            PlayerMove.CanInput = true;
+            PlayerMove.CanShoot = true;
+            ResetRoundTimer(99f);
+            return; // 💡 演出ルートを完全遮断してここで脱出！
+        }
+
+        // =========================================================================
+        // 🎬【通常ルート】（人間用のタイムアップ判定）
+        // =========================================================================
         if (PlayerMove.AllPlayers != null && PlayerMove.AllPlayers.Count > 0)
         {
-            // 画面内にいる1プレイヤー（1P）のHitHandlerコンポーネントを経由して、全体ジャッジを執行！
             PlayerHitHandler referee = PlayerMove.AllPlayers[0].GetComponentInChildren<PlayerHitHandler>();
             if (referee != null)
             {

@@ -180,11 +180,93 @@ public class PlayerHitHandler : MonoBehaviour
 
     IEnumerator ExplosionAndStunRoutine()
     {
+
         Vector3 hitPos = transform.position;
 
         if (playerMove.IsInvincible) yield break;
 
         currentState = PlayerState.Down;
+
+        // =========================================================================
+        // 🧠【強化学習専用：爆速超高速リセットインフラ】
+        // =========================================================================
+        // 💡 目的：誰かが撃墜された瞬間、演出・スローモーションを100%全カットして即死即リセット。
+        DanmakuAgent myAgent = GetComponentInParent<DanmakuAgent>();
+
+        // 自分、または相手のどちらかがML-Agentsを積んでいる（＝学習環境である）場合
+        bool isTrainingMode = (myAgent != null);
+        if (playerMove != null && playerMove.Opponent != null)
+        {
+            if (playerMove.Opponent.GetComponentInChildren<DanmakuAgent>() != null) isTrainingMode = true;
+        }
+
+        if (isTrainingMode)
+        {
+            // 1. 全弾幕・レーザーを即座に消去して画面をクリーンにする
+            ClearAllBullets();
+
+            // 2. スローモーションを発生させず、完全に等速（1.0f）を維持
+            Time.timeScale = 1.0f;
+
+            // 3. 領域展開（VJT）が残っていれば即座に完全消去
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                PlayerStatusManager status = p.GetComponent<PlayerStatusManager>();
+                if (status != null && status.isSpellCardActive)
+                {
+                    status.DeactivateSpellCard(false);
+                }
+            }
+
+            // 4. お互いのエージェントに「この試合は終わり（EndEpisode）」を通達して脳の学習を1区切りさせる
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                DanmakuAgent agent = p.GetComponentInChildren<DanmakuAgent>();
+                if (agent != null)
+                {
+                    // 被弾した本人にはすでにOnHitでGiveHitPenalty()が入っているので、ここで一気にエピソードを締めくくります
+                    agent.EndEpisode();
+                }
+
+                // 体力やリソース、タイマーを全快にして初期化
+                PlayerStatusManager status = p.GetComponent<PlayerStatusManager>();
+                if (status != null) status.currentHP = status.maxHP; // HP全快
+
+                SkillManager sm = p.GetComponentInChildren<SkillManager>();
+                if (sm != null) sm.InstantFullRecovery(); // マナ・リキャスト全快
+            }
+
+            // 5. 1.8秒の滑らか移動（巡航）を完全無視し、お互いを一瞬で初期配置（±3.5）に強制ワープ
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p == null) continue;
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
+                PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
+                if (ps != null)
+                {
+                    float targetX = (ps.playerId == 2) ? 3.5f : -3.5f;
+                    p.transform.position = new Vector3(targetX, 0f, 0f);
+                }
+                if (hh != null)
+                {
+                    hh.SetPlayerActiveState(true);
+                    hh.currentState = PlayerState.Normal;
+                }
+            }
+
+            // 6. カウントダウン演出もスキップして、即座に次の試合の追跡入力を開始
+            PlayerMove.CanInput = true;
+            PlayerMove.CanShoot = true;
+
+            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResetRoundTimer(99f);
+
+            isTriggeredByTimeUp = false;
+            currentState = PlayerState.Normal;
+
+            yield break; // 💡 コルーチンをここで即座に脱出し、以下の格ゲー演出ルートに絶対に進ませない！
+        }
 
         if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
         Time.timeScale = 0.3f; // 🌟スローモーション開始

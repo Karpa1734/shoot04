@@ -187,7 +187,7 @@ public class SkillManager : MonoBehaviour
         // =========================================================================
         // 🤖 A. 敵AIまたはリプレイ再生時の入力完全抽出
         // =========================================================================
-        if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing))
+        if (agent != null || playerMove.currentMode == PlayerMove.ReplayMode.Playing)
         {
             var input = playerMove.currentFrameInput;
 
@@ -197,7 +197,7 @@ public class SkillManager : MonoBehaviour
             vPressed = input.shotV;
             exPressed = input.ultimate;
 
-            vjtPressed = (agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
+            vjtPressed = (agent != null && agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
                           playerMove.ultimateEnergy >= 200f && !statusManager.isSpellCardActive);
         }
         // =========================================================================
