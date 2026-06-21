@@ -192,12 +192,11 @@ public class PlayerHitHandler : MonoBehaviour
         // =========================================================================
         // 💡 目的：誰かが撃墜された瞬間、演出・スローモーションを100%全カットして即死即リセット。
         DanmakuAgent myAgent = GetComponentInParent<DanmakuAgent>();
-
-        // 自分、または相手のどちらかがML-Agentsを積んでいる（＝学習環境である）場合
-        bool isTrainingMode = (myAgent != null);
-        if (playerMove != null && playerMove.Opponent != null)
+        bool isTrainingMode = (myAgent != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn);
+        if (playerMove != null && playerMove.Opponent != null && !isTrainingMode)
         {
-            if (playerMove.Opponent.GetComponentInChildren<DanmakuAgent>() != null) isTrainingMode = true;
+            var oppAgent = playerMove.Opponent.GetComponentInChildren<DanmakuAgent>();
+            if (oppAgent != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn) isTrainingMode = true;
         }
 
         if (isTrainingMode)

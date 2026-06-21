@@ -317,7 +317,8 @@ public class PlayerStatusManager : MonoBehaviour
         // 💡 目的：被弾しても1発で死なず、1つのラウンド内で「大量の避ける経験」をAIに積ませるため、
         //          学習中（DanmakuAgentが存在する）であれば最大・現在HPを自動で100倍にします。
         DanmakuAgent trainingAgent = GetComponent<DanmakuAgent>();
-        if (trainingAgent != null)
+        // 💡【修正】：Python通信が生きている（真の学習中）ときのみHPを100倍化する！
+        if (trainingAgent != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
             maxHP *= 100f; // 100 ➔ 10000 に増幅
             Debug.Log($"<color=lime>🚀【AI調教ブースト】強化学習環境を検知。Player {playerId} の最大HPを100倍（{maxHP}）に引き上げました！</color>");

@@ -64,21 +64,29 @@ public class DanmakuAgent : Agent
 
     void FixedUpdate()
     {
+        // 🚨 試合終了時やカウントダウン中、被弾中など、動けない時は入力をクリア
         if (!PlayerMove.CanShoot)
         {
             _timeSinceMatchEnd += Time.fixedDeltaTime;
             if (playerMove != null) playerMove.currentFrameInput = new PlayerMove.ReplayFrame();
 
-            if (_timeSinceMatchEnd < 1.5f) transform.position += GetPerlinWanderVector(Time.time, 0.015f);
-            else
+            // 🤖 ルールベースAI（自動よけ）が真にONの時だけ、終了後の自動徘徊を許可
+            if (_useAutoEvadeAI)
             {
-                if (Vector3.Distance(transform.position, _initialPosition) > 0.1f)
-                    transform.position = Vector3.MoveTowards(transform.position, _initialPosition, 2.5f * Time.fixedDeltaTime);
-                transform.position += GetPerlinWanderVector(Time.time, 0.025f);
+                if (_timeSinceMatchEnd < 1.5f) transform.position += GetPerlinWanderVector(Time.time, 0.015f);
+                else
+                {
+                    if (Vector3.Distance(transform.position, _initialPosition) > 0.1f)
+                        transform.position = Vector3.MoveTowards(transform.position, _initialPosition, 2.5f * Time.fixedDeltaTime);
+                    transform.position += GetPerlinWanderVector(Time.time, 0.025f);
+                }
             }
             return;
         }
         _timeSinceMatchEnd = 0f;
+
+        // 💡 ML-Agentsの意思決定サイクルを回すため、通常時は毎フレーム行動を要求します
+        RequestAction();
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -230,6 +238,7 @@ public class DanmakuAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // 🛑 動けない状態、またはスタン中の場合は入力を空にして即リターン
         if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
         {
             if (playerMove != null) playerMove.currentFrameInput = new PlayerMove.ReplayFrame();
@@ -245,45 +254,44 @@ public class DanmakuAgent : Agent
         int attackAction = discrete[2];
 
         // =========================================================================
-        // 🧠【強化学婚専用：アルカナ温存・領域最優先ハッキング】
+        // 🧠【強化学習専用ハッキング＆温存レール】
         // =========================================================================
-        float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
-        bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
+        // 💡 核心：PowerShell(IsCommunicatorOn)と接続している「真の強化学習中」のみ、
+        //          ゲージの強制書き換えや報酬ペナルティを執行します。
+        //          これにより、人間のキーボード操作(Heuristic)のときはこの内部が安全にスキップされます！
+        if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+        {
+            float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
+            bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
 
-        // 🚨 領域未展開かつ、ゲージが200%以上溜まっている「大チャンスフェーズ」の時
-        if (!isMyVjtActive && currentUltGauge >= 200f && !statusManager.isOverheated)
-        {
-            // AIが「何かしらの攻撃行動（1=Z, 2=X, 3=C, 4=V, 5=EX）」を起こそうとした場合、
-            // チマチマ通常弾を撃たずに、強制的に「領域展開（6）」へ入力を書き換えてレールに乗せます！
-            if (attackAction >= 1 && attackAction <= 5)
+            if (!isMyVjtActive && currentUltGauge >= 200f && !statusManager.isOverheated)
             {
-                attackAction = 6;
-            }
-        }
-        // 🚨 それ以外の通常時（100%〜199%の間）のEXスキル暴発防止ガード
-        else if (attackAction == 5)
-        {
-            if (isMyVjtActive)
-            {
-                // 領域展開中の場合：終了間際のパージアタック以外は必殺技を絶対に禁止（領域破壊防止）
-                if (!IsVjtCancelAllowed())
+                if (attackAction >= 1 && attackAction <= 5)
                 {
-                    attackAction = 0;
+                    attackAction = 6; // 2本以上あるなら問答無用で領域展開にハック
                 }
             }
-            else
+            else if (attackAction == 5)
             {
-                if (currentUltGauge >= 100f && currentUltGauge < 200f)
+                if (isMyVjtActive)
                 {
-                    AddReward(-0.02f);
-                    attackAction = 0;
+                    if (!IsVjtCancelAllowed()) attackAction = 0; // 領域破壊の暴発ロック
+                }
+                else
+                {
+                    if (currentUltGauge >= 100f && currentUltGauge < 200f)
+                    {
+                        AddReward(-0.02f); // 必殺暴発へのお叱りペナルティ
+                        attackAction = 0;
+                    }
                 }
             }
         }
 
         bool autoSlowToggle = (discrete[3] == 1);
 
-        if (_useAutoEvadeAI)
+        // ルールベースAIによる危険察知時のみ低速を強制する処理
+        if (_useAutoEvadeAI && PlayerMove.CanShoot)
         {
             string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet";
             Collider2D[] closeColliders = Physics2D.OverlapCircleAll(transform.position, 1.2f);
@@ -297,13 +305,10 @@ public class DanmakuAgent : Agent
                     break;
                 }
             }
-
-            if (isImmediateDanger)
-            {
-                autoSlowToggle = true;
-            }
+            if (isImmediateDanger) autoSlowToggle = true;
         }
 
+        // 🌟 決定されたアクションをフレーム入力構造体に流し込む（ここが人間・AI共通の心臓部）
         playerMove.currentFrameInput = new PlayerMove.ReplayFrame
         {
             h = h,
@@ -316,18 +321,13 @@ public class DanmakuAgent : Agent
             ultimate = (attackAction == 5)
         };
 
-        // 💡 領域展開（VJT）のアクションが選ばれた時
+        // 💡 領域展開（VJT）の発動執行
         if (attackAction == 6 && statusManager != null && !statusManager.isSpellCardActive)
         {
-            // 領域展開に必要なゲージ（200以上）が本当に溜まっているか最終チェック
             if (playerMove != null && playerMove.ultimateEnergy >= 200f && !statusManager.isOverheated)
             {
                 statusManager.ActivateSpellCard();
-
-                // 🧠【領域調教インセンティブ】：
-                // 「ゲージを我慢して溜めて、領域を展開した」という偉い行動に対して、ドカンと高額のボーナスを支給！
-                // これにより、AIは「必殺技をチマチマ撃つより、溜めて領域を張った方が脳汁（報酬）が出る！」と学習します。
-                AddReward(0.5f);
+                if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn) AddReward(0.5f);
             }
         }
     }

@@ -326,7 +326,11 @@ public class MatchTimerUI : MonoBehaviour
         bool isTrainingMode = false;
         foreach (var p in PlayerMove.AllPlayers)
         {
-            if (p != null && p.GetComponentInChildren<DanmakuAgent>() != null) isTrainingMode = true;
+            // 💡【修正】：エージェントがシーンにいて、かつ外部学習通信（IsCommunicatorOn）がONの時だけリセットを実行
+            if (p != null && p.GetComponentInChildren<DanmakuAgent>() != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+            {
+                isTrainingMode = true;
+            }
         }
 
         if (isTrainingMode)

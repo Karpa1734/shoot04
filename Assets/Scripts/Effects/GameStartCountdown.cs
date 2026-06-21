@@ -23,16 +23,12 @@ public class GameStartCountdown : MonoBehaviour
 
     public void StartCountdown()
     {
-        if (UnityEngine.Object.FindAnyObjectByType<DanmakuAgent>() != null)
+        if (UnityEngine.Object.FindAnyObjectByType<DanmakuAgent>() != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
             PlayerMove.CanInput = true;
             PlayerMove.CanShoot = true;
             if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
-
-            // カウントダウンUIの文字（TMP）があれば非表示にする
-            // if (countdownText != null) countdownText.gameObject.SetActive(false);
-
-            return; // 💡 演出コルーチンをキックさせずにここで即座に終わらせる！
+            return;
         }
         // 動作中のコルーチンを全て止めてから開始
         StopAllCoroutines();
