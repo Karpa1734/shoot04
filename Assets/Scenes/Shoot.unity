@@ -8736,7 +8736,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &639948841
 RectTransform:
   m_ObjectHideFlags: 0
@@ -10126,7 +10126,7 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  _disableEXAndVJTForDemo: 1
+  _disableEXAndVJTForDemo: 0
 --- !u!114 &695556690
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10222,7 +10222,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
-  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
+  characterData: {fileID: 11400000, guid: 013120d934672b840bd9753912e4003d, type: 2}
+  allCharacterDataDatabase:
+  - {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
+  - {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
+  - {fileID: 11400000, guid: 013120d934672b840bd9753912e4003d, type: 2}
   playerNameText: {fileID: 271050248}
   life: 3
   currentHP: 100
@@ -12108,7 +12112,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &820645624
 RectTransform:
   m_ObjectHideFlags: 0
@@ -28458,7 +28462,7 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  _disableEXAndVJTForDemo: 1
+  _disableEXAndVJTForDemo: 0
 --- !u!114 &1872656868
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28657,6 +28661,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerId: 2
   characterData: {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
+  allCharacterDataDatabase:
+  - {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
+  - {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
+  - {fileID: 11400000, guid: 013120d934672b840bd9753912e4003d, type: 2}
   playerNameText: {fileID: 1176254091}
   life: 2
   currentHP: 100

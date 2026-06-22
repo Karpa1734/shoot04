@@ -17,3 +17,6 @@ MonoBehaviour:
   - name: HighScore
     length: 1
     unit: 32
+  - name: GameCleared
+    length: 1
+    unit: 1

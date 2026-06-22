@@ -10,21 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
-  m_Name: Syaru
+  m_Name: Linghua
   m_EditorClassIdentifier: 
-  rankHP: 3
-  rankMP: 2
-  rankAttack: 2
-  rankAgility: 1
-  rankMMPRegen: 5
-  rankSpellZone: 2
-  characterName: Player2
-  imageColor: {r: 1, g: 1, b: 0, a: 1}
-  spellCardName: "\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
-  spellCircleSprite: {fileID: 21300000, guid: 76012f8bd59ccaf4ba33831a5a621911, type: 3}
+  rankHP: 2
+  rankMP: 1
+  rankAttack: 3
+  rankAgility: 4
+  rankMMPRegen: 2
+  rankSpellZone: 4
+  characterName: Player3
+  imageColor: {r: 0, g: 1, b: 1, a: 1}
+  spellCardName: "\u300C\u25B3\u25B3\u25B3\u25B3\u300D"
+  spellCircleSprite: {fileID: 21300000, guid: ac6ca36c2293f6a448d41b3e2d30a114, type: 3}
   characterOverheatDuration: 20
-  characterSpellBGBase: {fileID: 21300000, guid: f1d0c95c39292994eb137aa55737abab, type: 3}
-  characterSpellBGAdditive: {fileID: 21300000, guid: c26dba28eb276554589b5a4c8fd23db7, type: 3}
+  characterSpellBGBase: {fileID: 21300000, guid: 707709e9c67f49d4c8bf70624b5f0c08, type: 3}
+  characterSpellBGAdditive: {fileID: 21300000, guid: 970de9a025f853f4bb8620ff3b5cb50c, type: 3}
   isBaseScrollActive: 0
   isAdditiveRotateActive: 0
   isAdditiveScrollActive: 1
@@ -32,10 +32,10 @@ MonoBehaviour:
   additiveRotateSpeed: 25
   additiveScrollSpeed: {x: 0.2, y: 0.2}
   passiveSkills:
-  - skillType: 2
+  - skillType: 3
     passiveName: 
     description: 
-  vjtEffectType: 3
+  vjtEffectType: 2
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}

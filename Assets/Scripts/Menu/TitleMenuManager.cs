@@ -21,7 +21,8 @@ public class TitleMenuManager : MonoBehaviour
     [Header("Practice Menu")]
     public GameObject practiceSubMenu; // 練習用メニューのUI
     private int selectedIndex = 0;
-
+    [Header("Character Select UI")]
+    public GameObject characterSelectSubMenu; // インスペクターでキャラ選択パネルを登録
     // --- TitleMenuManager.cs の修正 ---
 
     void Start()
@@ -133,21 +134,31 @@ public class TitleMenuManager : MonoBehaviour
 
         switch (selectedIndex)
         {
-            case 0: // Game Start
-                SceneManager.LoadScene(gameSceneName);
+            case 0: // Story Mode
+                OpenCharSelect(GameSelectionData.GameMode.Story);
                 break;
-            case 3: // Spell Practice (image_e8383b.jpg の 4番目)
+            case 1: // Vs Com
+                OpenCharSelect(GameSelectionData.GameMode.VsCom);
+                break;
+            case 2: // Vs Player
+                OpenCharSelect(GameSelectionData.GameMode.VsPlayer);
+                break;
+            case 3: // Vs Network
+                OpenCharSelect(GameSelectionData.GameMode.VsNetwork);
+                break;
+            case 4: // Practice (スクリーンショットの順番に合わせるなら4)
                 OpenPracticeMenu();
                 break;
-            case 9: // Exit (リストの一番下)
-                Debug.Log("Quit Game");
-#if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
-#else
-        Application.Quit();//ゲームプレイ終了
-#endif
+            case 9: // Exit
+                // ...終了処理...
                 break;
         }
+    }
+    void OpenCharSelect(GameSelectionData.GameMode mode)
+    {
+        GameSelectionData.CurrentMode = mode;
+        this.enabled = false; // タイトルメニューの入力を止める
+        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true);
     }
     void OpenPracticeMenu()
     {

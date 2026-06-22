@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f43c8d5c06716bd4393aeca4cbc58a93, type: 3}
+  m_Name: Charlotte
+  m_EditorClassIdentifier: 
+  rankHP: 3
+  rankMP: 2
+  rankAttack: 2
+  rankAgility: 1
+  rankMMPRegen: 5
+  rankSpellZone: 2
+  characterName: Player2
+  imageColor: {r: 1, g: 1, b: 0, a: 1}
+  spellCardName: "\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
+  spellCircleSprite: {fileID: 21300000, guid: 76012f8bd59ccaf4ba33831a5a621911, type: 3}
+  characterOverheatDuration: 20
+  characterSpellBGBase: {fileID: 21300000, guid: f1d0c95c39292994eb137aa55737abab, type: 3}
+  characterSpellBGAdditive: {fileID: 21300000, guid: c26dba28eb276554589b5a4c8fd23db7, type: 3}
+  isBaseScrollActive: 0
+  isAdditiveRotateActive: 0
+  isAdditiveScrollActive: 1
+  baseScrollSpeed: {x: 0, y: -0.4}
+  additiveRotateSpeed: 25
+  additiveScrollSpeed: {x: 0.2, y: 0.2}
+  passiveSkills:
+  - skillType: 2
+    passiveName: 
+    description: 
+  vjtEffectType: 3
+  skillZ:
+    skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
+    skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
+    patternType: 10
+    bulletData: {fileID: 11400000, guid: a5fd71ae477afb7489d0992c800345dc, type: 2}
+    cooldown: 0.4
+    sePath: 
+    count: 3
+    speed: 7
+    angleOffset: 0
+    wideAngle: 60
+    moveSpeedMultiplier: 0.4
+    delay: 2
+    cost: 20
+    ultimateGain: 5
+  skillX:
+    skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
+    skillIcon: {fileID: 21300000, guid: 13dbdf5257202324b9450961f7d450a0, type: 3}
+    patternType: 12
+    bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
+    cooldown: 0.5
+    sePath: 
+    count: 5
+    speed: 1.5
+    angleOffset: 0
+    wideAngle: 60
+    moveSpeedMultiplier: 0
+    delay: 1
+    cost: 30
+    ultimateGain: 8
+  skillC:
+    skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
+    skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
+    patternType: 11
+    bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
+    cooldown: 1.5
+    sePath: Laser2
+    count: 60
+    speed: 1.5
+    angleOffset: 0
+    wideAngle: 0.3
+    moveSpeedMultiplier: 0.3
+    delay: 20
+    cost: 45
+    ultimateGain: 8
+  skillV:
+    skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
+    skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
+    patternType: 13
+    bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
+    cooldown: 12
+    sePath: 
+    count: 0
+    speed: 4.5
+    angleOffset: 0
+    wideAngle: 0
+    moveSpeedMultiplier: 0
+    delay: 0
+    cost: 50
+    ultimateGain: 5
+  skillEX:
+    skillName: "\u30D5\u30EB\u30FC\u30EB\u30FB\u30C9\u30FB\u30E2\u30CD"
+    skillIcon: {fileID: 0}
+    patternType: 4
+    bulletData: {fileID: 11400000, guid: 2e2ee01fb5556ee4483f903aca685098, type: 2}
+    cooldown: 0
+    sePath: 
+    count: 12
+    speed: 12
+    angleOffset: 60
+    wideAngle: 0
+    moveSpeedMultiplier: 0.5
+    delay: 0
+    cost: 0
+    ultimateGain: 0

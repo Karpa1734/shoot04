@@ -9,6 +9,9 @@ public class PlayerStatusManager : MonoBehaviour
     [Header("Player Settings")]
     public int playerId = 1;
     public PlayerSkillData characterData;
+    // 🌟【新規アタッチ枠】：全キャラクターの PlayerSkillData アセット(計8体)をインスペクターでここに順番に登録してください
+    [Header("📚 キャラクターアセットデータベース")]
+    public PlayerSkillData[] allCharacterDataDatabase;
     // 🌟【新規追加】：User1, User2 などのプレイヤーネームを表示しているTMPアタッチ枠
     [Tooltip("User1 または User2 と表記されているプレイヤーネームUIをここに登録してください")]
     public TextMeshProUGUI playerNameText;
@@ -168,65 +171,152 @@ public class PlayerStatusManager : MonoBehaviour
     private CharacterRankBackup _originalBackup;
 
 
+    // =========================================================================
+    // 🧠【構造大手術】：Awake ✕ Start のデータバインド優先順位の完全正常化
+    // =========================================================================
     void Awake()
     {
-        _playerMove = GetComponent<PlayerMove>(); //
+        _playerMove = GetComponent<PlayerMove>();
 
+        // 🚨 修正：Awakeではインスペクターに設定されているピュアな「characterData」を最優先保護します。
+        //          ここでGameSelectionDataを参照して上書きする処理は、競合バグの温床となるため完全パージしました。
         if (characterData != null)
         {
             characterData = Instantiate(characterData);
         }
 
-        if (BossPracticeManager.IsPracticeMode) //
-        { //
-            stockLives = 0; life = 0; //
-        } //
-        else if (GameModeManager.IsStoryMode) //
-        { //
-            life = 3; //
-            stockLives = 3; //
-        } //
-        else //
-        { //
-            life = 0; //
-            stockLives = 0; //
-        } //
+        if (BossPracticeManager.IsPracticeMode)
+        {
+            stockLives = 0; life = 0;
+        }
+        else if (GameModeManager.IsStoryMode)
+        {
+            life = 3;
+            stockLives = 3;
+        }
+        else
+        {
+            life = 0;
+            stockLives = 0;
+        }
 
-        if (playerCollider == null) //
-        { //
-            playerCollider = GetComponentInChildren<Collider2D>(); //
-        } //
+        if (playerCollider == null)
+        {
+            playerCollider = GetComponentInChildren<Collider2D>();
+        }
 
-        if (playerCollider != null) //
-        { //
-            originalColliderScale = playerCollider.transform.localScale; //
+        if (playerCollider != null)
+        {
+            originalColliderScale = playerCollider.transform.localScale;
 
-            if (playerCollider is CircleCollider2D circle) //
-            { //
-                originalColliderRadius = circle.radius; //
-            } //
-        } //
+            if (playerCollider is CircleCollider2D circle)
+            {
+                originalColliderRadius = circle.radius;
+            }
+        }
 
-        if (hitboxSprite1 != null) originalSprite1Scale = hitboxSprite1.transform.localScale; //
-        if (hitboxSprite2 != null) originalSprite2Scale = hitboxSprite2.transform.localScale; //
+        if (hitboxSprite1 != null) originalSprite1Scale = hitboxSprite1.transform.localScale;
+        if (hitboxSprite2 != null) originalSprite2Scale = hitboxSprite2.transform.localScale; // ✨「localScale」に正しく修正
 
-        _myOwnCharacterRenderer = GetComponent<SpriteRenderer>(); //
-        if (_myOwnCharacterRenderer == null) _myOwnCharacterRenderer = GetComponentInChildren<SpriteRenderer>(); //
+        _myOwnCharacterRenderer = GetComponent<SpriteRenderer>();
+        if (_myOwnCharacterRenderer == null) _myOwnCharacterRenderer = GetComponentInChildren<SpriteRenderer>();
 
-        if (HasPassiveSkill(PassiveSkillType.LustSmall) && playerCollider != null) //
-        { //
-            CircleCollider2D startCircle = playerCollider as CircleCollider2D; //
-            if (startCircle != null) //
-            { //
-                startCircle.radius = originalColliderRadius * 0.8f; //
-                Debug.Log($"<color=lime>🛡️【パッシブ】SmallHitboxによりコライダー半径およびスプライト2種を常時0.8倍に縮小しました。</color>"); //
-            } //
-        } //
+        if (HasPassiveSkill(PassiveSkillType.LustSmall) && playerCollider != null)
+        {
+            CircleCollider2D startCircle = playerCollider as CircleCollider2D;
+            if (startCircle != null)
+            {
+                startCircle.radius = originalColliderRadius * 0.8f;
+                Debug.Log($"<color=lime>🛡️【パッシブ】SmallHitboxによりコライダー半径を常時0.8倍に縮小しました。</color>");
+            }
+        }
 
-        // 🌟 核心：初期ランクデコードをメソッドへ一本化
+        // 📊 基礎ランク評価を計算（ここでのアセットはインスペクター直アタッチのピュアデータ）
         ApplyCharacterRanks();
     }
 
+    void Start()
+    {
+        // =========================================================================
+        // 🛠️【エディタ直接起動セーフティ】：最優先でインスペクターのデータを static へ逆インジェクション
+        // =========================================================================
+#if UNITY_EDITOR
+        // 直接起動かつ、インスペクターの characterData 枠に手動でアセットが設定されている場合
+        if (characterData != null && allCharacterDataDatabase != null)
+        {
+            bool foundInDatabase = false;
+            // アセットに書き込まれている固有の「characterName」をキーにしてデータベースを完全一致走査
+            for (int i = 0; i < allCharacterDataDatabase.Length; i++)
+            {
+                if (allCharacterDataDatabase[i] != null && allCharacterDataDatabase[i].characterName == characterData.characterName)
+                {
+                    if (playerId == 1)
+                    {
+                        GameSelectionData.SelectedCharacterP1 = i;
+                        Debug.Log($"<color=cyan>🔧 [Editor-Debug] 1P直接起動成功: [{characterData.characterName}] をインデックス [{i}] として static に固定結合しました。</color>");
+                    }
+                    else if (playerId == 2)
+                    {
+                        GameSelectionData.SelectedCharacterP2 = i;
+                        Debug.Log($"<color=cyan>🔧 [Editor-Debug] 2P直接起動成功: [{characterData.characterName}] をインデックス [{i}] として static に固定結合しました。</color>");
+                    }
+                    foundInDatabase = true;
+                    break;
+                }
+            }
+
+            if (!foundInDatabase)
+            {
+                Debug.LogWarning($"⚠️ [Editor-Debug] インスペクターの [{characterData.characterName}] が allCharacterDataDatabase の登録名と一致しません！");
+            }
+        }
+#endif
+
+        // =========================================================================
+        // 🚨【正規ルート用同期】：キャラクター選択画面から来た場合は、ここで正常に上書きロード
+        // =========================================================================
+        // エディタ直接起動時は上のセーフティで登録したばかりのインデックスが綺麗に再吸出されます！
+        if (allCharacterDataDatabase != null && allCharacterDataDatabase.Length > 0)
+        {
+            int targetSelectedId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
+
+            if (targetSelectedId >= 0 && targetSelectedId < allCharacterDataDatabase.Length)
+            {
+                // 正式な選択アセットをクローン生成して上書き完全同期！
+                characterData = Instantiate(allCharacterDataDatabase[targetSelectedId]);
+                // ランクパラメーターを最新の決定アセットを基準に一から再展開
+                ApplyCharacterRanks();
+            }
+        }
+
+        // 看板テキストやUIカラーの流し込みを実行
+        ApplyCharacterSettings();
+
+        // =========================================================================
+        // 👁️【傲慢パッシブ】：お互いの結合が完了したこの瞬間にハッキングを開始
+        // =========================================================================
+        if (HasPassiveSkill(PassiveSkillType.PrideStatusSteal))
+        {
+            ExecutePrideStatusSteal();
+        }
+
+        // =========================================================================
+        // 🧠【強化学習専用：HP100倍インフラ】
+        // =========================================================================
+        DanmakuAgent trainingAgent = GetComponent<DanmakuAgent>();
+        if (trainingAgent != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
+        {
+            maxHP *= 100f;
+            Debug.Log($"<color=lime>🚀【AI調教ブースト】強化学習環境を検知。最大HPを100倍（{maxHP}）に引き上げました！</color>");
+        }
+
+        // すべての調停（傲慢ランクアップ・AI補正）が完全に完了した「最終値」でHPを確定
+        currentHP = maxHP;
+
+        // 📺【UI初期化インフラへの完全結合】
+        StartCoroutine(SetupInitialUI());
+        StartCoroutine(InitUIWithDelay());
+    }
     /// <summary>
     /// 📊 6大パラメーター・ランクインフラの動的展開マトリクス
     /// </summary>
@@ -301,34 +391,7 @@ public class PlayerStatusManager : MonoBehaviour
         minSpellDuration = maxSpellDuration * 0.6f; //
     }
 
-    // 📄 PlayerStatusManager.cs 内の Start メソッドおよび拡張インフラ層
-    // 📄 PlayerStatusManager.cs 内の Start メソッド（6大パラメーター完全適合版）
-    void Start()
-    {
-        // 🚨【新規追加】：お互いのAwakeデータ展開が完全に完了したこの瞬間に、
-        // 🚨                 相手の弱点をサーチして自身のランクをハッキング・引き上げます！
-        if (HasPassiveSkill(PassiveSkillType.PrideStatusSteal))
-        {
-            ExecutePrideStatusSteal();
-        }
-        // =========================================================================
-        // 🧠【強化学習専用：HP100倍インフラ】
-        // =========================================================================
-        // 💡 目的：被弾しても1発で死なず、1つのラウンド内で「大量の避ける経験」をAIに積ませるため、
-        //          学習中（DanmakuAgentが存在する）であれば最大・現在HPを自動で100倍にします。
-        DanmakuAgent trainingAgent = GetComponent<DanmakuAgent>();
-        // 💡【修正】：Python通信が生きている（真の学習中）ときのみHPを100倍化する！
-        if (trainingAgent != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
-        {
-            maxHP *= 100f; // 100 ➔ 10000 に増幅
-            Debug.Log($"<color=lime>🚀【AI調教ブースト】強化学習環境を検知。Player {playerId} の最大HPを100倍（{maxHP}）に引き上げました！</color>");
-        }
-        // --- 既存のUI初期化インフラへ完全結合 ---
-        currentHP = maxHP; //
-        ApplyCharacterSettings(); //
-        StartCoroutine(SetupInitialUI()); //
-        StartCoroutine(InitUIWithDelay()); //
-    }
+
     private IEnumerator InitUIWithDelay()
     {
         yield return null;
@@ -447,7 +510,7 @@ public class PlayerStatusManager : MonoBehaviour
         // 【VJT実行中のリアルタイム毎フレーム制御】
         if (isSpellCardActive)
         {
-            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer(); 
+            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
 
             // =========================================================================
             // 🌟【新規追加】：決着（KO）時はアルカナゲージおよび維持タイマーをその場で完全停止！
@@ -465,38 +528,38 @@ public class PlayerStatusManager : MonoBehaviour
             {
 
                 bool isULTActive = (myEmitter != null && myEmitter.IsSyaruBitEXActive);
-                
+
                 if (!isULTActive)
                 {
-                    spellTimer -= Time.deltaTime; 
-                    float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration); 
-                    _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio; 
+                    spellTimer -= Time.deltaTime;
+                    float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration);
+                    _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio;
                 }
 
                 // キャラクター固有の領域効果（フィールド・デバフ）の執行
-                ExecuteFieldEffectToOpponent(); 
+                ExecuteFieldEffectToOpponent();
 
-                if (spellTimer <= 0f) 
+                if (spellTimer <= 0f)
                 {
                     spellTimer = 0f;
-                    _playerMove.ultimateEnergy = 0f; 
-                    DeactivateSpellCard(false); 
+                    _playerMove.ultimateEnergy = 0f;
+                    DeactivateSpellCard(false);
                 }
             }
 
             // ライフバーのアニメーションはフリーズ中も滑らかに追従させるため、ifの外側に配置
-            if (isAnimatingSpellBar) 
+            if (isAnimatingSpellBar)
             {
-                appearanceElapsed += Time.deltaTime; 
-                float t = Mathf.Clamp01(appearanceElapsed / SPELL_BAR_ANIM_DURATION); 
-                float easedT = t * t * (3f - 2f * t); 
-                animatedSpellHP = Mathf.Lerp(0f, spellHP, easedT); 
+                appearanceElapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(appearanceElapsed / SPELL_BAR_ANIM_DURATION);
+                float easedT = t * t * (3f - 2f * t);
+                animatedSpellHP = Mathf.Lerp(0f, spellHP, easedT);
 
-                if (t >= 1f) isAnimatingSpellBar = false; 
+                if (t >= 1f) isAnimatingSpellBar = false;
             }
-            else 
+            else
             {
-                animatedSpellHP = spellHP; 
+                animatedSpellHP = spellHP;
             }
         }
 
@@ -588,60 +651,51 @@ public class PlayerStatusManager : MonoBehaviour
 
     public void ActivateSpellCard()
     {
-        // 自分が既に展開中、または自分が焼き切れ(冷却デバフ)中、最低発動ゲージ（200%）未満なら鉄壁ガード
-        if (isSpellCardActive || isOverheated || _playerMove.ultimateEnergy < 200f) return; 
-
         // =========================================================================
-        // ⚔️【新システム】：領域返し（カウンターVJT）の割り込みジャッジ
+        // 🔍【VJT発動監査ログ】：なぜ領域が展開できないのかを徹底的にジャッジします
         // =========================================================================
-        if (isAnyVJTActive && !isSpellCardActive) 
+        if (isSpellCardActive || isOverheated || _playerMove.ultimateEnergy < 200f)
         {
-            PlayerMove oppMove = _playerMove != null ? _playerMove.Opponent : null; 
-            PlayerStatusManager oppStatus = oppMove != null ? oppMove.GetComponent<PlayerStatusManager>() : null; 
+            string reason = "";
+            if (isSpellCardActive) reason += "[すでに自身がVJT展開中] ";
+            if (isOverheated) reason += $"[術式焼き切れ・冷却デバフ中 (残り {overheatTimer:F1}秒)] ";
+            if (_playerMove.ultimateEnergy < 200f) reason += $"[アルカナゲージ不足 (必要:200% / 現在:{_playerMove.ultimateEnergy:F1}%)] ";
 
-            // 相手が本物のVJT主導権を握っているか確認
-            if (oppStatus != null && oppStatus.isSpellCardActive) 
+            Debug.LogError($"<color=red>❌ [VJT BLOCK] Player {playerId} の領域発動が手前で拒絶されました。 理由: {reason}</color>");
+            return;
+        }
+
+        // ⚔️【新システム】：領域返し（カウンターVJT）の割り込みジャッジ
+        if (isAnyVJTActive && !isSpellCardActive)
+        {
+            PlayerMove oppMove = _playerMove != null ? _playerMove.Opponent : null;
+            PlayerStatusManager oppStatus = oppMove != null ? oppMove.gameObject.GetComponent<PlayerStatusManager>() : null;
+
+            if (oppStatus != null && oppStatus.isSpellCardActive)
             {
-                // ① 自分の現在のゲージから予定持続時間を算出（既存の発動時数式と完全同期）
-                float myProgress = Mathf.InverseLerp(200f, 300f, _playerMove.ultimateEnergy); 
-                float myExpectedDuration = Mathf.Lerp(minSpellDuration, maxSpellDuration, myProgress); 
-
-                // ② 相手の残り持続時間を取得
-                float oppRemainingTime = oppStatus.spellTimer; 
-
-                // 🚨 条件評価：「自分の予定時間 - 相手の残り時間 > 10.0秒」か
+                float myProgress = Mathf.InverseLerp(200f, 300f, _playerMove.ultimateEnergy);
+                float myExpectedDuration = Mathf.Lerp(minSpellDuration, maxSpellDuration, myProgress);
+                float oppRemainingTime = oppStatus.spellTimer;
                 float timeDifference = myExpectedDuration - oppRemainingTime;
+
+                Debug.Log($"<color=yellow>⚔️ [VJT COUNTER CHECK] 領域返しジャッジ走査中... 時間差: {timeDifference:F2}秒 (必要: >10.0秒)</color>");
 
                 if (timeDifference > 10f)
                 {
-                    // ➔ 【領域返し成立！】
                     Debug.Log($"<color=red>💥💥【領域返し(カウンターVJT)成立!!】時間差: {timeDifference:F2}秒</color>");
-
-                    // 1. 相手のペナルティ：領域を即座に強制シャットダウン（自然消滅扱いで安全パージ）
-                    oppStatus.DeactivateSpellCard(false); 
-
-                    // 2. 相手のアルカナゲージ残量を現在の半分（50%）にカットして叩き割る！
+                    oppStatus.DeactivateSpellCard(false);
                     oppMove.ultimateEnergy *= 0.5f;
-
-                    // 3. 自分のリターン：超過した時間（timeDifference - 10秒）のみを持続時間として上書きして発動！
                     float counterVJTDuration = timeDifference;
-
                     ExecuteCounterActivationSequence(counterVJTDuration);
                     return;
                 }
                 else
                 {
-                    // =========================================================================
-                    // 🛡️【核心修正】：AIの領域返し連打による不発SE（SPELL_OFF）のマシンガン連射の根治
-                    // =========================================================================
-                    // 💡 理由：AIがフラグを押しっぱなしにした際、毎フレームSEが重複再生されるのを防ぐため、
-                    //          0.5秒の再再生インターバルを設け、人間の耳に心地いい警告スパンへクランプ調停します。
-                    Debug.Log($"<color=yellow>🛡️【領域返し不発】... </color>");
-
+                    Debug.Log($"<color=yellow>🛡️ [VJT COUNTER FAILED] 領域返しの条件(持続アドバンテージ10秒以上)を満たしていないため、不発判定処理を行います。</color>");
                     if (_failedSpellSoundTimer <= 0f)
                     {
                         if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.4f);
-                        _failedSpellSoundTimer = 0.5f; // 💡 0.5秒間は連続不発音の発生をがっちりフリーズブロック！
+                        _failedSpellSoundTimer = 0.5f;
                     }
                     return;
                 }
@@ -649,50 +703,71 @@ public class PlayerStatusManager : MonoBehaviour
         }
 
         // --- 以下は通常発動時（誰も領域を展開していない平和な時）の早い者勝ち処理 ---
-        if (SpellCardManager.Instance != null && !SpellCardManager.Instance.TryRequestVJT(this)) 
+        if (SpellCardManager.Instance != null && !SpellCardManager.Instance.TryRequestVJT(this))
         {
-            return; 
+            Debug.LogError($"<color=red>❌ [VJT BLOCK] SpellCardManager によって発動リクエストが拒否されました。世界ロックの状態に矛盾があります。</color>");
+            return;
         }
 
-        if (Time.frameCount != lastRequestFrame) 
+        Debug.Log($"<color=green>💎 [VJT SUCCESS] 全てのチェックを通過！排他フレームジャッジ（同時押しチェックコルーチン）へ移行します。</color>");
+
+        if (Time.frameCount != lastRequestFrame)
         {
-            lastRequestFrame = Time.frameCount; 
-            p1Requester = (playerId == 1) ? this : null; 
-            p2Requester = (playerId == 2) ? this : null; 
-            StartCoroutine(ExecuteSpellCardWithFrameCheck()); 
+            lastRequestFrame = Time.frameCount;
+            p1Requester = (playerId == 1) ? this : null;
+            p2Requester = (playerId == 2) ? this : null;
+            StartCoroutine(ExecuteSpellCardWithFrameCheck());
         }
-        else 
+        else
         {
-            if (playerId == 1) p1Requester = this; 
-            if (playerId == 2) p2Requester = this; 
+            if (playerId == 1) p1Requester = this;
+            if (playerId == 2) p2Requester = this;
         }
     }
 
     /// <summary>
     /// 🌟【新規追加】：同フレーム内の入力要求を安全に集約し、50%の確率で勝者を選出する
     /// </summary>
+  // =========================================================================
+    // 🔮【デッドロック完全根治】：同フレーム内の入力要求を安全に集約・執行する
+    // =========================================================================
     private IEnumerator ExecuteSpellCardWithFrameCheck()
     {
-        // 同一フレーム内の入力をすべてバッファに集約させるため、1フレーム（FixedUpdate/Updateの裏側）だけ安全に待機
+        // 同一フレーム内の1P・2Pからの入力を集約するため、1フレームだけ安全に待機
         yield return null;
 
-        // 既に他の要因で世界ロックがかかってしまっていたら安全のために抜ける
-        if (isAnyVJTActive) yield break;
+        PlayerStatusManager finalWinner = null;
 
-        PlayerStatusManager finalWinner = this;
-
-        // 🚨【運命の天秤】：1Pと2Pがまったく同じフレームで同時申請していた場合
+        // 🚨 1. 【運命の天秤】：1Pと2Pがまったく同じフレームで同時申請していた場合
         if (p1Requester != null && p2Requester != null)
         {
-            // UnityEngine.Random を用いて 50% (0.5未満) の確率でどちらを主役にするか厳密にジャッジ！
+            // 50%の確率でどちらを主役にするか厳密にジャッジ！
             bool isP1Winner = UnityEngine.Random.value < 0.5f;
             finalWinner = isP1Winner ? p1Requester : p2Requester;
+            PlayerStatusManager finalLoser = isP1Winner ? p2Requester : p1Requester;
 
-            Debug.Log($"<color=red>⚔️【VJT同時発動警告】1フレーム内の完全同時押しを検知！ 確率ジャッジの結果、勝者は [Player {finalWinner.playerId}] です！</color>");
+            Debug.Log($"<color=red>⚔️【VJT同時発動】完全同時押しジャッジ！ 勝者: [Player {finalWinner.playerId}]</color>");
+
+            // 敗者側の予約ロックを安全に解放パージ
+            if (SpellCardManager.Instance != null)
+            {
+                SpellCardManager.Instance.ReleaseVJT(finalLoser);
+            }
+
+            // 勝者を発動
+            finalWinner.ExecuteActivationSequence();
+        }
+        else
+        {
+            // 🚨 2. 単独申請の場合：セルフロック誤認を完全に回避して、申請者をそのまま100%安全に発動！
+            if (p1Requester != null) p1Requester.ExecuteActivationSequence();
+            if (p2Requester != null) p2Requester.ExecuteActivationSequence();
         }
 
-        // 選ばれたプレイヤー（あるいは先手を取った自分）のみ、以下の発動処理を全開化！
-        finalWinner.ExecuteActivationSequence();
+        // 次のフレームでの同時押しの為に、申請バッファをクリーンに初期化
+        p1Requester = null;
+        p2Requester = null;
+        lastRequestFrame = -1;
     }
 
     /// <summary>
@@ -1019,81 +1094,81 @@ public class PlayerStatusManager : MonoBehaviour
     /// </summary>
     private void ExecuteCounterActivationSequence(float overrideDuration)
     {
-        ClearAllBulletsOnField(); 
-        
+        ClearAllBulletsOnField();
+
         // 領域返し専用のド派手なシステムアナウンスログ
         Debug.Log($"<color=lime>👑【COUNTER VJT FLUSH】超過時間 {overrideDuration:F2} 秒で世界を再定義します！</color>");
 
         if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 1.2f); // やや強めに再生
 
-        isSpellCardActive = true; 
+        isSpellCardActive = true;
         isAnyVJTActive = true;    // 世界ロックを即座に再取得
-        isOverheated = false; 
+        isOverheated = false;
 
-        initialUltimateEnergy = _playerMove.ultimateEnergy; 
-        preSpellHP = currentHP; 
+        initialUltimateEnergy = _playerMove.ultimateEnergy;
+        preSpellHP = currentHP;
 
-        float fullArmorHP = maxHP * 30f; 
+        float fullArmorHP = maxHP * 30f;
 
         // 🌟【ここが核心】：通常計算を無視し、引数で渡された「超過時間」を今回の総持続時間として強制適用！
         totalSpellDuration = overrideDuration;
-        spellTimer = totalSpellDuration; 
+        spellTimer = totalSpellDuration;
 
         // バリア体力は自分の現在のゲージ割合（進行度）に応じて適正配分
-        float progress = Mathf.InverseLerp(200f, 300f, initialUltimateEnergy); 
-        float spawnHPRatio = Mathf.Lerp(0.6f, 1.0f, progress); 
-        spellMaxHP = fullArmorHP; 
-        spellHP = fullArmorHP * spawnHPRatio; 
+        float progress = Mathf.InverseLerp(200f, 300f, initialUltimateEnergy);
+        float spawnHPRatio = Mathf.Lerp(0.6f, 1.0f, progress);
+        spellMaxHP = fullArmorHP;
+        spellHP = fullArmorHP * spawnHPRatio;
 
-        isAnimatingSpellBar = true; 
-        appearanceElapsed = 0f; 
-        animatedSpellHP = 0f; 
+        isAnimatingSpellBar = true;
+        appearanceElapsed = 0f;
+        animatedSpellHP = 0f;
 
-        if (playerCollider != null) 
+        if (playerCollider != null)
         {
-            playerCollider.transform.localScale = originalColliderScale * 30f; 
+            playerCollider.transform.localScale = originalColliderScale * 30f;
         }
 
         // バリアのカラー同調適用
-        if (spellBarrier != null) 
+        if (spellBarrier != null)
         {
-            Color charColor = (characterData != null) ? characterData.imageColor : Color.white; 
-            spellBarrier.SetBarrierActive(true); 
-            Renderer[] barrierRenderers = spellBarrier.GetComponentsInChildren<Renderer>(true); 
-            foreach (var r in barrierRenderers) 
+            Color charColor = (characterData != null) ? characterData.imageColor : Color.white;
+            spellBarrier.SetBarrierActive(true);
+            Renderer[] barrierRenderers = spellBarrier.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in barrierRenderers)
             {
-                if (r is SpriteRenderer sr) sr.color = charColor; 
+                if (r is SpriteRenderer sr) sr.color = charColor;
                 else if (r is LineRenderer lr) { lr.startColor = charColor; lr.endColor = charColor; }
-                
-                else if (r.material != null) r.material.color = charColor; 
+
+                else if (r.material != null) r.material.color = charColor;
             }
         }
 
-        UpdateUI(); 
-        SyncBarsImmediately(); 
+        UpdateUI();
+        SyncBarsImmediately();
 
         // 各種魔法陣・看板UI・2D専用背景の動的バインド処理（通常シーエンスと完全同期）
-        if (spellRingPrefab != null && spawnedRingInstance == null) 
+        if (spellRingPrefab != null && spawnedRingInstance == null)
         {
-            spawnedRingInstance = Instantiate(spellRingPrefab, transform.position, Quaternion.identity); 
-            PlayerSpellRing_Line ringScript = spawnedRingInstance.GetComponent<PlayerSpellRing_Line>(); 
+            spawnedRingInstance = Instantiate(spellRingPrefab, transform.position, Quaternion.identity);
+            PlayerSpellRing_Line ringScript = spawnedRingInstance.GetComponent<PlayerSpellRing_Line>();
             if (ringScript != null) { ringScript.targetStatus = this; ringScript.Activate(totalSpellDuration); }
-            
+
         }
-        if (spellCirclePrefab != null && spawnedCircleInstance == null) 
+        if (spellCirclePrefab != null && spawnedCircleInstance == null)
         {
-            spawnedCircleInstance = Instantiate(spellCirclePrefab, transform.position, Quaternion.identity); 
-            PlayerSpellCircle circleScript = spawnedCircleInstance.GetComponent<PlayerSpellCircle>(); 
-            if (circleScript != null) circleScript.Activate(this, totalSpellDuration); 
+            spawnedCircleInstance = Instantiate(spellCirclePrefab, transform.position, Quaternion.identity);
+            PlayerSpellCircle circleScript = spawnedCircleInstance.GetComponent<PlayerSpellCircle>();
+            if (circleScript != null) circleScript.Activate(this, totalSpellDuration);
         }
-        if (EnemySpellCardUI.Instance != null && characterData != null) 
+        if (EnemySpellCardUI.Instance != null && characterData != null)
         {
-            string displayName = string.IsNullOrEmpty(characterData.spellCardName) ? characterData.characterName : characterData.spellCardName; 
-            EnemySpellCardUI.Instance.DisplaySpell(displayName, 0, 0, 1000000f, false, this.playerId); 
+            string displayName = string.IsNullOrEmpty(characterData.spellCardName) ? characterData.characterName : characterData.spellCardName;
+            EnemySpellCardUI.Instance.DisplaySpell(displayName, 0, 0, 1000000f, false, this.playerId);
         }
-        if (VJTSpellBackgroundManager2D.Instance != null) 
+        if (VJTSpellBackgroundManager2D.Instance != null)
         {
-            VJTSpellBackgroundManager2D.Instance.SetSpellBackgroundActive(true, this.characterData); 
+            VJTSpellBackgroundManager2D.Instance.SetSpellBackgroundActive(true, this.characterData);
         }
     }
 
@@ -1434,7 +1509,7 @@ public class PlayerStatusManager : MonoBehaviour
                             $"GluttonyRegen(1%/s): {gluttonyStatusStr}\n" + //
                             $"SlothBoost(1.3x): {slothStatusStr}\n" + //
                             $"PrideSteal: {prideStatusStr}\n" +
-                            $"NihilityCancel: {nihilityStatusStr}\n" + 
+                            $"NihilityCancel: {nihilityStatusStr}\n" +
                             $"[判定半径] Hitbox Radius: <color=cyan>{currentRadius:F3}</color> (Base: {originalColliderRadius:F2})\n\n" + //
                             $"<b>== 6-STATUS RANKS & VALUE ==</b>\n" + //
                             $"[体力] HP_Max: {maxHP:F1} ({rHP})\n" +
@@ -1723,7 +1798,7 @@ public class PlayerStatusManager : MonoBehaviour
 
         switch (statName)
         {
-            case "HP":        characterData.rankHP = GetNextRank(characterData.rankHP); break;
+            case "HP": characterData.rankHP = GetNextRank(characterData.rankHP); break;
             case "MP": characterData.rankMP = GetNextRank(characterData.rankMP); break;
             case "Attack": characterData.rankAttack = GetNextRank(characterData.rankAttack); break; // ⚔️ ランクアップ対象
             case "Agility": characterData.rankAgility = GetNextRank(characterData.rankAgility); break;

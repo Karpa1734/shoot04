@@ -174,7 +174,7 @@ public class SkillManager : MonoBehaviour
         if (!PlayerMove.CanShoot) return;
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
-        // --- 入力ソースの同期デコード ---
+        // --- 入力変数フラグ ---
         bool zPressed = false;
         bool xPressed = false;
         bool cPressed = false;
@@ -185,23 +185,22 @@ public class SkillManager : MonoBehaviour
         DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
 
         // =========================================================================
-        // 🤖 A. 敵AIまたはリプレイ再生時の入力完全抽出
+        // 🤖 A. 敵AIまたはリプレイ再生時の入力抽出
         // =========================================================================
-        if (agent != null || playerMove.currentMode == PlayerMove.ReplayMode.Playing)
+        if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing))
         {
             var input = playerMove.currentFrameInput;
-
             zPressed = input.shotZ;
             xPressed = input.shotX;
-            cPressed = input.shotV ? false : input.shotC; // 同時押しガードを安全に噛ませる
+            cPressed = input.shotV ? false : input.shotC;
             vPressed = input.shotV;
             exPressed = input.ultimate;
 
-            vjtPressed = (agent != null && agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
+            vjtPressed = (agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
                           playerMove.ultimateEnergy >= 200f && !statusManager.isSpellCardActive);
         }
         // =========================================================================
-        // ⌨️ B. 人間操作の入力スキャン
+        // ⌨️ 🎮 B. 人間操作の入力スキャン（インスペクターのアクションマップへ完全適合）
         // =========================================================================
         else
         {
@@ -209,40 +208,59 @@ public class SkillManager : MonoBehaviour
             {
                 var inputSet = (playerMove.playerId == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2;
 
+                // 通常スキルのホールド（押しっぱなし）状態を正確に取得
                 zPressed = inputSet.skillZ.action.IsPressed();
                 xPressed = inputSet.skillX.action.IsPressed();
                 cPressed = inputSet.skillC.action.IsPressed();
                 vPressed = inputSet.skillV.action.IsPressed();
 
-                if (inputSet.skillEX != null && inputSet.skillEX.action != null)
+                // 💡【バグの根治】: InputSystemの同時押し（Z+X）に WasPressedThisFrame を使うと、
+                // 人間の指のわずかなズレで検知漏れします。そのため、ホールドの重複（zPressed && xPressed）を基準にし、
+                // 「どちらかのキーが新しく叩かれた瞬間」をトリガーにしてズレを完全に吸収します。
+                bool isZX_Combination = (zPressed && xPressed);
+                if (isZX_Combination && (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.X)))
                 {
-                    exPressed = inputSet.skillEX.action.IsPressed();
-                }
-                else
-                {
-                    exPressed = (cPressed && vPressed);
+                    vjtPressed = true;
                 }
 
-                if (inputSet.skillVJT != null && inputSet.skillVJT.action != null)
+                // 💡 パッド用の独立したVJT専用ボタン（RB等）が登録されている場合は、そちらの単発押しも救済検知
+                if (!vjtPressed && inputSet.skillVJT != null && inputSet.skillVJT.action != null)
                 {
-                    vjtPressed = inputSet.skillVJT.action.WasPressedThisFrame();
+                    if (inputSet.skillVJT.action.WasPressedThisFrame())
+                    {
+                        vjtPressed = true;
+                    }
+                }
+
+                // --- 👑 EXスキル（C+V / LB）の判定スキャン ---
+                if (inputSet.skillEX != null && inputSet.skillEX.action != null)
+                {
+                    exPressed = inputSet.skillEX.action.WasPressedThisFrame();
                 }
                 else
                 {
-                    vjtPressed = (Input.GetKeyDown(KeyCode.Z) && Input.GetKey(KeyCode.X)) || (Input.GetKeyDown(KeyCode.X) && Input.GetKey(KeyCode.Z));
+                    // アクションマップが空、またはキーボード同時押し（C+V）のズレ吸収フォールバック
+                    if (cPressed && vPressed && (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.V)))
+                    {
+                        exPressed = true;
+                    }
                 }
             }
         }
 
         // =========================================================================
-        // 🚀 各種アクションの執行判定ルーチン
+        // 🚀 各種アクションの執行判定ルーチン（完全排他・すり替えなし）
         // =========================================================================
-        if (vjtPressed && !statusManager.isSpellCardActive)
+        // 🔮 1. 領域展開（VJT）の執行
+        if (vjtPressed)
         {
+            // 🔍【VJT入力監査ログ】
+            Debug.Log($"<color=orange>🔮 [VJT INPUT SUCCESS] Player {playerMove.playerId} の領域入力（Z+X / パッド）が完全成立！ (現在のアルカナゲージ: {playerMove.ultimateEnergy:F1}%)</color>");
             statusManager.ActivateSpellCard();
-            return;
+            return; // 発動フレームは後続の通常EX処理を完全に遮断
         }
 
+        // 👑 2. 必殺技（EX/ULT）の執行
         if (exPressed)
         {
             if (statusManager.isSpellCardActive)
@@ -252,7 +270,7 @@ public class SkillManager : MonoBehaviour
                     playerMove.ultimateEnergy = 0f;
                     emitter.FireEX(skillData.skillEX);
                     timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
-                    Debug.Log("<color=magenta>👑【AI/Player ULT】領域を維持したまま、究極必殺技をキックしました！</color>");
+                    Debug.Log("<color=magenta>👑 [VJT-ULT] 領域維持必殺技を射出しました！</color>");
                 }
             }
             else
@@ -262,17 +280,18 @@ public class SkillManager : MonoBehaviour
                     playerMove.ultimateEnergy -= 100f;
                     emitter.FireEX(skillData.skillEX);
                     timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
-                    Debug.Log("<color=orange>★★ 1ストック通常Exスキルを発動しました ★★</color>");
+                    Debug.Log("<color=lime>★★ 1ストック通常Exスキルを発動しました ★★</color>");
+                }
+                else
+                {
+                    Debug.LogWarning($"⚠️ [EX BLOCK] 必殺条件を満たしていません。 (リキャスト残り: {timerEX:F1}秒 / アルカナ: {playerMove.ultimateEnergy:F1}%)");
                 }
             }
             return;
         }
 
-        // =========================================================================
-        // ⚔️【エラー根治修正】：すべての呼び出し元に `isVjtActive` 引数を綺麗に結合！
-        // =========================================================================
+        // 通常スキル射出の同期結合 (既存)
         bool isVjtActive = (statusManager != null && statusManager.isSpellCardActive);
-
         HandleSkillInput(zPressed, ref timerZ, skillData.skillZ, isVjtActive);
         HandleSkillInput(xPressed, ref timerX, skillData.skillX, isVjtActive);
         HandleSkillInput(cPressed, ref timerC, skillData.skillC, isVjtActive);

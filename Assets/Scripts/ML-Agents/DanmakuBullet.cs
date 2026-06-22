@@ -4,8 +4,8 @@ using UnityEngine;
 public class DanmakuBullet : MonoBehaviour
 {
     private SpriteRenderer sr;
-    private CircleCollider2D col;
-
+    private Collider2D col;                  // 単発アクセス用のフォールバックキャッシュ
+    private Collider2D[] allColliders;       // 💡【不足修復】：親Box＋子Circleを一網打尽にする配列枠
     public GameObject owner { get; private set; }
     private string targetTag;
 
@@ -37,7 +37,20 @@ public class DanmakuBullet : MonoBehaviour
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
-        col = GetComponent<CircleCollider2D>();
+        col = GetComponent<Collider2D>();
+        // 💡【不足修復】：自分自身（親オブジェクト）と、ぶら下がっている子オブジェクトのすべてのコライダーを一括取得！
+        allColliders = GetComponentsInChildren<Collider2D>(true);
+    }
+
+    public void SetColliderActive(bool active)
+    {
+        if (allColliders == null) return;
+
+        // 配列に入っているすべてのコライダー（親のBoxも、子のCircleも）を一括処理
+        foreach (var c in allColliders)
+        {
+            if (c != null) c.enabled = active;
+        }
     }
     /// <summary>
     /// グレイズ判定を試みる。1回目だけ true を返す。
@@ -48,6 +61,7 @@ public class DanmakuBullet : MonoBehaviour
         isGrazeDone = true;
         return true;
     }
+    // 🟢 通常の弾幕・槍弾幕の発射初期化
     public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
         this.owner = shooter;
@@ -61,59 +75,66 @@ public class DanmakuBullet : MonoBehaviour
         this.delayFrames = Mathf.RoundToInt(delay);
         this.totalDelay = this.delayFrames;
         this.isConverging = converge;
+        this._isKnifeCounter = false;
 
-        // 🌟 修正の核心：プレハブ本来の初期スケール（1.3など）をベースとして取得！
-        Vector3 baseScale = transform.localScale;
-        // インスペクターの拡大率を「さらに何倍するか」の乗算チップに切り替え
-        float multiplier = (data.bulletScale > 0f) ? data.bulletScale : 1.0f;
-        transform.localScale = new Vector3(baseScale.x * multiplier, baseScale.y * multiplier, baseScale.z * multiplier);
+        // =========================================================================
+        // 🎯【スマートサイズ判定】：槍プレハブの長細い比率を自動で保護・引き継ぐ
+        // =========================================================================
+        // 💡 仕組み：親にBoxCollider2Dがある、または子オブジェクトが存在する場合は「槍（例外弾）」と自動認識します。
+        //          槍の場合は「プレハブ本来の比率（例: 縦長）」を基準にし、通常弾の場合は「Vector3.one」を基準にリセットします。
+        bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
+        Vector3 templateScale = isCustomPrefabBullet ? transform.localScale : Vector3.one;
 
-        sr.sprite = data.bulletSprite;
-        col.radius = data.radius;// 🎯【マテリアル生存権の調停】：
-        // 💡 エミッター側で既にオーラカラー（_AuraColor）がマテリアルにインジェクションされている場合は、
-        // 💡 それを最優先として残し、空（デフォルトマテリアル）の時だけ data.material を適用します！
-        if (sr.material == null || !sr.material.HasProperty("_AuraColor"))
+        float multiplier = (data != null && data.bulletScale > 0f) ? data.bulletScale : 1.0f;
+        transform.localScale = new Vector3(templateScale.x * multiplier, templateScale.y * multiplier, templateScale.z * multiplier);
+
+        if (sr != null && data != null)
         {
+            sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
         }
-        transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+
+        // 💡 進行方向へグラフィックを自動回転
+        transform.rotation = Quaternion.Euler(0, 0, angle);
+
         // ★ アニメーションの有無を確認
-        if (data.animationSprites != null && data.animationSprites.Length > 1)
+        if (data != null && data.animationSprites != null && data.animationSprites.Length > 1)
         {
             isAnimated = true;
-            sr.sprite = data.animationSprites[0];
+            if (sr != null) sr.sprite = data.animationSprites[0];
         }
         else
         {
             isAnimated = false;
-            sr.sprite = data.bulletSprite;
+            if (sr != null && data != null) sr.sprite = data.bulletSprite;
         }
-        // 当たり判定の設定
-        if (col != null)
+
+        // 通常弾プレハブ（CircleCollider2D）の場合のみデータ駆動でコライダーの半径を決定
+        if (col != null && col is CircleCollider2D circleCol && data != null)
         {
-            col.radius = data.radius;
-            // ★ 追加：データのオフセット値をコライダーに反映
-            col.offset = data.colliderOffset;
+            circleCol.radius = data.radius;
+            circleCol.offset = data.colliderOffset;
         }
+
+        // 出撃の瞬間に、すべてのコライダーを完全にONにする
+        SetColliderActive(delay <= 0);
+
         if (delay > 0)
         {
-            // --- 遅延エフェクト（魔法陣）の表示 ---
+            if (sr != null) sr.enabled = false;
             StartCoroutine(DelayEffectRoutine(delay, data));
-            sr.enabled = false;
-            col.enabled = false;
         }
         else
         {
-            sr.enabled = true;
-            col.enabled = true;
+            if (sr != null) sr.enabled = true;
         }
 
         isInitialized = true;
         isActive = true;
+        isGrazeDone = false;
     }
 
-    // ★ 追加：オブジェクトプールに対応したカウンターナイフ専用の初期化メソッド
-    // 📄 DanmakuBullet.cs 内の InitializeKnifeCounter メソッド【白アセットオーラ溶接版】
+    // 🔵 カウンターナイフ専用の初期化メソッド（サイズ汚染 ＆ プレハブ比率潰れバグを完全根治）
     public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
     {
         this.owner = shooter;
@@ -123,101 +144,66 @@ public class DanmakuBullet : MonoBehaviour
         this.accel = 0;
         this.maxSpeed = shootSpeed;
         this.angularVelocity = 0;
-
-        // プレハブ本来のサイズ（1.3など）をベースに乗算
-        Vector3 baseScaleKn = transform.localScale;
-        float multiplierKn = (data.bulletScale > 0f) ? data.bulletScale : 1.0f;
-        transform.localScale = new Vector3(baseScaleKn.x * multiplierKn, baseScaleKn.y * multiplierKn, baseScaleKn.z * multiplierKn);
-
-        // 秒数をFixedUpdate基準のフレーム数に変換
         this.delayFrames = Mathf.RoundToInt(delayDuration * 60f);
         this.totalDelay = this.delayFrames;
-
         this.isConverging = false;
         this._isKnifeCounter = true;
         this.isAnimated = false;
 
-        sr.sprite = data.bulletSprite;
+        // =========================================================================
+        // 🎯【スマートサイズ判定】：カウンターナイフ側でも槍やプレハブの形を自動保護
+        // =========================================================================
+        bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
+        Vector3 templateScaleKn = isCustomPrefabBullet ? transform.localScale : Vector3.one;
 
-        // 🎯【マテリアル生存権の調停】
-        if (sr.material == null || !sr.material.HasProperty("_AuraColor"))
+        float multiplierKn = (data != null && data.bulletScale > 0f) ? data.bulletScale : 1.0f;
+        transform.localScale = new Vector3(templateScaleKn.x * multiplierKn, templateScaleKn.y * multiplierKn, templateScaleKn.z * multiplierKn);
+
+        if (sr != null && data != null)
         {
+            sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
         }
 
-        // 待機中の見た目を華やかにするため初期角度をランダムに
         _knifeCurrentAngle = Random.Range(0f, 360f);
         transform.rotation = Quaternion.Euler(0, 0, _knifeCurrentAngle - 90f);
 
-        // ナイフは回転する姿を見せるため最初から表示するが、当たり判定は発射までオフ
-        sr.enabled = true;
-        if (col != null)
-        {
-            col.radius = data.radius;
-            col.offset = data.colliderOffset;
-            col.enabled = false;
-        }
+        if (sr != null) sr.enabled = true;
 
-        // =========================================================================
-        // 🔮【新設：強欲カウンターナイフ専用・白アセットカラー着色オーラインフラ】
-        // =========================================================================
-        // 💡 既存の多重生成を防ぐため、すでに子供がいれば削除（プール返却対策）
+        // ナイフ待機中は物理当たり判定を一律すべて眠らせる
+        SetColliderActive(false);
+
+        // カウンターナイフ用着色オーラインフラ
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null) Destroy(oldAura.gameObject);
 
         if (sr != null && data != null)
         {
-            // 💡 1. オーラ専用の子供オブジェクトを生成してバインド
             GameObject auraChild = new GameObject("PureColorAuraObject");
             auraChild.transform.SetParent(transform);
-
-            // 💡 2. 位置・回転を本体と完全同期させ、サイズを一回り（1.4倍）拡張！
             auraChild.transform.localPosition = Vector3.zero;
             auraChild.transform.localRotation = Quaternion.identity;
             auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
 
             SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
-
-            // 💡 3. レイヤー順（SortingOrder）を本体スプライトの「真後ろ（-1）」へ
             auraSR.sortingLayerID = sr.sortingLayerID;
             auraSR.sortingOrder = sr.sortingOrder - 1;
 
-            // 💡 4. BulletDataに直接登録されたマテリアルから最速で静的共有（Resources不使用）
-            if (data.auraMaterial != null)
-            {
-                auraSR.material = data.auraMaterial;
-            }
-            else
-            {
-                auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-            }
+            auraSR.material = (data.auraMaterial != null) ? data.auraMaterial : new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+            auraSR.sprite = (data.auraWhiteSprite != null) ? data.auraWhiteSprite : sr.sprite;
 
-            // 💡 5. 白スプライトをアサイン（空なら本体スプライトをフォールバックコピー）
-            if (data.auraWhiteSprite != null)
-            {
-                auraSR.sprite = data.auraWhiteSprite;
-            }
-            else
-            {
-                auraSR.sprite = sr.sprite;
-            }
-
-            // 💡 6. 大元の持ち主のイメージカラー（imageColor）を精密抽出して着色インジェクション！
             PlayerStatusManager myStatus = shooter.GetComponent<PlayerStatusManager>();
             if (myStatus == null) myStatus = shooter.GetComponentInParent<PlayerStatusManager>();
 
             if (myStatus != null && myStatus.characterData != null)
             {
                 Color charImageColor = myStatus.characterData.imageColor;
-
-                // 通常弾幕の仕様（アルファ1.0fのフル発光）と完全に歩調を同期！
                 charImageColor.a = 1.0f;
                 auraSR.color = charImageColor;
             }
             else
             {
-                // セーフティ安全弁
-                Color defaultColor = Color.yellow; // カウンターのデフォルト色
+                Color defaultColor = Color.yellow;
                 defaultColor.a = 1.0f;
                 auraSR.color = defaultColor;
             }
@@ -373,40 +359,58 @@ public class DanmakuBullet : MonoBehaviour
             Deactivate(true);
         }
     }
-    // 引数 bool playBreakEffect を追加
-    // 引数付きの Deactivate メソッドを修正
+    // =========================================================================
+    // 🟥【重複排除・完全開通版】：消滅・プール返却メソッド群（ここが1つずつになれば治ります）
+    // =========================================================================
+
+    /// <summary>
+    /// 引数あり版：エフェクトの再生有無を指定して弾を非アクティブ化し、プールへ返却する
+    /// </summary>
     public void Deactivate(bool playBreakEffect)
     {
         isActive = false;
         if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
-        // ★ 修正2：【安全弁】もし既に画面外（例: 閾値9.5f以上）にいる場合は、
-        // 衝突判定などが割り込んできて playBreakEffect が true になっていても強制的に false に上書きする
+        // 画面外（9.5f以上）にいる場合は、エフェクトを強制的にオフ
         if (Mathf.Abs(transform.position.x) > 9.5f || Mathf.Abs(transform.position.y) > 9.5f)
         {
             playBreakEffect = false;
         }
 
-        // ★ 消滅エフェクト（ShotEffect）の生成ロジック
+        // 消滅エフェクト（ShotEffect）の生成
         if (playBreakEffect && effectPrefab != null && currentData != null)
         {
             GameObject eff = Instantiate(effectPrefab, transform.position, Quaternion.identity);
             SpriteRenderer effSr = eff.GetComponent<SpriteRenderer>();
-            if (effSr != null) effSr.sortingOrder = sr.sortingOrder + 1;
+            if (effSr != null && sr != null) effSr.sortingOrder = sr.sortingOrder + 1;
 
             ShotEffect logic = eff.GetComponent<ShotEffect>();
             if (logic != null)
-                // BulletData の breakColor を使用してアニメーション再生（ここでSEも鳴る想定）
                 logic.StartCoroutine(logic.PlayBreakAnimation(currentData.breakColor, transform.localScale.x));
         }
 
-        // オブジェクトプール（マネージャー経由）を使用している場合は、ここをプール返却関数に差し替えてください
-        Destroy(gameObject); //
+        // 🚨【重要セーフティ】：プールへ戻る前に、親Box / 子Circleすべてのコライダーを完全に眠らせる
+        SetColliderActive(false);
+        transform.rotation = Quaternion.identity;
+
+        // BulletPool（オブジェクトプール）へのクリーン返却
+        if (currentData != null && currentData.bulletPrefab != null && BulletPool.Instance != null)
+        {
+            BulletPool.Instance.Release(currentData.bulletPrefab, gameObject);
+        }
+        else
+        {
+            // プールが見つからない場合のフォールバック
+            Destroy(gameObject);
+        }
     }
+
+    /// <summary>
+    /// 引数なし版：外部クラスやタイムアウト等からシンプルに呼び出された場合、エフェクトなしで安全にプールへ返却する
+    /// </summary>
     public void Deactivate()
     {
-        isActive = false;
-        if (activeDelayEffect != null) Destroy(activeDelayEffect);
-        Destroy(gameObject);
+        // 上の「引数あり版」に false（エフェクトなし）を渡して処理をスマートに共通集約
+        Deactivate(false);
     }
 }
