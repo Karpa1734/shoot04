@@ -17,6 +17,9 @@ public enum SkillPatternType
     GreedTaxPossession,
     KarinScalesSlash,
     KarinFireSlash,
+    Saiki,
+    KunaiCage,
+    HeartRef
 }
 
 public enum PassiveSkillType
@@ -134,6 +137,8 @@ public class PlayerSkillData : ScriptableObject
         public Sprite skillIcon;
         public SkillPatternType patternType;
         public BulletData bulletData;
+        [Tooltip("跡引き（トレイル）に別種の弾を使いたい場合はここに別のアセットを登録してください（未設定ならメイン弾と同じになります）")]
+        public BulletData trailBulletData;
         public float cooldown;
         public string sePath;
 

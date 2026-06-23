@@ -1,9 +1,11 @@
 ﻿using KanKikuchi.AudioManager;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.AppUI.UI;
 using UnityEngine;
-
+// 🔥【これを追加】：このファイル内で単に「Random」と書いたらUnity側を優先する、という絶対命令
+using Random = UnityEngine.Random;
 /// <summary>
 /// プレイヤーのスキル設定に基づき、実際に弾幕を生成・射出するクラス
 /// 1vs1対戦対応：奇数弾は自機狙い、偶数弾は自機外しを自動計算
@@ -27,6 +29,39 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // 🎯【外部公開用プロパティ】：PlayerStatusManagerが無敵やタイマーストップを判定するために、この共用フラグを公開します
     public bool IsUltimateSkillActive => _isEXSkillActive;
     public bool IsSyaruBitEXActive => _isEXSkillActive; // 他の通常スキルが参照している場合の互換性維持
+
+    // 📊【新設】：サイズごとのソーティングオーダー分配・ループ管理カウンター
+    private static int _smallOrderCounter = 5000;
+    private static int _mediumOrderCounter = 10000;
+    private static int _largeOrderCounter = 15000;
+
+    /// <summary>
+    /// 💡 弾のサイズデータに基づいて次のソーティングオーダーを安全に算出してループさせます
+    /// </summary>
+    private int AllocateNextSortingOrder(BulletSize size)
+    {
+        switch (size)
+        {
+            case BulletSize.Small:
+                _smallOrderCounter++;
+                if (_smallOrderCounter > 20000) _smallOrderCounter = 15000;
+                return _smallOrderCounter;
+
+            case BulletSize.Medium:
+                _mediumOrderCounter++;
+                if (_mediumOrderCounter > 15000) _mediumOrderCounter = 10000;
+                return _mediumOrderCounter;
+
+            case BulletSize.Large:
+                _largeOrderCounter++;
+                if (_largeOrderCounter > 10000) _largeOrderCounter = 5000;
+                return _largeOrderCounter;
+
+            default:
+                return 1000;
+        }
+    }
+
     private void Awake()
     {
         _rootOwner = transform.root.gameObject;
@@ -129,6 +164,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
             else if (enhancedSettings.patternType == SkillPatternType.KarinFireSlash)
             {
+                // 🔥【大修復】：領域展開中（KarinFireSlash）の時も、本来の一閃コルーチンを確実にキックして即returnさせる！
+                StartCoroutine(ExecuteKarinCrossSlashRoutine(s));
+                return;
             }
             else
             {
@@ -187,6 +225,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             case SkillPatternType.KarinFireSlash:
                 StartCoroutine(ExecuteKarinCrossSlashRoutine(s));
                 break;
+            case SkillPatternType.Saiki:
+                StartCoroutine(ExecuteExpandingRingZeroSpeedRoutine(s));
+                break;
+            // (既存の case 達の下に追加)
+            case SkillPatternType.KunaiCage: // 必要に応じて新しいSkillPatternTypeをenumに定義するか、既存のテスト用枠に流し込んでください
+                StartCoroutine(ExecuteEnemyEnclosureShrinkingRingRoutine(s));
+                break;
+            case SkillPatternType.HeartRef: // テスト用にCustom枠で起動するか、新enumをケースにしてください
+                StartCoroutine(ExecuteBouncingTrailShotRoutine(s));
+                break;
         }
     }
 
@@ -206,6 +254,390 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         // 🌟 共通インフラ（硬直制御・例外安全ライフサイクル）を開始
         StartCoroutine(ExecuteEXInfrastructureRoutine(s));
+    }
+
+
+
+    // =========================================================================
+    // 🔮【完全復旧版】：固定弾源・再帰的半径拡大 ✕ 10秒/半径30終期収束ライフサイクルコルーチン
+    // =========================================================================
+    private IEnumerator ExecuteExpandingRingZeroSpeedRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; // 🟢 マナの自動回復を一時停止
+
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        if (myMove != null && !_isEXSkillActive)
+        {
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        }
+
+        // --- 🛡️ try-finally インフラにより、どんな異常中断が起きてもマナ回復を絶対保証 🛡️ ---
+        try
+        {
+            // --- パラメータの設定と初期化 ---
+            int wayCount = Mathf.Max(1, s.count);   // インスペクターの Count 枠を「way数」として直撃バインド
+            float currentRadius = 0.5f;             // 開始時の初期半径（ここからスタート）
+            float radiusStep = 0.1f;                // 1波ごとに外側へ広がる半径の拡張幅
+
+            float angularVelocityStep = s.angleOffset;
+
+            // 💡 弾自体の寿命秒数：インスペクターの Speed 枠の数値をそのまま流用（設定がなければ3.0秒）
+            float bulletLifeTime = (s.speed > 0f) ? s.speed : 3.0f;
+
+            float targetCenterAngle = GetAngleToTarget(transform.position);
+            Vector3 centerOriginPos = transform.position; // 発射を開始した瞬間の自機の中心座標を固定（弾源の核）
+
+            float elapsedTimer = 0f; // 弾源の持続時間計測タイマー
+            int waveCount = 0;       // ウェーブ数のカウント
+
+            // ⏳ 弾源の寿命監査：30秒経過するか、半径が30を超えたら自動で完全消滅
+            while (elapsedTimer < 30f && currentRadius <= 30f)
+            {
+                // 💡 被弾等でループをブレーク（中断）しても、finallyブロックにジャンプして安全にMPが回復し始めます！
+                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                    break;
+
+                PlaySkillSE(s.sePath);
+
+                float currentRotationOffset = angularVelocityStep * waveCount;
+                float baseAngle = targetCenterAngle + currentRotationOffset;
+
+                float startAngle;
+                float stepAngle;
+
+                if (s.wideAngle <= 0f || s.wideAngle >= 360f)
+                {
+                    stepAngle = 360f / wayCount;
+                    startAngle = baseAngle;
+                }
+                else
+                {
+                    stepAngle = (wayCount > 1) ? s.wideAngle / (wayCount - 1) : 0f;
+                    startAngle = baseAngle - (s.wideAngle / 2f);
+                }
+
+                for (int i = 0; i < wayCount; i++)
+                {
+                    float finalPlacementAngle = startAngle + (stepAngle * i);
+                    float rad = finalPlacementAngle * Mathf.Deg2Rad;
+
+                    Vector3 spawnPos = centerOriginPos + new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * currentRadius;
+
+                    // 1. 通常通りクローンデータを生成して実体化
+                    BulletData runtimeData = Instantiate(s.bulletData);
+
+                    // 🛡️ エディタ用永続化パージを溶接
+                    runtimeData.hideFlags = HideFlags.DontSave;
+
+                    // 大元の所有者バフ計算ルーチン
+                    PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+                    if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+                    int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+                    if (myStatus != null && myStatus.characterData != null)
+                    {
+                        float atkMultiplier = 1.0f;
+                        switch (myStatus.characterData.rankAttack)
+                        {
+                            case StatusRank.E: atkMultiplier = 0.8f; break;
+                            case StatusRank.D: atkMultiplier = 0.9f; break;
+                            case StatusRank.C: atkMultiplier = 1.0f; break;
+                            case StatusRank.B: atkMultiplier = 1.1f; break;
+                            case StatusRank.A: atkMultiplier = 1.2f; break;
+                            case StatusRank.EX: atkMultiplier = 1.3f; break;
+                        }
+                        if (myStatus.IsAttackBoostActive) atkMultiplier *= 1.3f;
+                        atkMultiplier *= myStatus.GetJealousyMultiplier();
+                        runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
+                    }
+
+                    // 2. オブジェクトプール、または新規生成からオブジェクトを取得
+                    GameObject obj = (BulletPool.Instance != null && runtimeData.bulletPrefab != null)
+                        ? BulletPool.Instance.Get(runtimeData.bulletPrefab, spawnPos, Quaternion.identity)
+                        : Instantiate(runtimeData.bulletPrefab, spawnPos, Quaternion.identity);
+
+                    // オーラインフラの自動付製（既存を踏襲）
+                    SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
+                    if (mainSR != null && obj.transform.Find("PureColorAuraObject") == null)
+                    {
+                        GameObject auraChild = new GameObject("PureColorAuraObject");
+                        auraChild.transform.SetParent(obj.transform);
+                        auraChild.transform.localPosition = Vector3.zero;
+                        auraChild.transform.localRotation = Quaternion.identity;
+                        auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
+                        SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
+                        auraSR.sortingLayerID = mainSR.sortingLayerID;
+                        auraSR.sortingOrder = mainSR.sortingOrder - 1;
+
+                        if (runtimeData.auraMaterial != null) auraSR.material = runtimeData.auraMaterial;
+                        else
+                        {
+                            Material dynMaterial = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+                            dynMaterial.hideFlags = HideFlags.DontSave; // 🛡️ アサーションエラー完全対策
+                            auraSR.material = dynMaterial;
+                        }
+
+                        auraSR.sprite = (runtimeData.auraWhiteSprite != null) ? runtimeData.auraWhiteSprite : mainSR.sprite;
+                        if (myStatus != null && myStatus.characterData != null) { Color c = myStatus.characterData.imageColor; c.a = 1.0f; auraSR.color = c; }
+                        else { Color c = (ownerId == 1) ? Color.cyan : Color.red; c.a = 1.0f; auraSR.color = c; }
+                    }
+
+                    string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
+                    obj.tag = assignedTag;
+                    int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+                    obj.layer = assignedLayer;
+                    SetLayerRecursive(obj, assignedLayer);
+
+                    DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
+                    if (bullet != null)
+                    {
+                        bullet.Initialize(_rootOwner, targetTag, 0f, finalPlacementAngle, 0, 0f, 0, s.delay, runtimeData, false);
+                        bullet.StartSelfDestructTimer(bulletLifeTime); // 💡弾独自の自爆タイマー
+                    }
+                }
+
+                currentRadius += radiusStep;
+                waveCount++;
+
+                const float intervalDuration = 1f / 60f;
+                yield return new WaitForSeconds(intervalDuration);
+                elapsedTimer += intervalDuration;
+            }
+
+            // 🟢 ループが正常に終了した後のスキルクールダウン待機
+            yield return new WaitForSeconds(s.cooldown);
+        }
+        finally
+        {
+            // =========================================================================
+            // 🚨【絶対復旧インフラ】：どのような経路でコルーチンが終了・破棄されても、
+            //                        100%確実にカウントを引き下げてコスト自動回復を即座に再開！
+            // =========================================================================
+            if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+            _activeSkillCoroutines--; // 🔄 これでコストが完全回復するようになります！
+        }
+    }
+    private List<DanmakuBullet> _activeCageBullets = new List<DanmakuBullet>();
+    // =========================================================================
+    // 🔮【確定版】：位置固定・早期コスト解放 ✕ 再設置時古い檻強制クリア型コルーチン
+    // =========================================================================
+    private IEnumerator ExecuteEnemyEnclosureShrinkingRingRoutine(PlayerSkillData.SkillSettings s)
+    {
+        // 🚨【再設置セーフティ】：もし前回の檻の弾幕がまだ画面上に残っている場合、
+        //                          新しい檻を展開する前に、古い弾をその場ですべて一斉に美しく破壊・回収します！
+        if (_activeCageBullets != null && _activeCageBullets.Count > 0)
+        {
+            for (int b = _activeCageBullets.Count - 1; b >= 0; b--)
+            {
+                DanmakuBullet oldBullet = _activeCageBullets[b];
+                // まだプールに戻らず生きている弾だけをピンポイント爆破
+                if (oldBullet != null && oldBullet.gameObject.activeSelf)
+                {
+                    oldBullet.Deactivate(true); // ガラス破砕エフェクトを伴ってプールへ強制返却
+                }
+            }
+            _activeCageBullets.Clear(); // 古いリストを更地にする
+        }
+
+        _activeSkillCoroutines++; // 🟢 檻の「生成・設置中」のみマナの自動回復を一時停止
+
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        if (myMove != null && !_isEXSkillActive)
+        {
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        }
+
+        // 💡 リアルタイムに公転同期させるための動的マトリクスレイヤー
+        List<List<Tuple<Transform, float>>> layersBulletMatrix = new List<List<Tuple<Transform, float>>>();
+        bool isGenerationFinished = false; // 5層すべての敷設が完了したかを示す内部フラグ
+
+        try
+        {
+            // 🎯 1. 攻撃対象（敵プレイヤー）の発動瞬間の現在地をロックオン
+            Transform targetEnemyTransform = null;
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p != null && p.gameObject != _rootOwner)
+                {
+                    targetEnemyTransform = p.transform;
+                    break;
+                }
+            }
+            Vector3 enemyCenterPos = (targetEnemyTransform != null) ? targetEnemyTransform.position : Vector3.zero;
+
+            int wayCount = Mathf.Max(4, s.count);
+            float[] layersRadius = new float[] { 2.0f, 2.5f, 3.0f, 3.5f, 4.0f };
+            int totalLayers = layersRadius.Length;
+
+            float bulletLifeTime = (s.speed > 0f) ? s.speed : 5.0f;
+            float baseRotateSpeed = (s.angleOffset != 0f) ? s.angleOffset : 60f;
+
+            float currentElapsed = 0f;
+            int nextLayerToSpawn = 0;
+            float spawnTimer = 0f;
+            float spawnInterval = 5f / 60f;        // 5フレームおき
+
+            // =========================================================================
+            // 🔄 統合リアルタイムメイン駆動ループ
+            // =========================================================================
+            while (currentElapsed < bulletLifeTime || layersBulletMatrix.Count < totalLayers)
+            {
+                yield return new WaitForFixedUpdate();
+                float dt = Time.fixedDeltaTime;
+                currentElapsed += dt;
+                spawnTimer += dt;
+
+                // 被弾スタン時などの安全ブレーク
+                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                    break;
+
+                // 🚀【5フレームごとの段階発生処理】
+                if (nextLayerToSpawn < totalLayers && (nextLayerToSpawn == 0 || spawnTimer >= spawnInterval))
+                {
+                    spawnTimer = 0f;
+                    int layer = nextLayerToSpawn;
+                    float radius = layersRadius[layer];
+                    float stepAngle = 360f / wayCount;
+                    float layerStartAngleOffset = layer * (stepAngle * 0.3f);
+
+                    List<Tuple<Transform, float>> currentLayerList = new List<Tuple<Transform, float>>();
+                    PlaySkillSE(s.sePath);
+
+                    for (int i = 0; i < wayCount; i++)
+                    {
+                        float initPlacementAngle = (stepAngle * i) + layerStartAngleOffset;
+                        float rad = initPlacementAngle * Mathf.Deg2Rad;
+
+                        Vector3 spawnPos = enemyCenterPos + new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * radius;
+                        float faceCenterAngle = initPlacementAngle + 180f;
+
+                        BulletData runtimeData = Instantiate(s.bulletData);
+                        runtimeData.hideFlags = HideFlags.DontSave;
+
+                        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+                        if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+                        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+                        if (myStatus != null && myStatus.characterData != null)
+                        {
+                            float atkMultiplier = 1.0f;
+                            switch (myStatus.characterData.rankAttack)
+                            {
+                                case StatusRank.E: atkMultiplier = 0.8f; break;
+                                case StatusRank.D: atkMultiplier = 0.9f; break;
+                                case StatusRank.C: atkMultiplier = 1.0f; break;
+                                case StatusRank.B: atkMultiplier = 1.1f; break;
+                                case StatusRank.A: atkMultiplier = 1.2f; break;
+                                case StatusRank.EX: atkMultiplier = 1.3f; break;
+                            }
+                            if (myStatus.IsAttackBoostActive) atkMultiplier *= 1.3f;
+                            runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier * myStatus.GetJealousyMultiplier());
+                        }
+
+                        GameObject obj = (BulletPool.Instance != null && runtimeData.bulletPrefab != null)
+                            ? BulletPool.Instance.Get(runtimeData.bulletPrefab, spawnPos, Quaternion.identity)
+                            : Instantiate(runtimeData.bulletPrefab, spawnPos, Quaternion.identity);
+                        // 📊 ★【追加】：檻のクナイもサイズを読み取ってレイヤー自動バインド！
+                        SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
+
+                        if (mainSR != null)
+                        {
+                            Transform auraChildTransform = obj.transform.Find("PureColorAuraObject");
+                            GameObject auraChildObj; SpriteRenderer auraSR;
+                            if (auraChildTransform == null)
+                            {
+                                auraChildObj = new GameObject("PureColorAuraObject"); auraChildObj.transform.SetParent(obj.transform);
+                                auraChildObj.transform.localPosition = Vector3.zero; auraChildObj.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
+                                auraSR = auraChildObj.AddComponent<SpriteRenderer>();
+                            }
+                            else
+                            {
+                                auraChildObj = auraChildTransform.gameObject; auraSR = auraChildObj.GetComponent<SpriteRenderer>();
+                            }
+                            auraSR.sortingLayerID = mainSR.sortingLayerID; auraSR.sortingOrder = mainSR.sortingOrder - 1;
+                            if (runtimeData.auraMaterial != null) auraSR.material = runtimeData.auraMaterial;
+                            else { Material dm = new Material(Shader.Find("Legacy Shaders/Particles/Additive")); dm.hideFlags = HideFlags.DontSave; auraSR.material = dm; }
+                            auraSR.sprite = (runtimeData.auraWhiteSprite != null) ? runtimeData.auraWhiteSprite : mainSR.sprite;
+                            Color c = (myStatus != null && myStatus.characterData != null) ? myStatus.characterData.imageColor : ((ownerId == 1) ? Color.cyan : Color.red);
+                            c.a = 1.0f; auraSR.color = c;
+                        }
+
+                        obj.tag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
+                        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
+                        obj.layer = assignedLayer; SetLayerRecursive(obj, assignedLayer);
+
+                        DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
+                        if (bullet != null)
+                        {
+                            bullet.Initialize(_rootOwner, targetTag, 0f, faceCenterAngle, 0, 0f, 0, s.delay, runtimeData, false);
+                            bullet.isMovementSuspended = true;
+                            bullet.StartSelfDestructTimer(bulletLifeTime);
+
+                            // 🎯【重要】：新しく生まれた弾幕を、リアルタイム追跡リストに登録
+                            _activeCageBullets.Add(bullet);
+                        }
+
+                        currentLayerList.Add(new Tuple<Transform, float>(obj.transform, initPlacementAngle));
+                    }
+
+                    layersBulletMatrix.Add(currentLayerList);
+                    nextLayerToSpawn++;
+
+                    // 🔥【核心】：5層すべての設置が完了した瞬間を検知！
+                    if (nextLayerToSpawn >= totalLayers)
+                    {
+                        isGenerationFinished = true;
+                        // 🔓 檻が完成した瞬間、消滅を待たずにコスト自動回復のロックを即座に全面解除！
+                        _activeSkillCoroutines--;
+                        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+                        Debug.Log("<color=lime>🔓【檻設置完了】自機の行動制限およびマナ回復ロックを早期解放しました！</color>");
+                    }
+                }
+
+                // 🔄【リアルタイム公転スピン同期】
+                for (int layerIndex = 0; layerIndex < layersBulletMatrix.Count; layerIndex++)
+                {
+                    float rotDirection = (layerIndex % 2 == 0) ? 1.0f : -1.0f;
+                    float deltaRotation = baseRotateSpeed * currentElapsed * rotDirection;
+
+                    var currentLayerBullets = layersBulletMatrix[layerIndex];
+                    float radius = layersRadius[layerIndex];
+
+                    for (int i = 0; i < currentLayerBullets.Count; i++)
+                    {
+                        var bulletTuple = currentLayerBullets[i];
+                        Transform bulletTx = bulletTuple.Item1;
+
+                        if (bulletTx == null || !bulletTx.gameObject.activeSelf) continue;
+
+                        float updatedPlacementAngle = bulletTuple.Item2 + deltaRotation;
+                        float rad = updatedPlacementAngle * Mathf.Deg2Rad;
+
+                        Vector3 newPosition = enemyCenterPos + new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * radius;
+                        bulletTx.position = newPosition;
+
+                        float updatedFaceCenterAngle = updatedPlacementAngle + 180f;
+                        bulletTx.rotation = Quaternion.Euler(0, 0, updatedFaceCenterAngle - 90f);
+                    }
+                }
+            }
+
+            // スキル全体のクールダウンホールド
+            yield return new WaitForSeconds(s.cooldown);
+        }
+        finally
+        {
+            // 🚨 もし5層を出し切る前に被弾等で「中断（break）」した場合のみ、ここで確実にコストロックを解除
+            if (!isGenerationFinished)
+            {
+                if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+                _activeSkillCoroutines--;
+            }
+        }
     }
     private IEnumerator ChainRandomAimRoutine(PlayerSkillData.SkillSettings s)
     {
@@ -684,9 +1116,10 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         GameObject obj = Instantiate(runtimeData.bulletPrefab, pos, Quaternion.identity);
 
         // =========================================================================
-        // 🔮【白アセットカラー着色・非混色加算オーラシステム】
+        // 📊 ★【追加】：発射された弾のサイズ評価を検出し、指定範囲レイヤーへ強制バインド！
         // =========================================================================
         SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
+
         if (mainSR != null)
         {
             GameObject auraChild = new GameObject("PureColorAuraObject");
@@ -2283,6 +2716,292 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         public float currentSpeed; // 慣性等速ホーミング用の速度スタック
     }
 
+
+    // =========================================================================
+    // 🔮【修正確定版】：三転反射 ✕ サブ弾ランダム四散トレイル（発射後2秒コスト解放ホールド版）
+    // =========================================================================
+    // =========================================================================
+    // 🔮【完全クリーン版】：三転反射 ✕ サブ弾ランダム四散トレイル（レイヤー完全バインド適合）
+    // =========================================================================
+    private IEnumerator ExecuteBouncingTrailShotRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; // 🟢 マナの自動回復を一時停止
+
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        if (myMove != null && !_isEXSkillActive)
+        {
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        }
+
+        List<BouncingBulletTrack> trackingBullets = new List<BouncingBulletTrack>();
+        bool isCostReleased = false; // 🔓 コストが解放されたかを追跡するフラグ
+
+        try
+        {
+            // --- ⚙️ メイン弾のパラメータ設定 ---
+            int shotCount = Mathf.Max(1, s.count);
+            float mainBulletSpeed = (s.speed > 0f) ? s.speed : 5.0f;
+            float targetAngle = GetAngleToTarget();
+            float baseAngle = targetAngle + s.angleOffset;
+
+            Vector3 spawnOrigin = transform.position;
+            PlaySkillSE(s.sePath);
+
+            // 🎯 1. 最初のメイン弾（n-Way）の初期角度・ステップ幅計算（※順序バグを完全修復）
+            float startAngle = baseAngle;
+            float stepAngle = 0f;
+            if (shotCount > 1)
+            {
+                float spread = (s.wideAngle > 0f) ? s.wideAngle : 45f;
+                startAngle = baseAngle - (spread / 2f);
+                stepAngle = spread / (shotCount - 1);
+            }
+
+            for (int i = 0; i < shotCount; i++)
+            {
+                // 正しい定義順序で射角を確定
+                float finalAngle = startAngle + (stepAngle * i);
+
+                BulletData runtimeData = Instantiate(s.bulletData);
+                runtimeData.hideFlags = HideFlags.DontSave;
+
+                GameObject obj = (BulletPool.Instance != null && runtimeData.bulletPrefab != null)
+                    ? BulletPool.Instance.Get(runtimeData.bulletPrefab, spawnOrigin, Quaternion.identity)
+                    : Instantiate(runtimeData.bulletPrefab, spawnOrigin, Quaternion.identity);
+
+                obj.transform.localScale = Vector3.one;
+
+                DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
+                if (bullet != null)
+                {
+                    // 💡 弾側の Initialize が内部でサイズ別のオーダーとオーラアライメントを 100% 完璧に自動執行します！
+                    bullet.Initialize(_rootOwner, targetTag, 0f, finalAngle, 0, 0f, 0, s.delay, runtimeData, false);
+                    bullet.isMovementSuspended = true;
+
+                    trackingBullets.Add(new BouncingBulletTrack(obj.transform, finalAngle, mainBulletSpeed, bullet));
+                }
+            }
+
+            // =========================================================================
+            // 🔄 2. メインリアルタイム移動 ✕ 跳ね返り ✕ 跡引き設置ループ
+            // =========================================================================
+            float currentElapsed = 0f;
+            int frameCounter = 0;
+
+            const float wallMinX = -8.8f;
+            const float wallMaxX = 8.8f;
+            const float wallMaxY = 4.8f;
+            const float wallMinY = -4.8f;
+
+            float myTrailSpeed = 0.15f;
+            float myTrailLifeTime = 1.0f;
+            float myTrailAccel = 0;
+
+            BulletData trailBaseAsset = (s.trailBulletData != null) ? s.trailBulletData : s.bulletData;
+            BulletData trailData = Instantiate(trailBaseAsset);
+            trailData.hideFlags = HideFlags.DontSave;
+
+            while (trackingBullets.Count > 0)
+            {
+                yield return new WaitForFixedUpdate();
+                float dt = Time.fixedDeltaTime;
+                currentElapsed += dt;
+                frameCounter++;
+
+                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                    break;
+
+                if (!isCostReleased && currentElapsed >= 2.0f)
+                {
+                    isCostReleased = true;
+                    _activeSkillCoroutines--;
+                    if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+                    Debug.Log("<color=lime>🔓【反射トレイル】発射後2秒経過。早期解放しました！</color>");
+                }
+
+                bool shouldLeaveTrailThisFrame = (frameCounter % 4 == 0);
+
+                for (int i = trackingBullets.Count - 1; i >= 0; i--)
+                {
+                    BouncingBulletTrack b = trackingBullets[i];
+
+                    if (b.tx == null || !b.tx.gameObject.activeSelf || b.bulletLogic == null)
+                    {
+                        trackingBullets.RemoveAt(i);
+                        continue;
+                    }
+
+                    if (b.bulletLogic.DelayFrames > 0)
+                    {
+                        continue;
+                    }
+
+                    float rad = b.currentAngle * Mathf.Deg2Rad;
+                    Vector3 moveStep = new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * b.speed * dt;
+                    b.tx.position += moveStep;
+
+                    b.tx.rotation = Quaternion.Euler(0, 0, b.currentAngle - 90f);
+
+                    Vector3 currentPos = b.tx.position;
+                    bool bouncedThisFrame = false;
+
+                    if (b.bounceCount < 6)
+                    {
+                        if (currentPos.x <= wallMinX && Mathf.Cos(rad) < 0f)
+                        {
+                            b.currentAngle = 180f - b.currentAngle;
+                            b.bounceCount++;
+                            bouncedThisFrame = true;
+                        }
+                        else if (currentPos.x >= wallMaxX && Mathf.Cos(rad) > 0f)
+                        {
+                            b.currentAngle = 180f - b.currentAngle;
+                            b.bounceCount++;
+                            bouncedThisFrame = true;
+                        }
+
+                        rad = b.currentAngle * Mathf.Deg2Rad;
+                        if (currentPos.y <= wallMinY && Mathf.Sin(rad) < 0f)
+                        {
+                            b.currentAngle = -b.currentAngle;
+                            b.bounceCount++;
+                            bouncedThisFrame = true;
+                        }
+                        else if (currentPos.y >= wallMaxY && Mathf.Sin(rad) > 0f)
+                        {
+                            b.currentAngle = -b.currentAngle;
+                            b.bounceCount++;
+                            bouncedThisFrame = true;
+                        }
+
+                        if (bouncedThisFrame)
+                        {
+                            b.currentAngle = (b.currentAngle + 360f) % 360f;
+                            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT2, 0.15f);
+                        }
+                    }
+                    else
+                    {
+                        if (Mathf.Abs(currentPos.x) > 10.0f || Mathf.Abs(currentPos.y) > 6.0f)
+                        {
+                            b.bulletLogic.Deactivate(false);
+                            trackingBullets.RemoveAt(i);
+                            continue;
+                        }
+                    }
+
+                    if (shouldLeaveTrailThisFrame && !bouncedThisFrame)
+                    {
+                        for (int v = 0; v < 3; v++)
+                        {
+                            float randomAngle = UnityEngine.Random.Range(0f, 360f);
+
+                            Vector3 positionNoise = new Vector3(
+                                UnityEngine.Random.Range(-0.05f, 0.05f),
+                                UnityEngine.Random.Range(-0.05f, 0.05f),
+                                0f
+                            );
+                            Vector3 scatterSpawnPos = currentPos + positionNoise;
+
+                            GameObject trailObj = (BulletPool.Instance != null && trailData.bulletPrefab != null)
+                                ? BulletPool.Instance.Get(trailData.bulletPrefab, scatterSpawnPos, Quaternion.identity)
+                                : Instantiate(trailData.bulletPrefab, scatterSpawnPos, Quaternion.identity);
+
+                            trailObj.transform.localScale = Vector3.one;
+
+                            string assTag = b.tx.tag;
+                            trailObj.tag = assTag;
+                            trailObj.layer = b.tx.gameObject.layer;
+                            SetLayerRecursive(trailObj, trailObj.layer);
+
+                            DanmakuBullet trailLogic = trailObj.GetComponent<DanmakuBullet>();
+                            if (trailLogic != null)
+                            {
+                                // 💡 移設完了した弾側の Initialize へ完全パス回し！出撃の瞬間に 5000〜20000 のサイズ別レイヤーが100%安全に刷り直されます。
+                                trailLogic.Initialize(_rootOwner, targetTag, myTrailSpeed, randomAngle, myTrailAccel, 0f, 0f, 0f, trailData, false);
+                                trailLogic.StartSelfDestructTimer(myTrailLifeTime);
+                            }
+                        }
+                    }
+                }
+            }
+
+            yield return new WaitForSeconds(s.cooldown);
+        }
+        finally
+        {
+            if (!isCostReleased)
+            {
+                if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+                _activeSkillCoroutines--;
+            }
+        }
+    }
+    private void RefreshBulletAuraInfrastructure(GameObject obj, BulletData runtimeData)
+    {
+        SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
+        if (mainSR == null) return;
+
+        Transform auraChildTransform = obj.transform.Find("PureColorAuraObject");
+        GameObject auraChildObj;
+        SpriteRenderer auraSR;
+
+        if (auraChildTransform == null)
+        {
+            auraChildObj = new GameObject("PureColorAuraObject");
+            auraChildObj.transform.SetParent(obj.transform);
+            auraChildObj.transform.localPosition = Vector3.zero;
+            auraChildObj.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
+            auraSR = auraChildObj.AddComponent<SpriteRenderer>();
+        }
+        else
+        {
+            auraChildObj = auraChildTransform.gameObject;
+            auraSR = auraChildObj.GetComponent<SpriteRenderer>();
+        }
+
+        auraSR.sortingLayerID = mainSR.sortingLayerID;
+        auraSR.sortingOrder = mainSR.sortingOrder - 1;
+
+        if (runtimeData.auraMaterial != null) auraSR.material = runtimeData.auraMaterial;
+        else
+        {
+            Material dm = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+            dm.hideFlags = HideFlags.DontSave;
+            auraSR.material = dm;
+        }
+
+        auraSR.sprite = (runtimeData.auraWhiteSprite != null) ? runtimeData.auraWhiteSprite : mainSR.sprite;
+
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+        Color c = (myStatus != null && myStatus.characterData != null) ? myStatus.characterData.imageColor : ((ownerId == 1) ? Color.cyan : Color.red);
+        c.a = 1.0f;
+        auraSR.color = c;
+    }
+
+    // 💡 反射移動の状態をカプセル化して内部維持するシミュレーション構造体
+    private class BouncingBulletTrack
+    {
+        public Transform tx;
+        public float currentAngle;
+        public float speed;
+        public int bounceCount;
+        public DanmakuBullet bulletLogic;
+
+        public BouncingBulletTrack(Transform t, float angle, float spd, DanmakuBullet logic)
+        {
+            this.tx = t;
+            this.currentAngle = angle;
+            this.speed = spd;
+            this.bounceCount = 0;
+            this.bulletLogic = logic;
+        }
+    }
     private void PlaySkillSE(string path)
     {
         string clip = string.IsNullOrEmpty(path) ? SEPath.SHOT1 : path;

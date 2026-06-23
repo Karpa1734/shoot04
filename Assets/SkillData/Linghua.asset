@@ -39,53 +39,57 @@ MonoBehaviour:
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
-    patternType: 10
-    bulletData: {fileID: 11400000, guid: a5fd71ae477afb7489d0992c800345dc, type: 2}
-    cooldown: 0.4
+    patternType: 0
+    bulletData: {fileID: 11400000, guid: 260a096df65da004bbad4ed3d9d4223b, type: 2}
+    trailBulletData: {fileID: 0}
+    cooldown: 2
     sePath: 
-    count: 3
-    speed: 7
-    angleOffset: 0
-    wideAngle: 60
+    count: 8
+    speed: 5
+    angleOffset: 53
+    wideAngle: 360
     moveSpeedMultiplier: 0.4
     delay: 2
-    cost: 20
+    cost: 0
     ultimateGain: 5
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
     skillIcon: {fileID: 21300000, guid: 13dbdf5257202324b9450961f7d450a0, type: 3}
-    patternType: 12
-    bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
-    cooldown: 0.5
+    patternType: 17
+    bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
+    trailBulletData: {fileID: 0}
+    cooldown: 3
     sePath: 
-    count: 5
-    speed: 1.5
-    angleOffset: 0
-    wideAngle: 60
+    count: 10
+    speed: 8
+    angleOffset: 23
+    wideAngle: 360
     moveSpeedMultiplier: 0
-    delay: 1
+    delay: 15
     cost: 30
     ultimateGain: 8
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
-    patternType: 11
-    bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
-    cooldown: 1.5
-    sePath: Laser2
-    count: 60
-    speed: 1.5
+    patternType: 18
+    bulletData: {fileID: 11400000, guid: 33b2b8650a1b5f84d8880d2294fe894c, type: 2}
+    trailBulletData: {fileID: 11400000, guid: 50b30e67f1a21ac49b3ddf62fce0f8af, type: 2}
+    cooldown: 6
+    sePath: 
+    count: 1
+    speed: 3
     angleOffset: 0
     wideAngle: 0.3
     moveSpeedMultiplier: 0.3
-    delay: 20
-    cost: 45
-    ultimateGain: 8
+    delay: 5
+    cost: 40
+    ultimateGain: 10
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
     patternType: 13
     bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 12
     sePath: 
     count: 0
@@ -101,6 +105,7 @@ MonoBehaviour:
     skillIcon: {fileID: 0}
     patternType: 4
     bulletData: {fileID: 11400000, guid: 2e2ee01fb5556ee4483f903aca685098, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 0
     sePath: 
     count: 12

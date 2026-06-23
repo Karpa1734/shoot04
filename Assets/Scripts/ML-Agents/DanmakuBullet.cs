@@ -1,16 +1,19 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using UnityEngine;
+// 🔥 単に「Random」と書いたらUnity側を優先
+using Random = UnityEngine.Random;
 
 public class DanmakuBullet : MonoBehaviour
 {
     private SpriteRenderer sr;
-    private Collider2D col;                  // 単発アクセス用のフォールバックキャッシュ
-    private Collider2D[] allColliders;       // 💡【不足修復】：親Box＋子Circleを一網打尽にする配列枠
+    private Collider2D col;
+    private Collider2D[] allColliders;
     public GameObject owner { get; private set; }
     private string targetTag;
 
     [Header("Effect Settings")]
-    public GameObject effectPrefab; // ShotEffectが付いているプレハブを指定
+    public GameObject effectPrefab;
     private GameObject activeDelayEffect;
 
     private BulletData currentData;
@@ -19,48 +22,77 @@ public class DanmakuBullet : MonoBehaviour
     private bool isActive = true;
     private int delayFrames = 0;
     private int totalDelay = 0;
-    // ★ アニメーション用変数
+
+    public int DelayFrames => delayFrames;
+
     private int currentAnimFrame = 0;
     private float animTimer = 0f;
     private bool isAnimated = false;
-    // 収束用フラグ
     private bool isConverging = false;
     private Vector3 initialOffset;
-    private bool isGrazeDone = false; // ★ 追加：グレイズ済みフラグ
+    private bool isGrazeDone = false;
 
-    // ★ 追加：カウンターナイフ用の特殊状態変数
     private bool _isKnifeCounter = false;
-    private float _knifeRotateSpeed = 720f; // 1秒間に720度（0.5秒で1回転）
+    private float _knifeRotateSpeed = 720f;
     private float _knifeCurrentAngle = 0f;
-    // 🌟 追加：EXスキルなどのホスト制御コルーチンから自動移動を完全停止させるスイッチ
     public bool isMovementSuspended = false;
+    private float _selfDestructTimer = -1f;
+    private bool _hasSelfDestructTriggered = false;
+
+    // =========================================================================
+    // 📊【移設・新設】：サイズごとのソーティングオーダー動的分配インフラカウンター
+    // =========================================================================
+    private static int _smallOrderCounter = 15000;
+    private static int _mediumOrderCounter = 10000;
+    private static int _largeOrderCounter = 5000;
+
+    private int AllocateNextSortingOrder(BulletSize size)
+    {
+        switch (size)
+        {
+            case BulletSize.Small:
+                _smallOrderCounter++;
+                if (_smallOrderCounter > 10000) _smallOrderCounter = 5000;
+                return _smallOrderCounter;
+
+            case BulletSize.Medium:
+                _mediumOrderCounter++;
+                if (_mediumOrderCounter > 15000) _mediumOrderCounter = 10000;
+                return _mediumOrderCounter;
+
+            case BulletSize.Large:
+                _largeOrderCounter++;
+                if (_largeOrderCounter > 20000) _largeOrderCounter = 15000;
+                return _largeOrderCounter;
+
+            default:
+                return 1000;
+        }
+    }
+
     void Awake()
     {
         sr = GetComponent<SpriteRenderer>();
         col = GetComponent<Collider2D>();
-        // 💡【不足修復】：自分自身（親オブジェクト）と、ぶら下がっている子オブジェクトのすべてのコライダーを一括取得！
         allColliders = GetComponentsInChildren<Collider2D>(true);
     }
 
     public void SetColliderActive(bool active)
     {
         if (allColliders == null) return;
-
-        // 配列に入っているすべてのコライダー（親のBoxも、子のCircleも）を一括処理
         foreach (var c in allColliders)
         {
             if (c != null) c.enabled = active;
         }
     }
-    /// <summary>
-    /// グレイズ判定を試みる。1回目だけ true を返す。
-    /// </summary>
+
     public bool TryGraze()
     {
         if (isGrazeDone) return false;
         isGrazeDone = true;
         return true;
     }
+
     // 🟢 通常の弾幕・槍弾幕の発射初期化
     public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
@@ -77,11 +109,6 @@ public class DanmakuBullet : MonoBehaviour
         this.isConverging = converge;
         this._isKnifeCounter = false;
 
-        // =========================================================================
-        // 🎯【スマートサイズ判定】：槍プレハブの長細い比率を自動で保護・引き継ぐ
-        // =========================================================================
-        // 💡 仕組み：親にBoxCollider2Dがある、または子オブジェクトが存在する場合は「槍（例外弾）」と自動認識します。
-        //          槍の場合は「プレハブ本来の比率（例: 縦長）」を基準にし、通常弾の場合は「Vector3.one」を基準にリセットします。
         bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
         Vector3 templateScale = isCustomPrefabBullet ? transform.localScale : Vector3.one;
 
@@ -92,12 +119,13 @@ public class DanmakuBullet : MonoBehaviour
         {
             sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
+
+            // 📊【核心】：プールから出撃したこの瞬間に、サイズ別のオーダーを強制上書きパッキング！
+            sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
-        // 💡 進行方向へグラフィックを自動回転
         transform.rotation = Quaternion.Euler(0, 0, angle);
 
-        // ★ アニメーションの有無を確認
         if (data != null && data.animationSprites != null && data.animationSprites.Length > 1)
         {
             isAnimated = true;
@@ -109,14 +137,12 @@ public class DanmakuBullet : MonoBehaviour
             if (sr != null && data != null) sr.sprite = data.bulletSprite;
         }
 
-        // 通常弾プレハブ（CircleCollider2D）の場合のみデータ駆動でコライダーの半径を決定
         if (col != null && col is CircleCollider2D circleCol && data != null)
         {
             circleCol.radius = data.radius;
             circleCol.offset = data.colliderOffset;
         }
 
-        // 出撃の瞬間に、すべてのコライダーを完全にONにする
         SetColliderActive(delay <= 0);
 
         if (delay > 0)
@@ -129,12 +155,23 @@ public class DanmakuBullet : MonoBehaviour
             if (sr != null) sr.enabled = true;
         }
 
+        // 🔄【オーラ同期セーフティ】：もし前回の使い回しオーラが残っていれば、新しいオーダーの真後ろ（-1）へ即座に再配置
+        Transform auraChild = transform.Find("PureColorAuraObject");
+        if (auraChild != null)
+        {
+            SpriteRenderer auraSR = auraChild.GetComponent<SpriteRenderer>();
+            if (auraSR != null && sr != null)
+            {
+                auraSR.sortingOrder = sr.sortingOrder - 1;
+            }
+        }
+
         isInitialized = true;
         isActive = true;
         isGrazeDone = false;
     }
 
-    // 🔵 カウンターナイフ専用の初期化メソッド（サイズ汚染 ＆ プレハブ比率潰れバグを完全根治）
+    // 🔵 カウンターナイフ専用の初期化メソッド
     public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
     {
         this.owner = shooter;
@@ -150,9 +187,6 @@ public class DanmakuBullet : MonoBehaviour
         this._isKnifeCounter = true;
         this.isAnimated = false;
 
-        // =========================================================================
-        // 🎯【スマートサイズ判定】：カウンターナイフ側でも槍やプレハブの形を自動保護
-        // =========================================================================
         bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
         Vector3 templateScaleKn = isCustomPrefabBullet ? transform.localScale : Vector3.one;
 
@@ -163,17 +197,17 @@ public class DanmakuBullet : MonoBehaviour
         {
             sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
+
+            // 📊 カウンターナイフ側でも出撃オーダーを強制再分配！
+            sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
         _knifeCurrentAngle = Random.Range(0f, 360f);
         transform.rotation = Quaternion.Euler(0, 0, _knifeCurrentAngle - 90f);
 
         if (sr != null) sr.enabled = true;
-
-        // ナイフ待機中は物理当たり判定を一律すべて眠らせる
         SetColliderActive(false);
 
-        // カウンターナイフ用着色オーラインフラ
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null) Destroy(oldAura.gameObject);
 
@@ -187,7 +221,7 @@ public class DanmakuBullet : MonoBehaviour
 
             SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
             auraSR.sortingLayerID = sr.sortingLayerID;
-            auraSR.sortingOrder = sr.sortingOrder - 1;
+            auraSR.sortingOrder = sr.sortingOrder - 1; // 親の後ろ
 
             auraSR.material = (data.auraMaterial != null) ? data.auraMaterial : new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
             auraSR.sprite = (data.auraWhiteSprite != null) ? data.auraWhiteSprite : sr.sprite;
@@ -213,21 +247,32 @@ public class DanmakuBullet : MonoBehaviour
         isActive = true;
         isGrazeDone = false;
     }
+
+    public void StartSelfDestructTimer(float duration)
+    {
+        _selfDestructTimer = duration;
+        _hasSelfDestructTriggered = false;
+    }
+
     void FixedUpdate()
     {
         if (!isInitialized || !isActive) return;
-        // ★ アニメーション更新
-        if (isAnimated)
+        if (isAnimated) UpdateAnimation();
+
+        if (_selfDestructTimer > 0f)
         {
-            UpdateAnimation();
+            _selfDestructTimer -= Time.fixedDeltaTime;
+            if (_selfDestructTimer <= 0f && !_hasSelfDestructTriggered)
+            {
+                _hasSelfDestructTriggered = true;
+                _selfDestructTimer = -1f;
+                Deactivate(true);
+                return;
+            }
         }
 
-
-        // --- ディレイ（待機・収束）フェーズ ---
-        // --- ディレイ（待機・収束・カウンター一回転）フェーズ ---
         if (delayFrames > 0)
         {
-            // ★ カウンターナイフ特有の「その場でくるくる回転」を処理
             if (_isKnifeCounter)
             {
                 float dt = Time.fixedDeltaTime;
@@ -244,10 +289,9 @@ public class DanmakuBullet : MonoBehaviour
             if (delayFrames <= 0)
             {
                 sr.enabled = true;
-                if (col != null) col.enabled = true; // 当たり判定を有効化
+                SetColliderActive(true);
                 if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
-                // ★ 待機終了の瞬間、敵プレイヤーの座標へ正確に銃口を向ける（ロックオン）
                 if (_isKnifeCounter)
                 {
                     angle = GetAngleToTarget();
@@ -268,13 +312,12 @@ public class DanmakuBullet : MonoBehaviour
         transform.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * speed * dtMove;
         transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
 
-        // ★ 修正1：直接 Destroy せず、エフェクト無効（false）で Deactivate を呼ぶ形に統一
         if (Mathf.Abs(transform.position.x) > 10f || Mathf.Abs(transform.position.y) > 10f)
         {
             Deactivate(false);
         }
     }
-    // ターゲットへの角度を逆算するヘルパー関数
+
     private float GetAngleToTarget()
     {
         Transform target = null;
@@ -293,6 +336,7 @@ public class DanmakuBullet : MonoBehaviour
         }
         return 0f;
     }
+
     private void UpdateAnimation()
     {
         animTimer += Time.fixedDeltaTime;
@@ -302,45 +346,34 @@ public class DanmakuBullet : MonoBehaviour
         {
             animTimer = 0f;
             currentAnimFrame = (currentAnimFrame + 1) % currentData.animationSprites.Length;
-
-            // 💡 本体のスプライトをアニメーション更新
             sr.sprite = currentData.animationSprites[currentAnimFrame];
 
-            // 🎯【オーラアトラス同期レイヤー】：
-            // 💡 もし背後に生成したオーラ用の子オブジェクト（PureColorAuraObject）があれば、
-            // 💡 そのSpriteRendererの画像も本体のアニメーションの動きに完全に連動させます！
             Transform auraChild = transform.Find("PureColorAuraObject");
             if (auraChild != null)
             {
                 SpriteRenderer childSR = auraChild.GetComponent<SpriteRenderer>();
-                if (childSR != null)
-                {
-                    // 💡 オーラ側も同じアニメーションコマへと追従
-                    childSR.sprite = sr.sprite;
-                }
+                if (childSR != null) childSR.sprite = sr.sprite;
             }
         }
     }
+
     private IEnumerator DelayEffectRoutine(float delay, BulletData data)
     {
         if (effectPrefab != null && data.delaySprite != null)
         {
             activeDelayEffect = Instantiate(effectPrefab, transform.position, Quaternion.identity);
-            // 魔法陣を弾に追従させる
             activeDelayEffect.transform.SetParent(this.transform);
 
             SpriteRenderer effSr = activeDelayEffect.GetComponent<SpriteRenderer>();
             if (effSr != null)
             {
                 effSr.sprite = data.delaySprite;
-                // 弾より少し手前に表示
                 effSr.sortingOrder = sr.sortingOrder + 1;
             }
 
             ShotEffect logic = activeDelayEffect.GetComponent<ShotEffect>();
             if (logic != null)
             {
-                // ShotEffect側のPlayDelayコルーチンを実行
                 StartCoroutine(logic.PlayDelay(delay / 60f, data.delaySprite, transform.localScale.x));
             }
         }
@@ -354,30 +387,21 @@ public class DanmakuBullet : MonoBehaviour
 
         if (collision.CompareTag(targetTag))
         {
-            // ヒット時はエフェクトを出す
             collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
             Deactivate(true);
         }
     }
-    // =========================================================================
-    // 🟥【重複排除・完全開通版】：消滅・プール返却メソッド群（ここが1つずつになれば治ります）
-    // =========================================================================
 
-    /// <summary>
-    /// 引数あり版：エフェクトの再生有無を指定して弾を非アクティブ化し、プールへ返却する
-    /// </summary>
     public void Deactivate(bool playBreakEffect)
     {
         isActive = false;
         if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
-        // 画面外（9.5f以上）にいる場合は、エフェクトを強制的にオフ
         if (Mathf.Abs(transform.position.x) > 9.5f || Mathf.Abs(transform.position.y) > 9.5f)
         {
             playBreakEffect = false;
         }
 
-        // 消滅エフェクト（ShotEffect）の生成
         if (playBreakEffect && effectPrefab != null && currentData != null)
         {
             GameObject eff = Instantiate(effectPrefab, transform.position, Quaternion.identity);
@@ -389,28 +413,21 @@ public class DanmakuBullet : MonoBehaviour
                 logic.StartCoroutine(logic.PlayBreakAnimation(currentData.breakColor, transform.localScale.x));
         }
 
-        // 🚨【重要セーフティ】：プールへ戻る前に、親Box / 子Circleすべてのコライダーを完全に眠らせる
         SetColliderActive(false);
         transform.rotation = Quaternion.identity;
 
-        // BulletPool（オブジェクトプール）へのクリーン返却
         if (currentData != null && currentData.bulletPrefab != null && BulletPool.Instance != null)
         {
             BulletPool.Instance.Release(currentData.bulletPrefab, gameObject);
         }
         else
         {
-            // プールが見つからない場合のフォールバック
             Destroy(gameObject);
         }
     }
 
-    /// <summary>
-    /// 引数なし版：外部クラスやタイムアウト等からシンプルに呼び出された場合、エフェクトなしで安全にプールへ返却する
-    /// </summary>
     public void Deactivate()
     {
-        // 上の「引数あり版」に false（エフェクトなし）を渡して処理をスマートに共通集約
         Deactivate(false);
     }
 }

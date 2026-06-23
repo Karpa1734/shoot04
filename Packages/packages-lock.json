@@ -203,7 +203,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.ml-agents": {
-      "version": "file:C:/Users/Lapla/Documents/unity6-ml-agents/com.unity.ml-agents",
+      "version": "file:C:/Users/keike/Documents/unity6-ml-agents/com.unity.ml-agents",
       "depth": 0,
       "source": "local",
       "dependencies": {
