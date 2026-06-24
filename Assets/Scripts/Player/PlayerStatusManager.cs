@@ -241,33 +241,16 @@ public class PlayerStatusManager : MonoBehaviour
         // 🛠️【エディタ直接起動セーフティ】：最優先でインスペクターのデータを static へ逆インジェクション
         // =========================================================================
 #if UNITY_EDITOR
-        // 直接起動かつ、インスペクターの characterData 枠に手動でアセットが設定されている場合
         if (characterData != null && allCharacterDataDatabase != null)
         {
-            bool foundInDatabase = false;
-            // アセットに書き込まれている固有の「characterName」をキーにしてデータベースを完全一致走査
             for (int i = 0; i < allCharacterDataDatabase.Length; i++)
             {
                 if (allCharacterDataDatabase[i] != null && allCharacterDataDatabase[i].characterName == characterData.characterName)
                 {
-                    if (playerId == 1)
-                    {
-                        GameSelectionData.SelectedCharacterP1 = i;
-                        Debug.Log($"<color=cyan>🔧 [Editor-Debug] 1P直接起動成功: [{characterData.characterName}] をインデックス [{i}] として static に固定結合しました。</color>");
-                    }
-                    else if (playerId == 2)
-                    {
-                        GameSelectionData.SelectedCharacterP2 = i;
-                        Debug.Log($"<color=cyan>🔧 [Editor-Debug] 2P直接起動成功: [{characterData.characterName}] をインデックス [{i}] として static に固定結合しました。</color>");
-                    }
-                    foundInDatabase = true;
+                    if (playerId == 1) GameSelectionData.SelectedCharacterP1 = i;
+                    else if (playerId == 2) GameSelectionData.SelectedCharacterP2 = i;
                     break;
                 }
-            }
-
-            if (!foundInDatabase)
-            {
-                Debug.LogWarning($"⚠️ [Editor-Debug] インスペクターの [{characterData.characterName}] が allCharacterDataDatabase の登録名と一致しません！");
             }
         }
 #endif
@@ -275,45 +258,55 @@ public class PlayerStatusManager : MonoBehaviour
         // =========================================================================
         // 🚨【正規ルート用同期】：キャラクター選択画面から来た場合は、ここで正常に上書きロード
         // =========================================================================
-        // エディタ直接起動時は上のセーフティで登録したばかりのインデックスが綺麗に再吸出されます！
         if (allCharacterDataDatabase != null && allCharacterDataDatabase.Length > 0)
         {
             int targetSelectedId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
-
             if (targetSelectedId >= 0 && targetSelectedId < allCharacterDataDatabase.Length)
             {
-                // 正式な選択アセットをクローン生成して上書き完全同期！
                 characterData = Instantiate(allCharacterDataDatabase[targetSelectedId]);
-                // ランクパラメーターを最新の決定アセットを基準に一から再展開
                 ApplyCharacterRanks();
             }
         }
 
+        // =========================================================================
+        // 🎯【大罪Emitter・不要コンポーネント物理消去インフラ】（#ifの外側へ配置！）
+        // 💡 1つのオブジェクトにWrathもGreedも全乗りしていても、ビルド後・実機でも
+        //    選ばれなかった方のスクリプトを根こそぎ消去し、GetComponentの混線を物理的に0%にします。
+        // =========================================================================
+        if (characterData != null)
+        {
+            // 一度オブジェクトに付いているEmitterを全員一斉に眠らせる
+            PlayerDanmakuEmitter[] allEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+            foreach (var em in allEmitters) em.enabled = false;
+
+            // ⚠️ インスペクターの characterData.characterName に設定されている文字列と完全一致させてください
+            if (characterData.characterName == "Karin")
+            {
+                var wrath = GetComponentInChildren<Emitter_Wrath>(true);
+                if (wrath != null) wrath.enabled = true;
+            }
+            else if (characterData.characterName == "Charlotte") // シャウル側のアセット名
+            {
+                var greed = GetComponentInChildren<Emitter_Greed>(true);
+                if (greed != null) greed.enabled = true;
+            }
+        }
         // 看板テキストやUIカラーの流し込みを実行
         ApplyCharacterSettings();
 
-        // =========================================================================
-        // 👁️【傲慢パッシブ】：お互いの結合が完了したこの瞬間にハッキングを開始
-        // =========================================================================
         if (HasPassiveSkill(PassiveSkillType.PrideStatusSteal))
         {
             ExecutePrideStatusSteal();
         }
 
-        // =========================================================================
-        // 🧠【強化学習専用：HP100倍インフラ】
-        // =========================================================================
         DanmakuAgent trainingAgent = GetComponent<DanmakuAgent>();
         if (trainingAgent != null && Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
             maxHP *= 100f;
-            Debug.Log($"<color=lime>🚀【AI調教ブースト】強化学習環境を検知。最大HPを100倍（{maxHP}）に引き上げました！</color>");
         }
 
-        // すべての調停（傲慢ランクアップ・AI補正）が完全に完了した「最終値」でHPを確定
         currentHP = maxHP;
 
-        // 📺【UI初期化インフラへの完全結合】
         StartCoroutine(SetupInitialUI());
         StartCoroutine(InitUIWithDelay());
     }

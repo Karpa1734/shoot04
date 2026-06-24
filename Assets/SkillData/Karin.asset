@@ -18,7 +18,7 @@ MonoBehaviour:
   rankAgility: 3
   rankMMPRegen: 1
   rankSpellZone: 2
-  characterName: Player1
+  characterName: Karin
   imageColor: {r: 1, g: 0, b: 0, a: 1}
   spellCardName: "\u300C\u25CB\u25CB\u25CB\u25CB\u300D"
   spellCircleSprite: {fileID: 21300000, guid: a2ff8ddc4f635d94d8238129b1b43534, type: 3}
@@ -41,6 +41,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 8cc885d7fad1f0b43ac224300fc02e4a, type: 3}
     patternType: 14
     bulletData: {fileID: 11400000, guid: 7d8f266f18fdc1d46b2a90a5d56bb2b0, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 0.7
     sePath: Slash
     count: 1
@@ -56,6 +57,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 38d9f25aa2ca0c84babea6b8b7f7427d, type: 3}
     patternType: 15
     bulletData: {fileID: 11400000, guid: 893a83124dd3cd544b869d72239b9e95, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 0.8
     sePath: Slash
     count: 7
@@ -71,6 +73,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: cb66565d526d507489c2a10b27a5cd6c, type: 3}
     patternType: 8
     bulletData: {fileID: 11400000, guid: 45fdd80e96a96b84e8d4c748a727f5c0, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 12
     sePath: 
     count: 0
@@ -86,6 +89,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 4d4d4fa85c1834a469f0bb65f5ff9450, type: 3}
     patternType: 9
     bulletData: {fileID: 11400000, guid: 65a549f923218164cb7b228aa015c502, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 10
     sePath: 
     count: 0
@@ -101,6 +105,7 @@ MonoBehaviour:
     skillIcon: {fileID: 0}
     patternType: 12
     bulletData: {fileID: 11400000, guid: d361fc89164f35a4aad6de22b177b018, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 5
     sePath: 
     count: 5

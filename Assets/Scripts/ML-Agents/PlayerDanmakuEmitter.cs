@@ -16,15 +16,15 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     [Tooltip("攻撃対象（相手）のタグ")]
     public string targetTag = "Player";
 
-    private GameObject _rootOwner;
-    private bool _isArcReversed = false;
+    protected GameObject _rootOwner;
+    protected bool _isArcReversed = false;
     // 現在アクティブなコルーチンの数をカウント[cite: 7]
-    private int _activeSkillCoroutines = 0;
-    private bool _isXLineReversed; // ⚔️ カリン専用Xの往復切り替え用フラグ
+    protected int _activeSkillCoroutines = 0;
+    protected bool _isXLineReversed; // ⚔️ カリン専用Xの往復切り替え用フラグ
     // スキル使用中（コルーチンが1つ以上動いている）かどうかを返すプロパティ
     public bool IsAnySkillActive => _activeSkillCoroutines > 0;
     // 🎯【共用一本化】：EXスキル（ULT）が現在絶賛稼働中であることを示す唯一の絶対フラグ
-    private bool _isEXSkillActive = false;
+    protected bool _isEXSkillActive = false;
 
     // 🎯【外部公開用プロパティ】：PlayerStatusManagerが無敵やタイマーストップを判定するために、この共用フラグを公開します
     public bool IsUltimateSkillActive => _isEXSkillActive;
@@ -67,7 +67,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         _rootOwner = transform.root.gameObject;
     }
 
-    private float GetAngleToTarget()
+    protected float GetAngleToTarget()
     {
         Transform target = null;
         foreach (var p in PlayerMove.AllPlayers)
@@ -88,7 +88,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         return 0f;
     }
 
-    private float GetAngleToTarget(Vector3 fromPos)
+    protected float GetAngleToTarget(Vector3 fromPos)
     {
         Transform target = null;
         foreach (var p in PlayerMove.AllPlayers)
@@ -108,17 +108,33 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (myStatus != null && myStatus.playerId == 2) return 180f;
         return 0f;
     }
-
     /// <summary>
-    /// スキル設定に基づき、弾幕を生成・射出するメインエントランス
+    /// スキル設定に基づき、弾幕を生成・射出するメインエントランス（完全オブジェクト指向新調版）
     /// </summary>
     public void Fire(PlayerSkillData.SkillSettings s)
     {
+        if (!enabled)
+        {
+            // 🛠️ 修正：transform.parent をパージし、同じオブジェクトから安全に全Emitterを全抽出！
+            PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>();
+            foreach (var emitter in allEmitters)
+            {
+                if (emitter != null && emitter.enabled)
+                {
+                    emitter.Fire(s);
+                    return;
+                }
+            }
+            return;
+        }
+
+
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         if (!PlayerMove.CanShoot) return;
         if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
         if (_isEXSkillActive && s.patternType != SkillPatternType.Line) return;
+
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
         if (myMove != null)
         {
@@ -131,18 +147,16 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             myMove.AddUltimateEnergy(finalGain);
         }
 
+        // 💡 固有スキルパターン以外の汎用SE再生
         if (s.patternType != SkillPatternType.MovingArc &&
-            s.patternType != SkillPatternType.RandomRound &&
-            s.patternType != SkillPatternType.DefensiveField)
+            s.patternType != SkillPatternType.RandomRound)
         {
+            // ※防御フィールド等の固有消音ガードは子クラス側で制御されるため、通常はここでSEを鳴らします
             PlaySkillSE(s.sePath);
         }
 
-        // 🎯【速度干渉ガード】：魔方陣EXの発動中は、通常スキルの TemporarySlow の起動自体を完全カット！
-        if (s.patternType != SkillPatternType.DefensiveField &&
-            s.patternType != SkillPatternType.MovingArc &&
-            !_isEXSkillActive && // 💡魔方陣EXが動いていない平和な時だけ通常減速を許可
-            s.moveSpeedMultiplier < 1.0f)
+        // 🎯【速度干渉ガード】：魔方陣EXの発動中は通常スキルの移動デバフを完全カット
+        if (!_isEXSkillActive && s.moveSpeedMultiplier < 1.0f)
         {
             StartCoroutine(TemporarySlow(s.moveSpeedMultiplier, 0.2f));
         }
@@ -151,30 +165,32 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float baseAngle = targetAngle + s.angleOffset;
         Vector3 pos = transform.position;
 
+        // 📊【上流インフラ】：領域展開中の弾速ブースト共通処理
         PlayerStatusManager emitterStatus = GetComponentInParent<PlayerStatusManager>();
         if (emitterStatus != null && emitterStatus.isSpellCardActive)
         {
             PlayerSkillData.SkillSettings enhancedSettings = s;
-            if (enhancedSettings.patternType == SkillPatternType.KarinScalesSlash)
-            {
-                enhancedSettings.count = 1;
-                s = enhancedSettings;
-                StartCoroutine(ExecuteKarinTripleScalesSlashRoutine(s));
-                return;
-            }
-            else if (enhancedSettings.patternType == SkillPatternType.KarinFireSlash)
-            {
-                // 🔥【大修復】：領域展開中（KarinFireSlash）の時も、本来の一閃コルーチンを確実にキックして即returnさせる！
-                StartCoroutine(ExecuteKarinCrossSlashRoutine(s));
-                return;
-            }
-            else
-            {
-                enhancedSettings.speed = s.speed * 1.3f;
-                s = enhancedSettings;
-            }
+            enhancedSettings.speed = s.speed * 1.3f;
+            s = enhancedSettings;
         }
 
+        // =========================================================================
+        // 🔮【大罪仕分けパージ】：技名によるポリモーフィック自動中継インフラ
+        // =========================================================================
+        var myStatusMgr = GetComponentInParent<PlayerStatusManager>();
+        if (myStatusMgr != null && myStatusMgr.characterData != null)
+        {
+            var data = myStatusMgr.characterData; 
+            
+            // 🛠️ 修正：ただの StartCoroutine ではなく「this.StartCoroutine」に固定することで、
+            //    自分が Emitter_Greed なら Greed の、Emitter_Wrath なら Wrath の上書き関数を100%正確に呼び出します。
+            if (s.skillName == data.skillZ.skillName) { this.StartCoroutine(this.ExecuteSkillZ(s)); return; }
+            if (s.skillName == data.skillX.skillName) { this.StartCoroutine(this.ExecuteSkillX(s)); return; }
+            if (s.skillName == data.skillC.skillName) { this.StartCoroutine(this.ExecuteSkillC(s)); return; }
+            if (s.skillName == data.skillV.skillName) { StartCoroutine(ExecuteSkillV(s)); return; }
+        }
+
+        // 💡 共通の Standard や nWay などの一般枠はそのままフォールバック実行
         switch (s.patternType)
         {
             case SkillPatternType.Standard:
@@ -190,8 +206,6 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             case SkillPatternType.Polygon:
                 ExecutePolygon(s, pos, baseAngle);
                 break;
-            case SkillPatternType.Line:
-                break;
             case SkillPatternType.Custom:
                 ExecuteConvergePattern(s, pos, baseAngle);
                 break;
@@ -201,224 +215,94 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             case SkillPatternType.RandomRound:
                 StartCoroutine(ExecuteRandomRoundRoutine(s));
                 break;
-            case SkillPatternType.Boomerang:
-                StartCoroutine(ShootBoomerangRoutine(s));
-                break;
-            case SkillPatternType.DefensiveField:
-                StartCoroutine(ChargeAndExecuteDefensiveField(s));
-                break;
-            case SkillPatternType.ChainRandomAim:
-                StartCoroutine(ChainRandomAimRoutine(s));
-                break;
-            case SkillPatternType.RotatingAllWayLaser:
-                StartCoroutine(RotatingAllWayLaserRoutine(s));
-                break;
-            case SkillPatternType.RotatingAccelRound:
-                StartCoroutine(RotatingAccelRoundRoutine(s));
-                break;
-            case SkillPatternType.GreedTaxPossession:
-                StartCoroutine(GreedTaxPossessionRoutine(s));
-                break;
-            case SkillPatternType.KarinScalesSlash:
-                StartCoroutine(ExecuteKarinScalesSlashRoutine(s));
-                break;
-            case SkillPatternType.KarinFireSlash:
-                StartCoroutine(ExecuteKarinCrossSlashRoutine(s));
-                break;
-            case SkillPatternType.Saiki:
-                StartCoroutine(ExecuteExpandingRingZeroSpeedRoutine(s));
-                break;
-            // (既存の case 達の下に追加)
-            case SkillPatternType.KunaiCage: // 必要に応じて新しいSkillPatternTypeをenumに定義するか、既存のテスト用枠に流し込んでください
-                StartCoroutine(ExecuteEnemyEnclosureShrinkingRingRoutine(s));
-                break;
-            case SkillPatternType.HeartRef: // テスト用にCustom枠で起動するか、新enumをケースにしてください
-                StartCoroutine(ExecuteBouncingTrailShotRoutine(s));
-                break;
         }
     }
 
     /// <summary>
-    /// 独立したEX枠のデータを受け取り、パターン（s.patternType）に応じて固有の必殺技をキックする
+    /// 独立したEX枠のデータを受け取り、固有の必殺技をキックする
     /// </summary>
     public void FireEX(PlayerSkillData.SkillSettings s)
     {
+        // 🛡️ EX用アクティブバトン中継
+        if (!enabled)
+        {
+            // 🛠️ 修正：ここも同様に GetComponents<PlayerDanmakuEmitter>() に修正します
+            PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>();
+            foreach (var emitter in allEmitters)
+            {
+                if (emitter != null && emitter.enabled)
+                {
+                    emitter.FireEX(s);
+                    return;
+                }
+            }
+            return;
+        }
+
         if (!PlayerMove.CanShoot) return;
 
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
-        // 🎯【高橋さんの指定：魔方陣EX限定・重ね撃ち完全拒絶ロック】：
-        // 💡 この大技自身が現在すでに稼働中（_isSyaruBitEXActive = true）なら、EXボタン連打の多重入力を完全に遮断！
-        if (s.patternType == SkillPatternType.Line && _isEXSkillActive) return;
+        // 🎯【多重入力防止】：EXスキルがすでに稼働中ならボタン連打を遮断
+        if (_isEXSkillActive) return;
 
         // 🌟 共通インフラ（硬直制御・例外安全ライフサイクル）を開始
         StartCoroutine(ExecuteEXInfrastructureRoutine(s));
     }
 
-
-
-    // =========================================================================
-    // 🔮【完全復旧版】：固定弾源・再帰的半径拡大 ✕ 10秒/半径30終期収束ライフサイクルコルーチン
-    // =========================================================================
-    private IEnumerator ExecuteExpandingRingZeroSpeedRoutine(PlayerSkillData.SkillSettings s)
+    /// <summary>
+    /// EX/超必殺の共通インフラ（器）
+    /// 💡 スイッチ判定を完全撤廃！子クラスがオーバーライドした固有技（ExecuteSkillEX）を直接キックします。
+    /// </summary>
+    protected IEnumerator ExecuteEXInfrastructureRoutine(PlayerSkillData.SkillSettings s)
     {
-        _activeSkillCoroutines++; // 🟢 マナの自動回復を一時停止
-
+        _activeSkillCoroutines++;
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
-        if (myMove != null && !_isEXSkillActive)
-        {
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-        }
+        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        PlaySkillSE(s.sePath);
 
-        // --- 🛡️ try-finally インフラにより、どんな異常中断が起きてもマナ回復を絶対保証 🛡️ ---
         try
         {
-            // --- パラメータの設定と初期化 ---
-            int wayCount = Mathf.Max(1, s.count);   // インスペクターの Count 枠を「way数」として直撃バインド
-            float currentRadius = 0.5f;             // 開始時の初期半径（ここからスタート）
-            float radiusStep = 0.1f;                // 1波ごとに外側へ広がる半径の拡張幅
+            PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+            bool isZoneActive = (myStatus != null && myStatus.isSpellCardActive);
 
-            float angularVelocityStep = s.angleOffset;
+            PlayerSkillData.SkillSettings enhancedEXSettings = s;
 
-            // 💡 弾自体の寿命秒数：インスペクターの Speed 枠の数値をそのまま流用（設定がなければ3.0秒）
-            float bulletLifeTime = (s.speed > 0f) ? s.speed : 3.0f;
-
-            float targetCenterAngle = GetAngleToTarget(transform.position);
-            Vector3 centerOriginPos = transform.position; // 発射を開始した瞬間の自機の中心座標を固定（弾源の核）
-
-            float elapsedTimer = 0f; // 弾源の持続時間計測タイマー
-            int waveCount = 0;       // ウェーブ数のカウント
-
-            // ⏳ 弾源の寿命監査：30秒経過するか、半径が30を超えたら自動で完全消滅
-            while (elapsedTimer < 30f && currentRadius <= 30f)
+            // 🔮 領域展開中の弾速1.3倍ブースト共通インフラ処理
+            if (isZoneActive)
             {
-                // 💡 被弾等でループをブレーク（中断）しても、finallyブロックにジャンプして安全にMPが回復し始めます！
-                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
-                    break;
-
-                PlaySkillSE(s.sePath);
-
-                float currentRotationOffset = angularVelocityStep * waveCount;
-                float baseAngle = targetCenterAngle + currentRotationOffset;
-
-                float startAngle;
-                float stepAngle;
-
-                if (s.wideAngle <= 0f || s.wideAngle >= 360f)
-                {
-                    stepAngle = 360f / wayCount;
-                    startAngle = baseAngle;
-                }
-                else
-                {
-                    stepAngle = (wayCount > 1) ? s.wideAngle / (wayCount - 1) : 0f;
-                    startAngle = baseAngle - (s.wideAngle / 2f);
-                }
-
-                for (int i = 0; i < wayCount; i++)
-                {
-                    float finalPlacementAngle = startAngle + (stepAngle * i);
-                    float rad = finalPlacementAngle * Mathf.Deg2Rad;
-
-                    Vector3 spawnPos = centerOriginPos + new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * currentRadius;
-
-                    // 1. 通常通りクローンデータを生成して実体化
-                    BulletData runtimeData = Instantiate(s.bulletData);
-
-                    // 🛡️ エディタ用永続化パージを溶接
-                    runtimeData.hideFlags = HideFlags.DontSave;
-
-                    // 大元の所有者バフ計算ルーチン
-                    PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-                    if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
-                    int ownerId = (myStatus != null) ? myStatus.playerId : 1;
-
-                    if (myStatus != null && myStatus.characterData != null)
-                    {
-                        float atkMultiplier = 1.0f;
-                        switch (myStatus.characterData.rankAttack)
-                        {
-                            case StatusRank.E: atkMultiplier = 0.8f; break;
-                            case StatusRank.D: atkMultiplier = 0.9f; break;
-                            case StatusRank.C: atkMultiplier = 1.0f; break;
-                            case StatusRank.B: atkMultiplier = 1.1f; break;
-                            case StatusRank.A: atkMultiplier = 1.2f; break;
-                            case StatusRank.EX: atkMultiplier = 1.3f; break;
-                        }
-                        if (myStatus.IsAttackBoostActive) atkMultiplier *= 1.3f;
-                        atkMultiplier *= myStatus.GetJealousyMultiplier();
-                        runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
-                    }
-
-                    // 2. オブジェクトプール、または新規生成からオブジェクトを取得
-                    GameObject obj = (BulletPool.Instance != null && runtimeData.bulletPrefab != null)
-                        ? BulletPool.Instance.Get(runtimeData.bulletPrefab, spawnPos, Quaternion.identity)
-                        : Instantiate(runtimeData.bulletPrefab, spawnPos, Quaternion.identity);
-
-                    // オーラインフラの自動付製（既存を踏襲）
-                    SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
-                    if (mainSR != null && obj.transform.Find("PureColorAuraObject") == null)
-                    {
-                        GameObject auraChild = new GameObject("PureColorAuraObject");
-                        auraChild.transform.SetParent(obj.transform);
-                        auraChild.transform.localPosition = Vector3.zero;
-                        auraChild.transform.localRotation = Quaternion.identity;
-                        auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
-                        SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
-                        auraSR.sortingLayerID = mainSR.sortingLayerID;
-                        auraSR.sortingOrder = mainSR.sortingOrder - 1;
-
-                        if (runtimeData.auraMaterial != null) auraSR.material = runtimeData.auraMaterial;
-                        else
-                        {
-                            Material dynMaterial = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-                            dynMaterial.hideFlags = HideFlags.DontSave; // 🛡️ アサーションエラー完全対策
-                            auraSR.material = dynMaterial;
-                        }
-
-                        auraSR.sprite = (runtimeData.auraWhiteSprite != null) ? runtimeData.auraWhiteSprite : mainSR.sprite;
-                        if (myStatus != null && myStatus.characterData != null) { Color c = myStatus.characterData.imageColor; c.a = 1.0f; auraSR.color = c; }
-                        else { Color c = (ownerId == 1) ? Color.cyan : Color.red; c.a = 1.0f; auraSR.color = c; }
-                    }
-
-                    string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
-                    obj.tag = assignedTag;
-                    int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet");
-                    obj.layer = assignedLayer;
-                    SetLayerRecursive(obj, assignedLayer);
-
-                    DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
-                    if (bullet != null)
-                    {
-                        bullet.Initialize(_rootOwner, targetTag, 0f, finalPlacementAngle, 0, 0f, 0, s.delay, runtimeData, false);
-                        bullet.StartSelfDestructTimer(bulletLifeTime); // 💡弾独自の自爆タイマー
-                    }
-                }
-
-                currentRadius += radiusStep;
-                waveCount++;
-
-                const float intervalDuration = 1f / 60f;
-                yield return new WaitForSeconds(intervalDuration);
-                elapsedTimer += intervalDuration;
+                enhancedEXSettings.speed = s.speed * 1.3f;
+                s = enhancedEXSettings;
             }
 
-            // 🟢 ループが正常に終了した後のスキルクールダウン待機
-            yield return new WaitForSeconds(s.cooldown);
+            // =========================================================================
+            // 🎯【EX中継インフラ】：子クラス側の ExecuteSkillEX が自身の時間軸で強化版を自律制御します
+            // =========================================================================
+            yield return StartCoroutine(ExecuteSkillEX(s));
         }
         finally
         {
-            // =========================================================================
-            // 🚨【絶対復旧インフラ】：どのような経路でコルーチンが終了・破棄されても、
-            //                        100%確実にカウントを引き下げてコスト自動回復を即座に再開！
-            // =========================================================================
-            if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
-            _activeSkillCoroutines--; // 🔄 これでコストが完全回復するようになります！
+            if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+            _activeSkillCoroutines--;
         }
+        yield return null;
     }
+
+    // =========================================================================
+    // 📊 キャラクター固有技のオーバーライド用バーチャルスロット（土台）
+    // =========================================================================
+    protected virtual IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s) { yield return null; }
+    protected virtual IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s) { yield return null; }
+    protected virtual IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s) { yield return null; }
+    protected virtual IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s) { yield return null; }
+    protected virtual IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s) { yield return null; }
+
+
+   
+
     private List<DanmakuBullet> _activeCageBullets = new List<DanmakuBullet>();
     // =========================================================================
     // 🔮【確定版】：位置固定・早期コスト解放 ✕ 再設置時古い檻強制クリア型コルーチン
@@ -639,279 +523,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             }
         }
     }
-    private IEnumerator ChainRandomAimRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; // 実行中カウントを増やす（エネルギー回復停止）
 
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-
-
-        int burstCount = 6;
-        int knivesway = s.count;
-
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
-        if (isSpellActive)
-        {
-            knivesway += 2;
-        }
-        // 1. スキル使用中の減速を適用
-        if (myMove != null && !_isEXSkillActive) { myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; }
-
-        if (PlayerMove.CanShoot && (myHH == null || myHH.currentState == PlayerHitHandler.PlayerState.Normal))
-        {
-            // --- セット開始時の初期化 ---
-            // 自機周辺のランダムな位置を弾源に設定
-            float radius = 1.8f;
-            Vector2 randomCircle = Random.insideUnitCircle.normalized * radius;
-            Vector3 spawnPos = transform.position + new Vector3(randomCircle.x, randomCircle.y, 0);
-
-            // ★ セット内で角度を固定：弾源から敵機への基本角度を一度だけ計算
-            float targetAngle = GetAngleToTarget(spawnPos) + Random.Range(-1.5f,1.5f);
-            float baseAngle = targetAngle + s.angleOffset;
-
-            // 規定回数（6回）を連射
-            for (int i = 0; i < burstCount; i++)
-            {
-                // --- N-way（扇形）の生成ロジック ---
-                int wayCount = Mathf.Max(1, knivesway); // 3way, 5wayなど
-                float spread = s.wideAngle;
-
-                if (wayCount <= 1)
-                {
-                    // 1-wayの場合は正面のみ
-                    CreateShot(s.bulletData, spawnPos, s.speed, baseAngle, s.delay);
-                }
-                else
-                {
-                    // 複数wayの場合は扇形に展開
-                    float startAngle = baseAngle - (spread / 2f);
-                    float stepAngle = spread / (wayCount - 1);
-
-                    for (int j = 0; j < wayCount; j++)
-                    {
-                        float finalAngle = startAngle + (stepAngle * j);
-                        CreateShot(s.bulletData, spawnPos, s.speed, finalAngle, s.delay);
-                    }
-                }
-
-                PlaySkillSE(s.sePath);
-
-                // 2フレーム待機 (FixedUpdate 2回分)
-                for (int j = 0; j < 7; j++)
-                {
-                    yield return new WaitForFixedUpdate();
-                }
-                // 被弾中断チェック
-                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
-            }
-        }
-
-        yield return new WaitForSeconds(s.cooldown);
-        // 状態を戻す
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-    }
-    // --- ★ 追加：防御フィールド専用のチャージ演出ルーチン ---
-    // 📄 PlayerDanmakuEmitter.cs 内の防御フィールド制御セクター【領域展開・動的巨大延長版】
-    private IEnumerator ChargeAndExecuteDefensiveField(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; //
-        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>(); //
-
-        if (myMove != null) //
-        {
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
-        }
-
-        // 💡 1. 領域展開中（スペルカード発動中）であるかステートをチェック
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
-
-        // 💡 2. 【高橋さんの指定】：領域中ならサイズと持続時間の変数を動的にブースト！
-        float finalFieldDuration = 1.0f; // 通常時の持続秒数
-        float finalFieldScale = 2.0f;    // 通常時のDefensiveFieldインスペクター想定スケール
-
-        if (isSpellActive)
-        {
-            finalFieldDuration = 2.0f;   // 🎯 領域展開中：持続時間を「3.0秒」へ延長（2倍）
-            finalFieldScale = 3.5f;      // 🎯 領域展開中：サイズ（最大スケール）を「3.5倍」へ巨大化
-            Debug.Log($"<color=gold>🔮【領域展開・絶対防壁】防御フィールドを極大化！ Duration: {finalFieldDuration}s, Scale: {finalFieldScale}</color>");
-        }
-
-        // チャージ演出
-        float chargeTime = 0.3f; //
-        if (BossEffectManager.Instance != null) //
-        {
-            BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, transform.position); //
-        }
-        yield return new WaitForSeconds(chargeTime + 0.2f); //
-
-        if (SEManager.Instance != null)
-        {
-            SEManager.Instance.Play(SEPath.SLASH, 0.5f); //
-        }
-
-        // 💡 3. 変調されたサイズと持続時間を手渡しして、スキル本体を実体化！
-        ExecuteDefensiveField(s, finalFieldDuration, finalFieldScale);
-
-        // 💡 4. 【インフラ完全同期】：スキル終了まで待機（引き伸ばされた動的持続時間に正確に合わせる）
-        yield return new WaitForSeconds(finalFieldDuration);
-
-        // 倍率を戻す
-        if (myMove != null) //
-        {
-            myMove.skillSpeedMultiplier = 1.0f; //
-        }
-        _activeSkillCoroutines--; //
-    }
-
-    // 🎯【引数拡張】：外部変調パラメータを確実に受け取れるようにオーバーロード調停
-    private void ExecuteDefensiveField(PlayerSkillData.SkillSettings s, float duration, float scale)
-    {
-        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity); //
-        var myStatus = GetComponentInParent<PlayerStatusManager>(); //
-        int ownerId = (myStatus != null) ? myStatus.playerId : 1; //
-        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet"; //
-        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet"); //
-
-        var field = fieldObj.GetComponent<DefensiveField>(); //
-        if (field == null) field = fieldObj.AddComponent<DefensiveField>(); //
-
-        // 💡 拡張された Initialize 窓口へパラメータを一挙にインジェクション！
-        field.Initialize(transform, s.bulletData, duration, assignedTag, assignedLayer, scale);
-    }
-
-    private IEnumerator MovingArcRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; //
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); //
-        float radiusX = 1.5f; //
-        float radiusY = 0.4f; //
-        int wayCount = 3; //
-        bool currentDirectionReversed = _isArcReversed; //
-        _isArcReversed = !_isArcReversed; //
-        float startOffset = currentDirectionReversed ? 90f : -90f; //
-        float endOffset = currentDirectionReversed ? -90f : 90f; //
-        float step = currentDirectionReversed ? -20f : 20f; //
-        float centerTargetAngle = GetAngleToTarget(transform.position); //
-        PlayerMove myMove = GetComponentInParent<PlayerMove>(); //
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-
-        for (float offset = startOffset;
-             (step > 0 ? offset <= endOffset : offset >= endOffset);
-             offset += step)
-        {
-            // ★ 修正：yield break ではなく break にしてループの下（クリーンアップ処理）へ流す
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
-                break;
-
-            float spawnAngleRad = (centerTargetAngle + offset) * Mathf.Deg2Rad; //
-            Vector3 ellipseOffset = new Vector3(Mathf.Cos(spawnAngleRad) * radiusX, Mathf.Sin(spawnAngleRad) * radiusY, 0); //
-            Vector3 spawnPos = transform.position + ellipseOffset; //
-            float realAimAngle = GetAngleToTarget(spawnPos) + s.angleOffset; //
-            float currentWideAngle = 60f; //
-            float startAngle = realAimAngle - (currentWideAngle / 2f); //
-            float stepAngle = (wayCount > 1) ? currentWideAngle / (wayCount - 1) : 0; //
-            PlaySkillSE(s.sePath); //
-            for (int i = 0; i < wayCount; i++) //
-            {
-                CreateShot(s.bulletData, spawnPos, s.speed, startAngle + (stepAngle * i), s.delay); //
-            }
-            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate(); //
-        }
-
-        // これでガード句に引っかかった際も、確実にここを通ってリセットされます
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f; //
-        _activeSkillCoroutines--; //
-    }
-
-    private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; // 実行中カウントを増やす（コスト回復を止める）
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-        int wayCount = 12;
-
-        // 1. スキル使用中の減速を適用
-        if (myMove != null)
-        {
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-        }
-
-        // --- 単発分（1セット）の弾幕生成ロジック ---
-        if (PlayerMove.CanShoot && (myHH == null || myHH.currentState == PlayerHitHandler.PlayerState.Normal))
-        {
-            Vector3 randomOffset = new Vector3(Random.Range(-1f, 1f), Random.Range(-1.5f, 1.5f), 0);
-            Vector3 spawnPos = transform.position + randomOffset;
-
-            float targetAngle = GetAngleToTarget(spawnPos);
-            float baseAngle = targetAngle + s.angleOffset;
-            float step = 360f / wayCount;
-            float rotationOffset = step / 2f;
-
-            // 弾幕の速度をランダム化
-            float randomizedBulletSpeed = s.speed + Random.Range(-1.0f, 1.0f);
-            randomizedBulletSpeed = Mathf.Max(0.5f, randomizedBulletSpeed);
-
-            PlaySkillSE(s.sePath);
-
-            for (int i = 0; i < wayCount; i++)
-            {
-                float finalAngle = baseAngle + rotationOffset + (step * i);
-                CreateShot(s.bulletData, spawnPos, randomizedBulletSpeed, finalAngle, s.delay);
-            }
-        }
-
-        yield return null;
-        // 2. ★ 重要：次の射撃が可能になるまで（cooldown秒間）状態を維持する
-        // これにより、連射中に「速度制限」と「コスト回復停止」が継続します
-        float waitTime = Mathf.Max(0.1f, 0.4f);
-        yield return new WaitForSeconds(waitTime);
-
-        // 3. 速度制限を解除し、実行中カウントを減らす
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-    }
-    // ★ void から IEnumerator に変更
-    private IEnumerator ShootBoomerangRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; // 実行カウントを増やす
-
-        // --- 既存の生成ロジック ---
-        GameObject bitObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
-        var myStatus = GetComponentInParent<PlayerStatusManager>();
-        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
-        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
-        string assignedLayer = (ownerId == 1) ? "Player1Bullet" : "Player2Bullet";
-        bitObj.tag = assignedTag;
-        bitObj.layer = LayerMask.NameToLayer(assignedLayer);
-        SetLayerRecursive(bitObj, LayerMask.NameToLayer(assignedLayer));
-
-        BoomerangObject bit = bitObj.GetComponent<BoomerangObject>();
-        if (bit == null) bit = bitObj.AddComponent<BoomerangObject>();
-
-        Transform targetTransform = null;
-        foreach (var p in PlayerMove.AllPlayers)
-            if (p != null && p.gameObject != _rootOwner) targetTransform = p.transform;
-
-        // ビットの初期化
-        bit.Initialize(transform, targetTransform, s.bulletData, 4.0f, this);
-
-        // --- ここがポイント：2秒間待機 ---
-        // この間 IsAnySkillActive が true になり、SkillManager 側の回復が止まります
-        yield return new WaitForSeconds(2.0f);
-
-        _activeSkillCoroutines--; // 2秒経ったらカウントを減らす
-    }
-
-    private void SetLayerRecursive(GameObject obj, int layer)
-    {
-        obj.layer = layer;
-        foreach (Transform child in obj.transform)
-            SetLayerRecursive(child.gameObject, layer);
-    }
 
     // 📄 PlayerDanmakuEmitter.cs 内の ExecuteSubShot メソッド【攻撃ランク・最下流溶接版】
     public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
@@ -1012,6 +624,109 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         }
     }
 
+    protected void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+            SetLayerRecursive(child.gameObject, layer);
+    }
+   
+  
+
+    private IEnumerator MovingArcRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; //
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); //
+        float radiusX = 1.5f; //
+        float radiusY = 0.4f; //
+        int wayCount = 3; //
+        bool currentDirectionReversed = _isArcReversed; //
+        _isArcReversed = !_isArcReversed; //
+        float startOffset = currentDirectionReversed ? 90f : -90f; //
+        float endOffset = currentDirectionReversed ? -90f : 90f; //
+        float step = currentDirectionReversed ? -20f : 20f; //
+        float centerTargetAngle = GetAngleToTarget(transform.position); //
+        PlayerMove myMove = GetComponentInParent<PlayerMove>(); //
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        for (float offset = startOffset;
+             (step > 0 ? offset <= endOffset : offset >= endOffset);
+             offset += step)
+        {
+            // ★ 修正：yield break ではなく break にしてループの下（クリーンアップ処理）へ流す
+            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                break;
+
+            float spawnAngleRad = (centerTargetAngle + offset) * Mathf.Deg2Rad; //
+            Vector3 ellipseOffset = new Vector3(Mathf.Cos(spawnAngleRad) * radiusX, Mathf.Sin(spawnAngleRad) * radiusY, 0); //
+            Vector3 spawnPos = transform.position + ellipseOffset; //
+            float realAimAngle = GetAngleToTarget(spawnPos) + s.angleOffset; //
+            float currentWideAngle = 60f; //
+            float startAngle = realAimAngle - (currentWideAngle / 2f); //
+            float stepAngle = (wayCount > 1) ? currentWideAngle / (wayCount - 1) : 0; //
+            PlaySkillSE(s.sePath); //
+            for (int i = 0; i < wayCount; i++) //
+            {
+                CreateShot(s.bulletData, spawnPos, s.speed, startAngle + (stepAngle * i), s.delay); //
+            }
+            for (int f = 0; f < 2; f++) yield return new WaitForFixedUpdate(); //
+        }
+
+        // これでガード句に引っかかった際も、確実にここを通ってリセットされます
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f; //
+        _activeSkillCoroutines--; //
+    }
+
+    private IEnumerator ExecuteRandomRoundRoutine(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++; // 実行中カウントを増やす（コスト回復を止める）
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+        int wayCount = 12;
+
+        // 1. スキル使用中の減速を適用
+        if (myMove != null)
+        {
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        }
+
+        // --- 単発分（1セット）の弾幕生成ロジック ---
+        if (PlayerMove.CanShoot && (myHH == null || myHH.currentState == PlayerHitHandler.PlayerState.Normal))
+        {
+            Vector3 randomOffset = new Vector3(Random.Range(-1f, 1f), Random.Range(-1.5f, 1.5f), 0);
+            Vector3 spawnPos = transform.position + randomOffset;
+
+            float targetAngle = GetAngleToTarget(spawnPos);
+            float baseAngle = targetAngle + s.angleOffset;
+            float step = 360f / wayCount;
+            float rotationOffset = step / 2f;
+
+            // 弾幕の速度をランダム化
+            float randomizedBulletSpeed = s.speed + Random.Range(-1.0f, 1.0f);
+            randomizedBulletSpeed = Mathf.Max(0.5f, randomizedBulletSpeed);
+
+            PlaySkillSE(s.sePath);
+
+            for (int i = 0; i < wayCount; i++)
+            {
+                float finalAngle = baseAngle + rotationOffset + (step * i);
+                CreateShot(s.bulletData, spawnPos, randomizedBulletSpeed, finalAngle, s.delay);
+            }
+        }
+
+        yield return null;
+        // 2. ★ 重要：次の射撃が可能になるまで（cooldown秒間）状態を維持する
+        // これにより、連射中に「速度制限」と「コスト回復停止」が継続します
+        float waitTime = Mathf.Max(0.1f, 0.4f);
+        yield return new WaitForSeconds(waitTime);
+
+        // 3. 速度制限を解除し、実行中カウントを減らす
+        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
+        _activeSkillCoroutines--;
+    }
+    // ★ void から IEnumerator に変更
+ 
+
 
     private void ExecuteNWay(PlayerSkillData.SkillSettings s, Vector3 pos, float baseAngle)
     {
@@ -1067,7 +782,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
 
     // 📄 PlayerDanmakuEmitter.cs 内の CreateShot メソッド【攻撃ランク・最下流溶接版】
-    private void CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay, bool isConverge = false)
+    protected void CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay, bool isConverge = false)
     {
         // 💡 修正の核心：プレハブを実体化する前に、この弾幕データの「純粋なクローン（複製）」を作ります。
         // 💡 これにより、元の ScriptableObject(アセット)のダメージ設定値を永久に汚すことなく、
@@ -1257,282 +972,8 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     }
     // --- PlayerDanmakuEmitter.cs 修正版ルーチン ---
 
-    private IEnumerator RotatingAllWayLaserRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
-        if (BulletManager.Instance == null) { _activeSkillCoroutines--; yield break; }
-
-        List<EnemyLaserBeam> spawnedLasers = new List<EnemyLaserBeam>();
-        int LaserWay = 24;
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
-        if (isSpellActive)
-        {
-            LaserWay = 48;
-        }
-
-        // --- 設定パラメータ ---
-        int laserCount = Mathf.Max(1, LaserWay);
-        float radius = 1.6f;             // 弾源の半径
-        int stopFrame = 40;              // 回転が止まり始めるフレーム
-        int warningFrame = stopFrame + 60; // 完全に止まってから実線化するまでの「タメ」
-
-        // ★ 回転方向をランダムに決定
-        float rotDir = (Random.value < 0.5f) ? 1.0f : -1.0f;
-        float initialRotSpeed = 5.0f * rotDir;
-
-        // ★ 追加：回転中にかける「ズレ」の総量
-        float totalDriftAngle = 30f * rotDir;
-        float driftVelocity = totalDriftAngle / stopFrame;
-
-        // ★ 修正：停止位置（目標角度）をランダムに決定
-        float targetAngle = Random.Range(0f, 360f);
-
-        // 停止位置から逆算して、開始時のベース角度を求める
-        float estimatedRotation = 245f * rotDir;
-        float baseAngle = targetAngle - estimatedRotation;
-
-        BulletManager.LaserColor color = s.bulletData.laserColor;
-        var laserSet = BulletManager.Instance.GetLaserSet(color);
-
-        // =========================================================================
-        // ⚔️【最核心修正】：ループ突入前に、攻撃ランク＆憤怒・嫉妬バフの倍率を動的合算
-        // =========================================================================
-        int finalLaserDamage = s.bulletData.damage;
-        if (myStatus != null && myStatus.characterData != null)
-        {
-            float atkMultiplier = 1.0f;
-            switch (myStatus.characterData.rankAttack)
-            {
-                case StatusRank.E: atkMultiplier = 0.8f; break;
-                case StatusRank.D: atkMultiplier = 0.9f; break;
-                case StatusRank.C: atkMultiplier = 1.0f; break;
-                case StatusRank.B: atkMultiplier = 1.1f; break;
-                case StatusRank.A: atkMultiplier = 1.2f; break;
-                case StatusRank.EX: atkMultiplier = 1.3f; break;
-            }
-
-            // 🧬【憤怒パッシブ】：被弾時バフ（IsAttackBoostActive）が有効なら1.3倍を直撃乗算！
-            if (myStatus.IsAttackBoostActive)
-            {
-                atkMultiplier *= 1.3f;
-            }
-            // 👁️【嫉妬パッシブ】：相手のゲージ量に応じた倍率を同期乗算
-            atkMultiplier *= myStatus.GetJealousyMultiplier();
-
-            finalLaserDamage = Mathf.RoundToInt(finalLaserDamage * atkMultiplier);
-        }
-
-        for (int i = 0; i < laserCount; i++)
-        {
-            GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, transform.position, Quaternion.identity);
-            EnemyLaserBeam laser = laserObj.GetComponent<EnemyLaserBeam>();
-
-            if (laser != null)
-            {
-                spawnedLasers.Add(laser);
-
-                // 💡 修正：s.bulletData.damage の生データではなく、バフ計算を終えた finalLaserDamage をインジェクション！
-                laser.SetupB(_rootOwner, targetTag, finalLaserDamage,
-                             transform.position.x, transform.position.y,
-                             s.count, s.wideAngle, color, warningFrame,
-                             BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
-
-                float currentStartAngle = baseAngle + (360f / laserCount * i);
-
-                // 初期オフセット（120度は渦を巻くような大きな曲がり）
-                float aimOffset = 120f * rotDir;
-                float initialLaserAngle = currentStartAngle + aimOffset;
-
-                // データ1：回転開始
-                laser.AddData(new EnemyLaserBeam.LaserTransformData
-                {
-                    frame = 0,
-                    dist = radius,                // 半径分離す
-                    distAngle = currentStartAngle, // 弾源の公転角
-                    laserAngle = initialLaserAngle, // レーザー自体の向き（曲げる）
-                    distAngleVel = initialRotSpeed,
-                    laserAngleVel = initialRotSpeed + driftVelocity, // 徐々にズレるように自転速度を微調整
-                    isSmooth = true
-                });
-
-                // データ2：停止
-                laser.AddData(new EnemyLaserBeam.LaserTransformData
-                {
-                    frame = stopFrame,
-                    distAngleVel = 0f,
-                    laserAngleVel = 0f,
-                    isSmooth = true
-                });
-
-                laser.Fire();
-            }
-        }
-
-        // 照射終了まで待機
-        yield return new WaitForSeconds((warningFrame / 60f) + s.speed);
-
-        // 全て消去
-        foreach (var laser in spawnedLasers)
-        {
-            if (laser != null) laser.ForceClose();
-        }
-
-        _activeSkillCoroutines--;
-    }
-    private bool _isRoundRotReversed = false; // ★ 追加：全方位弾の回転方向反転用フラグ
-    /// <summary>
-    /// 自機外し全方位弾を、射角を回転させ、段階的に弾速を上げながら連射する
-    /// 1回使うごとに回転方向が交互に反転する
-    /// </summary>
-   // 📄 PlayerDanmakuEmitter.cs 内の RotatingAccelRoundRoutine メソッド【領域展開・弾数4増量変調版】
-    private IEnumerator RotatingAccelRoundRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; // 実行中カウント（MP回復停止）
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>(); //
-        PlayerMove myMove = GetComponentInParent<PlayerMove>(); //
-        float addan = 12;
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
-
-        Vector3 pos = transform.position; //
-
-        // =========================================================================
-        // 🔮【新設：領域展開連動・4極アレイ拡張マトリクス】
-        // =========================================================================
-        // 💡 大元の所有者から現在の領域展開（スペルカード）ステートをチェック
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
-
-        // 💡 高橋さんの指定：領域展開中であればベースの数（s.count）から「4」を動的に加算！
-        int baseBulletCount = s.count;
-        if (isSpellActive)
-        {
-            baseBulletCount += 4;
-        }
-
-        // 1. 1波あたりの弾数を設定（偶数丸め処理）
-        int bulletCount = Mathf.Max(2, baseBulletCount); //
-        if (bulletCount % 2 != 0) bulletCount++; //
-
-        float step = 360f / bulletCount; //
-        float evenWayOffset = step / 2f; //
-
-        // 2. 連射設定と ★回転方向の交互反転ロジック
-        int waveLoops = 12; //
-        float currentSpeed = s.speed; // 初速（インスペクターのSpeed）
-
-        // ★ 現在の状態を取得し、フラグを反転させて次回に備える
-        bool currentRotReversed = _isRoundRotReversed; //
-        _isRoundRotReversed = !_isRoundRotReversed; //
-
-        // フラグに応じて回転方向を 1.0 または -1.0 にする
-        float rotDirection = currentRotReversed ? -1f : 1f; //
-        float angleIncrement = addan * rotDirection; // ★ 1波ごとの回転角の向きを決定
-
-        // 射撃開始時のターゲットへの基本角度を算出
-        float targetAngle = GetAngleToTarget(); //
-        float baseAngle = targetAngle + s.angleOffset + evenWayOffset; //
-
-        // 3. バースト連射ループ
-        for (int w = 0; w < waveLoops; w++)
-        {
-            // 被弾時やラウンド終了時の安全ガード
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break; //
-
-            PlaySkillSE(s.sePath); //
-
-            // 1波分（全方位）の弾を生成
-            for (int i = 0; i < bulletCount; i++)
-            {
-                // ベース角 + 全方位分割角 + wによる回転量を加算
-                float finalAngle = baseAngle + (step * i) + (angleIncrement * w); //
-
-                // 💡 すでに完成しているCreateShotインフラを通るため、
-                // 💡 4発増量された全弾の真ろに、混色ゼロの美しい白シルエット加算オーラが自動で溶接されます！
-                CreateShot(s.bulletData, pos, currentSpeed, finalAngle, s.delay); //
-            }
-
-            // 次の波の弾速を上げる（段階的加速）
-            currentSpeed += 0.5f; //
-
-            // 波と波の間の時間差（3フレーム待機）
-            for (int f = 0; f < 3; f++) //
-            {
-                yield return new WaitForFixedUpdate(); //
-            }
-        }
-
-        yield return new WaitForSeconds(s.cooldown);
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f; //
-        _activeSkillCoroutines--; //
-    }
-    // 📄 PlayerDanmakuEmitter.cs 内の強欲カウンター制御セクター【領域展開・性能4冠ブースト版】
-    private IEnumerator GreedTaxPossessionRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++; //
-
-        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>(); //
-        if (myMove != null && !_isEXSkillActive && s.moveSpeedMultiplier < 1.0f) //
-        {
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
-        }
-
-        PlaySkillSE(s.sePath); //
-
-        // 1. スキルデータに登録された「フィールドプレハブ」を生成
-        GameObject fieldObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity); //
-
-        // 2. 所属チームに応じたタグとレイヤーを生成の瞬間に割り当てる
-        var myStatus = GetComponentInParent<PlayerStatusManager>(); //
-        int ownerId = (myStatus != null) ? myStatus.playerId : 1; //
-
-        string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet"; //
-        int assignedLayer = LayerMask.NameToLayer((ownerId == 1) ? "Player1Bullet" : "Player2Bullet"); //
-
-        fieldObj.tag = assignedTag; //
-        fieldObj.layer = assignedLayer; //
-        SetLayerRecursive(fieldObj, assignedLayer); //
-
-        // 3. プレハブにあらかじめ付いている GreedTaxPossessionField コンポーネントを取得
-        GreedTaxPossessionField fieldLogic = fieldObj.GetComponent<GreedTaxPossessionField>(); //
-
-        if (fieldLogic != null)
-        {
-            // 💡 4. 領域展開中（スペルカードアクティブ）のフラグを上流インフラから安全に取得
-            bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
-
-            // 💡 5. 【高橋さんの指定】：通常値と領域展開中のパラメータを完全に仕分け
-            float targetDuration = 1.5f;     // 通常時の持続時間（秒）
-            float targetScaleMultiplier = 1f; // 通常時のスケール等倍
-            float targetKnifeSpeed = 6f;   // 通常時の反射カウンター弾速
-            float targetEnergyGain = 1.5f;   // 通常時の1発あたりゲージ回復量
-
-            if (isSpellActive)
-            {
-                // 🎯 領域展開中：性能4冠の一挙極大ブーストを執行！
-                targetDuration = 3.0f;        // ⏰ 持続時間を「3.0秒」へ延長（2倍）
-                targetScaleMultiplier = 1.3f; // 📐 フィールドの大きさを「1.8倍」へ巨大化
-                targetKnifeSpeed = 9.0f;      // ⚡ 反射カウンター弾速を「7.0f」へ高速化
-                targetEnergyGain = 0f;      // 🪙 ゲージ回復量を「3.0f」へ倍増
-                Debug.Log($"<color=orange>🪙【領域展開・強欲の重税】魔方陣フィールド強化：Duration:{targetDuration}s, Scale:{targetScaleMultiplier}x, KnifeSpeed:{targetKnifeSpeed}, EnergyGain:{targetEnergyGain}</color>");
-            }
-
-            // 💡 6. 拡張された窓口へ変調パラメータを安全にインジェクション！
-            fieldLogic.Initialize(transform, _rootOwner, targetTag, this, targetDuration, targetScaleMultiplier, targetKnifeSpeed, targetEnergyGain);
-
-            // 💡 7. 【タイムライン完全同期】：フィールドの稼働時間（持続秒数 ＋ 拡縮演出0.2秒）に正確に一致させてEmitter側も待機！
-            yield return new WaitForSeconds(targetDuration + 0.2f);
-        }
-        else
-        {
-            Debug.LogError("フィールド用プレハブに GreedTaxPossessionField が付いていません！"); //
-            yield return new WaitForSeconds(1.5f + 0.2f);
-        }
-
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f; //
-        _activeSkillCoroutines--; //
-    }
-
+    
+   
 
 
     /// <summary>
@@ -1912,761 +1353,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
 
     }
-    /// <summary>
-    /// 🌟【領域展開専用】：トリプル一閃（中央1本：通常完全同調・自機狙い確定版）
-    /// 💡【数理修復】：子スレッドへ渡すオフセット配列と、軌道回転行列の結合バグを完全根治しました。
-    /// </summary>
-    private IEnumerator ExecuteKarinTripleScalesSlashRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
+    
 
-        // 1. 現在の自機の位置から敵機を見据えた、絶対的な基準ターゲット角度を取得
-        float absoluteCenterAngle = GetAngleToTarget(transform.position);
 
-        // 🎯 ターゲット正面を中心に、指定のオフセットで扇形に展開する3連撃配列
-        // 💡 1本目（i=0）➔ 敵機のど真ん中（0度）
-        // 💡 2本目（i=1）➔ 敵機の右上（+120度）
-        // 💡 3本目（i=2）➔ 敵機の左下（-120度）
-        float[] tripleOffsets = new float[] { 0f, 45f, -45f };
-
-        // 3連コンボ開始時の往復フラグをローカルにロック
-        bool comboBaseDirection = _isArcReversed;
-        _isArcReversed = !_isArcReversed;
-
-        for (int i = 0; i < tripleOffsets.Length; i++)
-        {
-            if (!PlayerMove.CanShoot) break;
-
-            // 💡 基準となる自機狙い軸から、オフセット分綺麗に変調をかけた絶対ターゲット角度を算出！
-            float customAngle = absoluteCenterAngle + tripleOffsets[i];
-
-            PlaySkillSE(s.sePath);
-
-            // 💡 散らした角度（customAngle）をサブルーチンへ確実にパッシングして射出
-            StartCoroutine(ExecuteSingleScalesSlashTrack(s, customAngle, comboBaseDirection));
-
-            // 🎯 ご指定の「3フレームの時間差ディレイ」を正確にホールド
-            for (int f = 0; f < 3; f++)
-            {
-                yield return new WaitForFixedUpdate();
-            }
-        }
-
-        yield return new WaitForSeconds(s.cooldown);
-        _activeSkillCoroutines--;
-    }
-
-    /// <summary>
-    /// トリプル展開用：指定された絶対角度に向けて「1wayしの字」の軌跡を1本走らせるサブルーチン（角度完全適合版）
-    /// </summary>
-    private IEnumerator ExecuteSingleScalesSlashTrack(PlayerSkillData.SkillSettings s, float targetAngle, bool forcedReverse)
-    {
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-
-        float startAngleFromTangent = 27f;
-        float totalRotationAmount = 3;
-
-        float baseRadiusX = 2.0f;
-        float baseRadiusY = 0.8f;
-
-        // 親から引き継いだ往復極性をカプセル化
-        bool currentDirectionReversed = forcedReverse;
-
-        float startLocalAngle = currentDirectionReversed ? 152f : -152f;
-        float localAngleStep = currentDirectionReversed ? -18f : 18f;
-
-        // =========================================================================
-        // 🌟【大修復】：親から受け取った引数 `targetAngle` を回転行列のベースに直撃結合！
-        // =========================================================================
-        // 💡 理由：GetAngleToTarget をここで再計算してしまうと、オフセットが0度に戻ってしまいます。
-        //          引き渡された targetAngle をラジアン化することで、指定方向に綺麗な扇形として直交展開されます。
-        float baseRad = targetAngle * Mathf.Deg2Rad;
-        float cosRot = Mathf.Cos(baseRad);
-        float sinRot = Mathf.Sin(baseRad);
-
-        int totalStepsCount = 11;
-
-        // 1発目のローカル接線の先読み計算
-        float f_localAngRad = startLocalAngle * Mathf.Deg2Rad;
-        float f_localX = Mathf.Cos(f_localAngRad) * baseRadiusX * 1.3f;
-        float f_localY = Mathf.Sin(f_localAngRad) * baseRadiusY * 1.3f;
-        Vector3 firstSpawnPos = transform.position + new Vector3(f_localX * cosRot - f_localY * sinRot, f_localX * sinRot + f_localY * cosRot, 0);
-
-        float f_nextLocalAngRad = (startLocalAngle + (localAngleStep * 0.01f)) * Mathf.Deg2Rad;
-        float f_nextLocalX = Mathf.Cos(f_nextLocalAngRad) * baseRadiusX * Mathf.Lerp(1.3f, 0.6f, 0.01f / (totalStepsCount - 1));
-        float f_nextLocalY = Mathf.Sin(f_nextLocalAngRad) * baseRadiusY * Mathf.Lerp(1.3f, 0.6f, 0.01f / (totalStepsCount - 1));
-        Vector3 firstNextSpawnPos = transform.position + new Vector3(f_nextLocalX * cosRot - f_nextLocalY * sinRot, f_nextLocalX * sinRot + f_nextLocalY * cosRot, 0);
-
-        // 初期接線方向ベクトルをロック
-        Vector3 firstTangentDir = firstNextSpawnPos - firstSpawnPos;
-        float lockedInitialTangentAngle = Mathf.Atan2(firstTangentDir.y, firstTangentDir.x) * Mathf.Rad2Deg;
-
-        // 「しの字」一閃ラインの生成ループ
-        for (int step = 0; step < totalStepsCount; step++)
-        {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
-                break;
-
-            float t = (float)step / (totalStepsCount - 1);
-            float localAngle = startLocalAngle + (localAngleStep * step);
-            float radiusModifier = Mathf.Lerp(1.3f, 0.6f, t);
-
-            float localAngleRad = localAngle * Mathf.Deg2Rad;
-            float localX = Mathf.Cos(localAngleRad) * baseRadiusX * radiusModifier;
-            float localY = Mathf.Sin(localAngleRad) * baseRadiusY * radiusModifier;
-
-            // 歪みのない直交行列により、指定角度（targetAngle）の空間へ完全に変換！
-            Vector3 worldOffset = new Vector3(localX * cosRot - localY * sinRot, localX * sinRot + localY * cosRot, 0);
-            Vector3 spawnPos = transform.position + worldOffset;
-
-            float rotationSign = currentDirectionReversed ? -1f : 1f;
-            float baseStartAngle = lockedInitialTangentAngle + (startAngleFromTangent * rotationSign);
-            float currentMoveAngle = baseStartAngle + (totalRotationAmount * t * rotationSign);
-
-            // 💡 弾自体の進行方向角度（finalBulletAngle）も、s.angleOffset を乗算ブレンドして美しく同期
-            float finalBulletAngle = currentMoveAngle + s.angleOffset;
-
-            // 高速弾・低速残響弾のツインブレードレイヤー射出
-            int layerCount = 2;
-            for (int l = 0; l < layerCount; l++)
-            {
-                float speedPercent = Mathf.Lerp(1.1f, 0.8f, (float)l / (layerCount - 1));
-                float randomizedSpeed = s.speed * speedPercent;
-                randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
-
-                // 鋭い「1way」として完璧なアライメントで射出！
-                CreateShot(s.bulletData, spawnPos, randomizedSpeed, finalBulletAngle, s.delay);
-            }
-
-            yield return new WaitForFixedUpdate();
-        }
-    }
-    /// <summary>
-    /// 🐉 カリン専用Z：「しの字」アークの【最も盛り上がっている部分】が完璧に敵機正面を捉える完全対称化アルゴリズム
-    /// 🌟 【仕様確定版】：2連装速度差（高速・低速ペア）にスリム化し、キレのある二連斬撃を表現。
-    /// </summary>
-    private IEnumerator ExecuteKarinScalesSlashRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-
-        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-
-        float startAngleFromTangent = 27f;
-        float totalRotationAmount = 3;
-
-        float baseRadiusX = 2.0f;
-        float baseRadiusY = 0.8f;
-
-        bool currentDirectionReversed = _isArcReversed;
-        _isArcReversed = !_isArcReversed;
-
-        float startLocalAngle = currentDirectionReversed ? 152f : -152f;
-        float localAngleStep = currentDirectionReversed ? -18f : 18f;
-
-        float absoluteCenterAngle = GetAngleToTarget(transform.position);
-        float baseRad = absoluteCenterAngle * Mathf.Deg2Rad;
-        float cosRot = Mathf.Cos(baseRad);
-        float sinRot = Mathf.Sin(baseRad);
-
-        int totalStepsCount = 11;
-
-        // 1発目の接線角度（ベースの向き）をローカル座標から先読みしてロック
-        float f_t = 0f;
-        float f_radiusMod = Mathf.Lerp(1.3f, 0.6f, f_t);
-        float f_localAngRad = startLocalAngle * Mathf.Deg2Rad;
-
-        float f_localX = Mathf.Cos(f_localAngRad) * baseRadiusX * f_radiusMod;
-        float f_localY = Mathf.Sin(f_localAngRad) * baseRadiusY * f_radiusMod;
-
-        Vector3 firstSpawnPos = transform.position + new Vector3(
-            f_localX * cosRot - f_localY * sinRot,
-            f_localX * sinRot + f_localY * cosRot,
-            0
-        );
-
-        float f_nextLocalAngRad = (startLocalAngle + (localAngleStep * 0.01f)) * Mathf.Deg2Rad;
-        float f_nextRadiusMod = Mathf.Lerp(1.3f, 0.6f, 0.01f / (totalStepsCount - 1));
-        float f_nextLocalX = Mathf.Cos(f_nextLocalAngRad) * baseRadiusX * f_nextRadiusMod;
-        float f_nextLocalY = Mathf.Sin(f_nextLocalAngRad) * baseRadiusY * f_nextRadiusMod;
-        Vector3 firstNextSpawnPos = transform.position + new Vector3(
-            f_nextLocalX * cosRot - f_nextLocalY * sinRot,
-            f_nextLocalX * sinRot + f_nextLocalY * cosRot,
-            0
-        );
-
-        Vector3 firstTangentDir = firstNextSpawnPos - firstSpawnPos;
-        float lockedInitialTangentAngle = Mathf.Atan2(firstTangentDir.y, firstTangentDir.x) * Mathf.Rad2Deg;
-
-        PlaySkillSE(s.sePath);
-
-        // 🔄 頂点完全固定・双方向往復「しの字」連射ループ
-        for (int step = 0; step < totalStepsCount; step++)
-        {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
-                break;
-
-            float t = (float)step / (totalStepsCount - 1);
-            float localAngle = startLocalAngle + (localAngleStep * step);
-            float radiusModifier = Mathf.Lerp(1.3f, 0.6f, t);
-
-            float localAngleRad = localAngle * Mathf.Deg2Rad;
-            float localX = Mathf.Cos(localAngleRad) * baseRadiusX * radiusModifier;
-            float localY = Mathf.Sin(localAngleRad) * baseRadiusY * radiusModifier;
-
-            Vector3 worldOffset = new Vector3(
-                localX * cosRot - localY * sinRot,
-                localX * sinRot + localY * cosRot,
-                0
-            );
-            Vector3 spawnPos = transform.position + worldOffset;
-
-            float rotationSign = currentDirectionReversed ? -1f : 1f;
-            float baseStartAngle = lockedInitialTangentAngle + (startAngleFromTangent * rotationSign);
-            float currentMoveAngle = baseStartAngle + (totalRotationAmount * t * rotationSign);
-            float finalBulletAngle = currentMoveAngle + s.angleOffset;
-
-            // =========================================================================
-            // 🔮【核心機能】：領域展開連動型・ポリモーフィック多段射出システム
-            // =========================================================================
-            int layerCount = 2; // 高速・低速ペア
-            for (int l = 0; l < layerCount; l++)
-            {
-                float speedPercent = Mathf.Lerp(1.1f, 0.9f, (float)l / (layerCount - 1));
-                float randomizedSpeed = s.speed * speedPercent;
-                randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
-
-                // 💡 s.count が 3 以上の時は、1発の直進ではなく、その座標から広がる扇形（3way）をオート展開！
-                if (s.count >= 3)
-                {
-                    float wayAngle = s.wideAngle / (s.count - 1);
-                    float startWayAngle = finalBulletAngle - (s.wideAngle / 2f);
-
-                    for (int wCount = 0; wCount < s.count; wCount++)
-                    {
-                        float final3WayAngle = startWayAngle + (wayAngle * wCount);
-                        CreateShot(s.bulletData, spawnPos, randomizedSpeed, final3WayAngle, s.delay);
-                    }
-                }
-                else
-                {
-                    // 💡 通常時（1way）は、従来通りの完璧な1対のペアブレードをストレート射出
-                    CreateShot(s.bulletData, spawnPos, randomizedSpeed, finalBulletAngle, s.delay);
-                }
-            }
-
-            yield return new WaitForFixedUpdate();
-        }
-
-        yield return new WaitForSeconds(s.cooldown);
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-    }
-    /// <summary>
-    /// ⚔️ カリン専用X：空間一閃・自機外し双極ブレード
-    /// 🌟 【領域展開・4wayクアッド変調適合版】：
-    /// 🌟 通常時はターゲットを見据えたキレのある2way（左右30度開くツインブレード）。
-    /// 🌟 領域展開（スペルカード）中はs.countをインフラ層から検知するか、内部フラグを自動ブレンド。
-    /// 🌟 ターゲットの逃げ道を100%遮断する「4way大爆風扇形一閃（左右15度・45度）」へと動的にポリモーフィック進化します！
-    /// </summary>
-    private IEnumerator ExecuteKarinCrossSlashRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-
-        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-
-        // -------------------------------------------------------------------------
-        // 🔮 一直線ラインの空間パラメータ設計
-        // -------------------------------------------------------------------------
-        float lineLengthY = 4.0f; // 剣跡の上下の長さ
-        int totalStepsCount = 12; // 剣跡を構成する弾源の密度
-
-        // 🌟【交互反転制御】：使うたびに真偽値が入れ替わります
-        bool currentDirectionReversed = _isXLineReversed;
-        _isXLineReversed = !_isXLineReversed;
-
-        // 💡【往復生成の調停】
-        // 奇数回目（false）：下から上へ走るライン
-        // 偶数回目（true） ：上から下へ走るライン
-        float startLocalY = currentDirectionReversed ? lineLengthY : -lineLengthY;
-        float endLocalY = currentDirectionReversed ? -lineLengthY : lineLengthY;
-
-        // 自機から見た敵機の絶対ターゲット角度を基準軸としてキャプチャ
-        float absoluteCenterAngle = GetAngleToTarget(transform.position);
-        float baseRad = absoluteCenterAngle * Mathf.Deg2Rad;
-        float cosRot = Mathf.Cos(baseRad);
-        float sinRot = Mathf.Sin(baseRad);
-
-        PlaySkillSE(s.sePath);
-
-        // 💡 領域展開中（スペルカードアクティブ）のフラグを動的チェック
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
-
-        // 🔄 一閃ライン連射ループ（空間を縦に引き裂くスピード感）
-        for (int step = 0; step < totalStepsCount; step++)
-        {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
-                break;
-
-            float t = (float)step / (totalStepsCount - 1);
-
-            // 💡 ターゲットとの直線に対して「垂直な一直線」上の座標を計算
-            float localX = 1.0f; // 自機から少し前方に離れた位置に一閃のラインを生成
-            float localY = Mathf.Lerp(startLocalY, endLocalY, t);
-
-            // 🌟【2D回転行列】：敵機の絶対角度に合わせてワールド座標へ展開
-            Vector3 worldOffset = new Vector3(
-                localX * cosRot - localY * sinRot,
-                localX * sinRot + localY * cosRot,
-                0
-            );
-            Vector3 spawnPos = transform.position + worldOffset;
-
-            // 各弾源（spawnPos）から見た「敵機へのリアルタイム角度」の抽出
-            float angleToEnemyFromSpawnPoint = GetAngleToTarget(spawnPos);
-
-            // 🌟 多段速度差（ツインブレード仕様）の射出
-            int layerCount = 2;
-            for (int i = 0; i < layerCount; i++)
-            {
-                float speedPercent = Mathf.Lerp(1.2f, 0.9f, (float)i / (layerCount - 1));
-                float randomizedSpeed = s.speed * speedPercent;
-                randomizedSpeed = Mathf.Max(1.0f, randomizedSpeed);
-
-                // =========================================================================
-                // 🔮【領域変調】：2way ➔ 4way 動的分岐調停システム
-                // =========================================================================
-                if (isSpellActive)
-                {
-                    // 🎯【領域展開中：豪華4way（クアッドブレード）】
-                    // 💡 ターゲットの正面（0度）を中心に、均等に広がる美しい4wayの扇形（例：計90度幅、30度ステップ）
-                    // 💡 具体角：-45度、-15度、+15度、+45度 の4方向に美しく一斉射出！
-                    float wideAngleTotal = 80f;
-                    float stepAngle = wideAngleTotal / (4 - 1); // 30度ずつ
-                    float startWayAngle = angleToEnemyFromSpawnPoint - (wideAngleTotal / 2f) + s.angleOffset;
-
-                    for (int w = 0; w < 4; w++)
-                    {
-                        float final4WayAngle = startWayAngle + (stepAngle * w);
-                        CreateShot(s.bulletData, spawnPos, randomizedSpeed, final4WayAngle, s.delay);
-                    }
-                }
-                else
-                {
-                    // 🎯【通常時：キレのある自機外し2way】
-                    float fanSize = 60f;
-                    float halfFan = fanSize / 2f;
-
-                    float leftWayAngle = angleToEnemyFromSpawnPoint + halfFan + s.angleOffset;
-                    float rightWayAngle = angleToEnemyFromSpawnPoint - halfFan + s.angleOffset;
-
-                    // 各弾源から敵を見据えて、左右30度ルートへ射出
-                    CreateShot(s.bulletData, spawnPos, randomizedSpeed, leftWayAngle, s.delay);
-                    CreateShot(s.bulletData, spawnPos, randomizedSpeed, rightWayAngle, s.delay);
-                }
-            }
-
-            yield return new WaitForFixedUpdate();
-        }
-        yield return new WaitForSeconds(s.cooldown);
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-    }
-
-    /// <summary>
-    /// EX/超必殺の共通インフラ（器）
-    /// 🌟【通常5本・領域15本完全分離調停版】：
-    /// 🌟 通常時はインスペクターの設定をそのまま活かした「正統な5本」を流下。
-    /// 🌟 領域展開中のみ、ベース11本＋上下拡張4本＝「極大15本」へと上流で鮮やかにオーバーライドします。
-    /// </summary>
-    private IEnumerator ExecuteEXInfrastructureRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-
-        if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
-        PlaySkillSE(s.sePath);
-
-        try
-        {
-            PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-            bool isZoneActive = (myStatus != null && myStatus.isSpellCardActive);
-
-            // =========================================================================
-            // 🔮【EXインフラ変調レイヤー】：通常時と領域中の本数を完全に独立制御
-            // =========================================================================
-            PlayerSkillData.SkillSettings enhancedEXSettings = s;
-
-            if (enhancedEXSettings.patternType == SkillPatternType.RotatingAccelRound)
-            {
-                if (isZoneActive)
-                {
-                    // 🎯 領域展開中：ベース11本 ＋ 上下外側拡張4本 ＝ 【15本】
-                    enhancedEXSettings.count = 15;
-                    Debug.Log("<color=gold>🔮【領域展開・極大空間破砕】カリン究極EX：全画面飽和15本バーストへ！</color>");
-                }
-                else
-                {
-                    // 🎯 通常時：インスペクターに設定された元の数（5本）をピュアに維持！
-                    // 💡 もしデータが0の場合は安全のためデフォルトの「5本」を代入します
-                    enhancedEXSettings.count = (s.count <= 0) ? 5 : s.count;
-                    Debug.Log($"<color=cyan>⚔️【通常EX・正統回帰】カリン究極EX：元のスマートな【{enhancedEXSettings.count}本】へデータを調停。</color>");
-                }
-                s = enhancedEXSettings;
-            }
-            else if (isZoneActive)
-            {
-                enhancedEXSettings.speed = s.speed * 1.3f;
-                s = enhancedEXSettings;
-            }
-
-            switch (s.patternType)
-            {
-                case SkillPatternType.Custom:
-                    yield return StartCoroutine(CharA_SealOrbEXPattern(s, myHH, isZoneActive));
-                    break;
-                case SkillPatternType.Line:
-                case SkillPatternType.GreedTaxPossession:
-                    //yield return StartCoroutine(CharB_KnifeEXPattern(s, myHH, isZoneActive));
-                    yield return StartCoroutine(ExecuteSyaruBackFormationSlashEXRoutine(s));
-                    break;
-                case SkillPatternType.Standard:
-                    yield return StartCoroutine(CharA_SealOrbEXPattern(s, myHH, isZoneActive));
-                    break;
-                case SkillPatternType.RotatingAccelRound:
-                    yield return StartCoroutine(ExecuteKarinKokuZessenEXRoutine(s));
-                    break;
-                default:
-                    Debug.LogWarning($"[FireEX] 未実装のEXパターンタイプです: {s.patternType}");
-                    break;
-            }
-        }
-        finally
-        {
-            if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-            _activeSkillCoroutines--;
-        }
-    }
-
-    /// <summary>
-    /// 🐉 カリン専用究極EX：神速・虚空絶閃（全画面空間破砕アサルト）
-    /// 🌟 【自機追従・通常5本／領域15本両立決定版】：
-    /// 🌟 通常時（5本）は、お札の上下間隔を「2.0f」に維持し、カリンを中心に「-4.0f〜+4.0f」に美しく並べます。
-    /// 🌟 領域中（15本）は、間隔を「0.8f」へスリーム化し、開始位置を「-5.6f」へシフトさせて上下端まで完全圧殺。
-    /// 🌟 どちらのモードであっても、中央の斬撃ラインの軸はカリンの現在地に100%完璧に吸い付きます！
-    /// </summary>
-    private IEnumerator ExecuteKarinKokuZessenEXRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
-        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        _isEXSkillActive = true; // 🎯 共用フラグON
-        if (myMove == null || myStatus == null)
-        {
-            _activeSkillCoroutines--;
-            yield break;
-        }
-        // =========================================================================
-        // 🎯【ゲージ消費の完全執行】：
-        // 💡 シャウル側のタイムラインと同様に、カリン究極EXが正式にキックされた瞬間、
-        // 💡 アルカナゲージ残量を確実に「0%」へとリセットクランプします！
-        // =========================================================================
-        myMove.skillSpeedMultiplier = 0f;
-
-        // 🎯 1. ターゲットのリアルタイムな左右座標を精密に観測
-        float targetAngle = GetAngleToTarget(transform.position);
-        bool isEnemyOnRightSide = (targetAngle > -90f && targetAngle <= 90f);
-
-        float mySideScreenEdgeX = isEnemyOnRightSide ? -8.5f : 8.5f;
-        float enemySideScreenEdgeX = isEnemyOnRightSide ? 8.5f : -8.5f;
-        bool faceRight = isEnemyOnRightSide;
-
-        float startY = _rootOwner.transform.position.y;
-
-        // =========================================================================
-        // 💨 1. 敵機の【反対側の画面端】へ超高速バックステップ
-        // =========================================================================
-        Vector3 startPos = _rootOwner.transform.position;
-        Vector3 backStepTargetPos = new Vector3(mySideScreenEdgeX, startY, startPos.z);
-
-        float bsTimer = 0f;
-        float bsDuration = 0.15f;
-        while (bsTimer < bsDuration)
-        {
-            bsTimer += Time.fixedDeltaTime;
-            float elapsedPercent = bsTimer / bsDuration;
-            _rootOwner.transform.position = Vector3.Lerp(startPos, backStepTargetPos, elapsedPercent);
-            yield return new WaitForFixedUpdate();
-        }
-        _rootOwner.transform.position = backStepTargetPos;
-
-        // =========================================================================
-        // ⏳ 2. 抜刀の「タメ」演出
-        // =========================================================================
-        float chargeTime = 0.4f;
-        if (BossEffectManager.Instance != null)
-        {
-            BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, _rootOwner.transform.position);
-        }
-        yield return new WaitForSeconds(chargeTime);
-
-        Vector3 laserStartPos = _rootOwner.transform.position;
-
-        // =========================================================================
-        // ⚡ 3. 刹那一閃・敵陣の画面端まで超高速突撃
-        // =========================================================================
-        SEManager.Instance.Play(SEPath.SLASH, 0.5f);
-        Vector3 d_startPos = _rootOwner.transform.position;
-        Vector3 d_targetPos = new Vector3(enemySideScreenEdgeX, startY, startPos.z);
-
-        float dashTimer = 0f;
-        float dashDuration = 0.1f;
-        while (dashTimer < dashDuration)
-        {
-            dashTimer += Time.fixedDeltaTime;
-            float elapsedPercent = dashTimer / dashDuration;
-            _rootOwner.transform.position = Vector3.Lerp(d_startPos, d_targetPos, elapsedPercent);
-            yield return new WaitForFixedUpdate();
-        }
-        _rootOwner.transform.position = d_targetPos;
-
-        // 突撃移動の絶対距離（長さ）を正確に計算
-        float laserDistance = Vector3.Distance(laserStartPos, _rootOwner.transform.position);
-
-        // =========================================================================
-        // 🔮 4. 虚空砕裂：【通常5本／領域15本】上下カリン中心追従展開マトリクス
-        // =========================================================================
-        if (BulletManager.Instance != null)
-        {
-            BulletManager.LaserColor color = s.bulletData.laserColor;
-            var laserSet = BulletManager.Instance.GetLaserSet(color);
-
-            int totalLinesCount = Mathf.Max(2, s.count);
-            bool isEnhancedLines = (totalLinesCount >= 15);
-
-            // 🎯【幾何学アライメントの完全調停】：
-            // 💡 通常時（5本）➔ 間隔は広めの「2.0f」。カリンの位置から上下に2本分（-4.0f）スライドして開始。
-            // 💡 領域中（15本）➔ 間隔は超密の「0.8f」。カリンの位置から上下に7本分（-5.6f）スライドして、画面外まで圧殺。
-            float offsetStep = isEnhancedLines ? 1.2f : 1.8f;
-
-            // 🎯【中心軸の絶対カリン同期】：
-            // 通常時：i = 2 の時に currentYOffset がジャスト 0f になり、カリンの位置に完全一致！
-            // 領域中：i = 7 の時に currentYOffset がジャスト 0f になり、カリンの位置に完全一致！
-            float startYOffset = isEnhancedLines ? (-offsetStep * 7f) : (-offsetStep * 2f);
-
-            for (int i = 0; i < totalLinesCount; i++)
-            {
-                float currentYOffset = startYOffset + (offsetStep * i);
-                Vector3 finalLaserSpawnPos = new Vector3(laserStartPos.x, laserStartPos.y + currentYOffset, laserStartPos.z);
-
-                GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, finalLaserSpawnPos, Quaternion.identity);
-                EnemyLaserBeam zessenLaser = laserObj.GetComponent<EnemyLaserBeam>();
-
-                if (zessenLaser != null)
-                {
-                    // 重なり防止の時差タイマーグラデーション
-                    int dynamicDelay = isEnhancedLines ? (20 + (i * 1)) : 20;
-
-                    // =========================================================================
-                    // ⚔️【最核心修正】：究極EX斬撃レーザーへの攻撃ランク＆憤怒・嫉妬バフの動的結合
-                    // =========================================================================
-                    int finalLaserDamage = s.bulletData.damage; // ベース（一閃固有の2倍化）
-                    if (myStatus != null && myStatus.characterData != null)
-                    {
-                        float atkMultiplier = 1.0f;
-                        switch (myStatus.characterData.rankAttack)
-                        {
-                            case StatusRank.E: atkMultiplier = 0.8f; break;
-                            case StatusRank.D: atkMultiplier = 0.9f; break;
-                            case StatusRank.C: atkMultiplier = 1.0f; break;
-                            case StatusRank.B: atkMultiplier = 1.1f; break;
-                            case StatusRank.A: atkMultiplier = 1.2f; break;
-                            case StatusRank.EX: atkMultiplier = 1.3f; break;
-                        }
-
-                        // 🧬【憤怒パッシブ割り込み】：被弾時バフ（IsAttackBoostActive）が有効なら1.3倍を直撃乗算！
-                        if (myStatus.IsAttackBoostActive)
-                        {
-                            atkMultiplier *= 1.3f;
-                        }
-                        // 👁️【嫉妬パッシブ】：相手のゲージ量に応じた倍率を同期乗算
-                        atkMultiplier *= myStatus.GetJealousyMultiplier();
-
-                        finalLaserDamage = Mathf.RoundToInt(finalLaserDamage * atkMultiplier);
-                    }
-
-                    zessenLaser.SetupA(_rootOwner, targetTag, finalLaserDamage, // 💡計算済みの実数値を代入
-                                     finalLaserSpawnPos.x, finalLaserSpawnPos.y,
-                                     laserDistance, 0.5f,
-                                     color, dynamicDelay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
-                    SpriteRenderer laserSR = laserObj.GetComponentInChildren<SpriteRenderer>();
-                    bool isCustomSpriteAssigned = (s.bulletData.bulletSprite != null);
-
-                    if (laserSR != null && isCustomSpriteAssigned)
-                    {
-                        laserSR.sprite = s.bulletData.bulletSprite;
-                        if (s.bulletData.material != null) laserSR.material = s.bulletData.material;
-                    }
-
-                    float laserFacingAngle = faceRight ? 0f : 180f;
-                    zessenLaser.AddData(new EnemyLaserBeam.LaserTransformData { frame = 0, angle = laserFacingAngle });
-                    zessenLaser.Fire();
-
-                    if (isCustomSpriteAssigned)
-                    {
-                        foreach (Transform child in laserObj.transform)
-                        {
-                            if (child != null && (child.name.Contains("Root") || child.name.Contains("Effect") || child.name.Contains("Source")))
-                            {
-                                child.gameObject.SetActive(false);
-                            }
-                        }
-                    }
-
-                    float extendedDuration = s.speed + 1.0f;
-                    StartCoroutine(KeepInvertingLaserOffsetRoutine(laserObj, laserDistance, extendedDuration, faceRight));
-                    StartCoroutine(ForceCloseLaserAfterSeconds(zessenLaser, extendedDuration));
-                }
-
-                // 💡 通常時（5本）のみ、心地いいパラパラ感を残すために1フレームウェイトを適用
-                if (!isEnhancedLines)
-                {
-                    yield return null;
-                }
-            }
-        }
-
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-
-    }
-    /// <summary>
-    /// 💡 毎フレーム判定ボックスをお札のグラフィックスの芯へ完全に吸い付かせ、一体化させる調停ループ
-    /// </summary>
-    private IEnumerator KeepInvertingLaserOffsetRoutine(GameObject laserObj, float distance, float duration, bool faceRight)
-    {
-        float timer = 0f;
-        BoxCollider2D col = (laserObj != null) ? laserObj.GetComponent<BoxCollider2D>() : null;
-
-        while (timer < duration && laserObj != null && col != null)
-        {
-            yield return new WaitForFixedUpdate();
-
-            if (laserObj == null || col == null) yield break;
-
-            // 🎯【判定ズレの完全根治】：
-            // 右向き突撃（faceRight=true）の時は、お札画像が右に伸びるのに合わせて、判定コライダーもプラス（1f）方向へ。
-            // 左向き突撃（faceRight=false）の時は、お札画像が左に伸びるのに合わせて、判定コライダーもマイナス（-1f）方向へ。
-            // これにより、右へ一閃した時も左へ一閃した時も、完璧に画像の真上に判定が密着します！
-            float offsetSign = faceRight ? 1f : -1f;
-
-            col.size = new Vector2(0.6f, distance); // 当たり判定の適切な太さのクランプ
-            col.offset = new Vector2(0f, distance * 0.5f * offsetSign);
-
-            timer += Time.fixedDeltaTime;
-        }
-    }
-
-    private IEnumerator ForceCloseLaserAfterSeconds(EnemyLaserBeam laser, float duration)
-    {
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        yield return new WaitForSeconds(duration);
-        if (laser != null) laser.ForceClose();
-        _isEXSkillActive = false; // 🚨 個別フラグ
-        if (myStatus != null && myStatus.isSpellCardActive)
-        {
-            myStatus.DeactivateSpellCard(false);
-        }
-    }
-
-    // =========================================================================
-    // 🔮【新設・カリン／シャウル専用EX】：使い魔ビット魔方陣・アタッチメント召喚エンジン
-    // =========================================================================
-    /// <summary>
-    /// ⚔️ 新EXスキル：背後追従型・四連/六連魔方陣・使い魔ビット独立アサルト
-    /// 🌟 【領域展開・6個変調＆1.5倍振幅適合版】：
-    /// 🌟 通常時は4枚の魔方陣が背後を美しく2往復対称クロススライド。
-    /// 🌟 領域展開（スペルカードアクティブ）中は、自動で【6枚アレイ仕様】へとポリモーフィック進化！
-    /// 🌟 縦の敷設オフセットも6本仕様に自動拡張し、子弾ビットへ領域コンテキストを安全インジェクションします。
-    /// </summary>
-    public IEnumerator ExecuteSyaruBackFormationSlashEXRoutine(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
-        PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
-
-        // 🎯 術式発動の瞬間、自機の移動速度を確実に「30% (0.3f)」へクランプロック！
-        _isEXSkillActive = true;
-        if (myMove != null) myMove.skillSpeedMultiplier = 0.3f;
-
-        // 🎯 1. ターゲットの左右極性を精密測定
-        float targetAngle = GetAngleToTarget(transform.position);
-        bool isEnemyOnRightSide = (targetAngle > -90f && targetAngle <= 90f);
-
-        float shootAngle = isEnemyOnRightSide ? 0f : 180f;
-        float behindOffsetX = isEnemyOnRightSide ? -1.2f : 1.2f;
-
-        // 💡 領域展開中（スペルカードアクティブ）のステートを上流インフラから安全に取得
-        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        bool isZoneActive = (myStatus != null && myStatus.isSpellCardActive);
-
-        // =========================================================================
-        // 🎯【数理空間の動的ポリモーフィズム】：通常時4本 ➔ 領域展開中6本へのアレイ拡張
-        // =========================================================================
-        // 💡 領域展開中は、画面の上下限界をさらに制圧するために高度を「-2.5f 〜 +2.5f」の6本仕様マトリクスへ自動増設！
-        float[] formationYOffsets = isZoneActive
-            ? new float[] { -2.5f, -1.5f, -0.5f, 0.5f, 1.5f, 2.5f }
-            : new float[] { -1.5f, -0.5f, 0.5f, 1.5f };
-
-        // 💡 技の開幕演出の迫力を引き立てるSEを重奏
-        SEManager.Instance.Play(SEPath.SLASH, 0.3f);
-        SEManager.Instance.Play(SEPath.LASER7, 0.3f);
-
-        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
-
-        // =========================================================================
-        // 🔮【データ駆動実体化】：s.bulletData.bulletPrefab（共通魔方陣）を一斉召喚！
-        // =========================================================================
-        for (int i = 0; i < formationYOffsets.Length; i++)
-        {
-            Vector3 spawnPos = transform.position + new Vector3(behindOffsetX, formationYOffsets[i], 0f);
-
-            GameObject portalBitObj = Instantiate(s.bulletData.bulletPrefab, spawnPos, Quaternion.identity);
-
-            string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
-            string assignedLayer = (ownerId == 1) ? "Player1Bullet" : "Player2Bullet";
-
-            portalBitObj.tag = assignedTag;
-            portalBitObj.layer = LayerMask.NameToLayer(assignedLayer);
-            SetLayerRecursive(portalBitObj, LayerMask.NameToLayer(assignedLayer));
-
-            PortalBitObject bitLogic = portalBitObj.GetComponent<PortalBitObject>();
-            if (bitLogic == null) bitLogic = portalBitObj.AddComponent<PortalBitObject>();
-
-            // 💡 連射持続時間は2.5秒を維持ホールド
-            bitLogic.Initialize(transform, s, behindOffsetX, formationYOffsets[i], shootAngle, 2.5f, 4, this);
-        }
-
-        // =========================================================================
-        // ⏳ タイムライン完全同期ホールド（2.9秒）
-        // =========================================================================
-        yield return new WaitForSeconds(2.9f);
-
-        _isEXSkillActive = false;
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-
-        if (myStatus != null && myStatus.isSpellCardActive)
-        {
-            myStatus.DeactivateSpellCard(false);
-        }
-
-    }
     /// <summary>
     /// 🎯【新設】：PortalBitObjectが毎フレーム自機の最新ターゲット角度を逆算抽出するためのインフラブリッジ関数
     /// </summary>
@@ -3002,7 +1691,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             this.bulletLogic = logic;
         }
     }
-    private void PlaySkillSE(string path)
+    protected void PlaySkillSE(string path)
     {
         string clip = string.IsNullOrEmpty(path) ? SEPath.SHOT1 : path;
         if (SEManager.Instance != null)

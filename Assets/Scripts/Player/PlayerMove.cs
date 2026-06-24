@@ -54,7 +54,8 @@ public class PlayerMove : MonoBehaviour
     private float deathBombTimer = 0f;
     public bool IsInvincible => invincibleTimer > 0;
     public bool IsInDeathBombWindow => deathBombTimer > 0;
-
+    private Vector2 _currentVelocity = Vector2.zero;
+    private Rigidbody2D _rb2d;
     private SpriteRenderer sr;
 
     [Header("🌀 External Field Forces")]

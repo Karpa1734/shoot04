@@ -9873,8 +9873,9 @@ GameObject:
   - component: {fileID: 695556688}
   - component: {fileID: 695556691}
   - component: {fileID: 695556692}
-  - component: {fileID: 695556693}
   - component: {fileID: 695556694}
+  - component: {fileID: 695556695}
+  - component: {fileID: 695556696}
   m_Layer: 10
   m_Name: Player1
   m_TagString: Player
@@ -10070,7 +10071,7 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move
@@ -10126,7 +10127,7 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  _disableEXAndVJTForDemo: 0
+  _disableEXAndVJTForDemo: 1
 --- !u!114 &695556690
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10196,19 +10197,6 @@ MonoBehaviour:
   timerEX: 0
   energyGauge: {fileID: 2129134893}
   ultimateGaugeUI: {fileID: 1391820327}
---- !u!114 &695556693
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 695556674}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d8bbb49ea7618a45a63afabaa5c4e00, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetTag: Player
 --- !u!114 &695556694
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10222,7 +10210,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
-  characterData: {fileID: 11400000, guid: 013120d934672b840bd9753912e4003d, type: 2}
+  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
   allCharacterDataDatabase:
   - {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
   - {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
@@ -10270,6 +10258,32 @@ MonoBehaviour:
   originalColliderScale: {x: 1, y: 1, z: 1}
   jealousyFogPrefab: {fileID: 5171544187879475593, guid: a1aeb04ef9170c44e992061c4bfc765d, type: 3}
   debugStatusText: {fileID: 639948842}
+--- !u!114 &695556695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 695556674}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5315ac3c537bdc498293d53fcbc430a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetTag: Player
+--- !u!114 &695556696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 695556674}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fcd78c5176e2b44484505311c8e5080, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetTag: Player
 --- !u!1 &695956131
 GameObject:
   m_ObjectHideFlags: 0
@@ -28311,8 +28325,9 @@ GameObject:
   - component: {fileID: 1872656866}
   - component: {fileID: 1872656865}
   - component: {fileID: 1872656864}
-  - component: {fileID: 1872656863}
   - component: {fileID: 1872656874}
+  - component: {fileID: 1872656875}
+  - component: {fileID: 1872656876}
   m_Layer: 11
   m_Name: Player2
   m_TagString: Player
@@ -28320,19 +28335,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1872656863
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1872656862}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d8bbb49ea7618a45a63afabaa5c4e00, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetTag: Player
 --- !u!114 &1872656864
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28406,7 +28408,7 @@ MonoBehaviour:
   opponent: {fileID: 695556676}
   playerID: 2
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move
@@ -28462,7 +28464,7 @@ MonoBehaviour:
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  _disableEXAndVJTForDemo: 0
+  _disableEXAndVJTForDemo: 1
 --- !u!114 &1872656868
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28708,6 +28710,32 @@ MonoBehaviour:
   originalColliderScale: {x: 1, y: 1, z: 1}
   jealousyFogPrefab: {fileID: 5171544187879475593, guid: a1aeb04ef9170c44e992061c4bfc765d, type: 3}
   debugStatusText: {fileID: 820645625}
+--- !u!114 &1872656875
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1872656862}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5315ac3c537bdc498293d53fcbc430a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetTag: Player
+--- !u!114 &1872656876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1872656862}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8fcd78c5176e2b44484505311c8e5080, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetTag: Player
 --- !u!1 &1873084081
 GameObject:
   m_ObjectHideFlags: 0

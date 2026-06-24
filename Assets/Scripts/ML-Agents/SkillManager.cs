@@ -84,11 +84,31 @@ public class SkillManager : MonoBehaviour
         if (playerMove == null || skillData == null || statusManager == null) return;
 
         // =========================================================================
-        // 🎯【リファクタリング】：直感的な「秒数指定型」マナ自動回復ディレイ制御
+        // 🎯【目覚めているEmitterの動的リアルタイムキャッチインフラ】
+        // =========================================================================
+        // 💡 修正の核心：Start時のキャッシュに依存せず、現在 enabled = true になっている
+        //    本物の稼働中Emitter（WrathかGreed）をリアルタイムに正確に補足し直します！
+        PlayerDanmakuEmitter activeEmitter = null;
+        PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>();
+        foreach (var em in allEmitters)
+        {
+            if (em != null && em.enabled)
+            {
+                activeEmitter = em;
+                break;
+            }
+        }
+
+        // 念のためフォールバック
+        if (activeEmitter == null) activeEmitter = emitter;
+
+        // =========================================================================
+        // 🎯【マナ自動回復ディレイ制御セクター】
         // =========================================================================
         const float BASE_WAIT_SECONDS = 0.5f;
 
-        if (emitter.IsAnySkillActive)
+        // 🛠️ 修正：activeEmitter の状態を正確に見るように変更
+        if (activeEmitter != null && activeEmitter.IsAnySkillActive)
         {
             float passiveDelayRate = 1.0f;
             if (statusManager != null && statusManager.HasPassiveSkill(PassiveSkillType.GreedReduction))
@@ -98,15 +118,15 @@ public class SkillManager : MonoBehaviour
 
             if (statusManager.isSpellCardActive)
             {
-                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 0.5f) * passiveDelayRate; // ⚡ 領域展開中 + パッシブ
+                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 0.5f) * passiveDelayRate;
             }
             else if (statusManager.isOverheated)
             {
-                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 2.0f) * passiveDelayRate; // 🚨 焼き切れ中 + パッシブ
+                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 2.0f) * passiveDelayRate;
             }
             else
             {
-                _recoveryCooldownTimer = BASE_WAIT_SECONDS * passiveDelayRate; // 🟢 平常時 + パッシブ
+                _recoveryCooldownTimer = BASE_WAIT_SECONDS * passiveDelayRate;
             }
         }
         else
@@ -149,19 +169,14 @@ public class SkillManager : MonoBehaviour
                 regenMultiplier = 0f;
             }
 
-            if (regenMultiplier > 0f)
-            {
-                playerMove.currentEnergy = Mathf.Min(
-                    playerMove.maxEnergy,
-                    playerMove.currentEnergy + (playerMove.energyRegenRate * regenMultiplier * Time.deltaTime)
-                );
-            }
-
             if (statusManager != null && statusManager.IsSlothBoostActive())
             {
                 regenMultiplier *= 1.5f;
             }
 
+            // ❌ 以前ここに居座っていた、1度目の playerMove.currentEnergy 加算処理（2重加算バグ）を完全に消去パージ！
+
+            // 💡 1フレームに1回だけ、正統なマナ自動回復量をクランプ加算します
             playerMove.currentEnergy = Mathf.Min(
                 playerMove.maxEnergy,
                 playerMove.currentEnergy + (playerMove.energyRegenRate * regenMultiplier * Time.deltaTime)

@@ -9,17 +9,17 @@ public enum SkillPatternType
     Standard, nWay, Round, Polygon, Line, Custom,
     MovingArc,
     RandomRound,
-    Boomerang,
-    DefensiveField,
-    ChainRandomAim,
-    RotatingAllWayLaser,
-    RotatingAccelRound,
-    GreedTaxPossession,
-    KarinScalesSlash,
-    KarinFireSlash,
+    Wrath_Skill_C,
+    Wrath_Skill_V,
+    Greed_Skill_Z,
+    Greed_Skill_C,
+    Greed_Skill_X,
+    Greed_Skill_V,
+    Wrath_Skill_Z,
+    Wrath_Skill_X,
     Saiki,
-    KunaiCage,
-    HeartRef
+    Lust_Skill_X,
+    Lust_Skill_C
 }
 
 public enum PassiveSkillType
