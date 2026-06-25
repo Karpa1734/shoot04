@@ -18,7 +18,7 @@ MonoBehaviour:
   rankAgility: 4
   rankMMPRegen: 2
   rankSpellZone: 4
-  characterName: Player3
+  characterName: Linghua
   imageColor: {r: 0, g: 1, b: 1, a: 1}
   spellCardName: "\u300C\u25B3\u25B3\u25B3\u25B3\u300D"
   spellCircleSprite: {fileID: 21300000, guid: ac6ca36c2293f6a448d41b3e2d30a114, type: 3}
@@ -40,14 +40,14 @@ MonoBehaviour:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
     patternType: 0
-    bulletData: {fileID: 11400000, guid: 260a096df65da004bbad4ed3d9d4223b, type: 2}
+    bulletData: {fileID: 11400000, guid: 9eed4d78a57b2d04eafdcb6483306633, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 2
-    sePath: 
-    count: 8
-    speed: 5
-    angleOffset: 53
-    wideAngle: 360
+    sePath: Laser2
+    count: 20
+    speed: 6
+    angleOffset: 0
+    wideAngle: 0
     moveSpeedMultiplier: 0.4
     delay: 2
     cost: 0
@@ -88,16 +88,16 @@ MonoBehaviour:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
     patternType: 13
-    bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
+    bulletData: {fileID: 11400000, guid: 5476c1af008d36944a73b7585b4e9a15, type: 2}
     trailBulletData: {fileID: 0}
-    cooldown: 12
+    cooldown: 2
     sePath: 
     count: 0
     speed: 4.5
     angleOffset: 0
     wideAngle: 0
     moveSpeedMultiplier: 0
-    delay: 0
+    delay: 1
     cost: 50
     ultimateGain: 5
   skillEX:

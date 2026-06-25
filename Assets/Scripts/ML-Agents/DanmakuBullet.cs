@@ -40,7 +40,12 @@ public class DanmakuBullet : MonoBehaviour
     private bool _hasSelfDestructTriggered = false;
 
     // =========================================================================
-    // 📊【移設・新設】：サイズごとのソーティングオーダー動的分配インフラカウンター
+    // 🧬【槍弾チャージ拡張】：槍専用の内部ワーク変数
+    // =========================================================================
+    private bool _isSpearChargeMode = false;
+
+    // =========================================================================
+    // 📊【上限閾値・完全修復】：小さい弾が最前面（15000～20000）を絶対死守！
     // =========================================================================
     private static int _smallOrderCounter = 15000;
     private static int _mediumOrderCounter = 10000;
@@ -52,7 +57,7 @@ public class DanmakuBullet : MonoBehaviour
         {
             case BulletSize.Small:
                 _smallOrderCounter++;
-                if (_smallOrderCounter > 10000) _smallOrderCounter = 5000;
+                if (_smallOrderCounter > 20000) _smallOrderCounter = 15000;
                 return _smallOrderCounter;
 
             case BulletSize.Medium:
@@ -62,7 +67,7 @@ public class DanmakuBullet : MonoBehaviour
 
             case BulletSize.Large:
                 _largeOrderCounter++;
-                if (_largeOrderCounter > 20000) _largeOrderCounter = 15000;
+                if (_largeOrderCounter > 10000) _largeOrderCounter = 5000;
                 return _largeOrderCounter;
 
             default:
@@ -104,10 +109,13 @@ public class DanmakuBullet : MonoBehaviour
         this.accel = accel;
         this.maxSpeed = maxSpeed;
         this.angularVelocity = angVel;
-        this.delayFrames = Mathf.RoundToInt(delay);
+        this.delayFrames = Mathf.RoundToInt(delay * 60f); // 🛠️ 秒数からフレーム数へ確実にマッピング修正
         this.totalDelay = this.delayFrames;
         this.isConverging = converge;
         this._isKnifeCounter = false;
+
+        // 🎯【槍識別判定】：データ名やプレハブ名に「Spear」が含まれているかをスマートに判定
+        _isSpearChargeMode = (data != null && (data.name.Contains("Spear") || data.bulletPrefab.name.Contains("Spear")));
 
         bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
         Vector3 templateScale = isCustomPrefabBullet ? transform.localScale : Vector3.one;
@@ -120,11 +128,19 @@ public class DanmakuBullet : MonoBehaviour
             sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
 
-            // 📊【核心】：プールから出撃したこの瞬間に、サイズ別のオーダーを強制上書きパッキング！
+            // 📊 サイズ別のオーダーを強制上書きパッキング！
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
-        transform.rotation = Quaternion.Euler(0, 0, angle);
+        // 🛠️ 初期回転の設定：槍モードなら最初はX回転を90度にしてペラペラ（非表示に近い）状態にする
+        if (_isSpearChargeMode && delay > 0f)
+        {
+            transform.localRotation = Quaternion.Euler(90f, 0f, angle - 90f);
+        }
+        else
+        {
+            transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
+        }
 
         if (data != null && data.animationSprites != null && data.animationSprites.Length > 1)
         {
@@ -147,15 +163,16 @@ public class DanmakuBullet : MonoBehaviour
 
         if (delay > 0)
         {
-            if (sr != null) sr.enabled = false;
+            if (sr != null) sr.enabled = true; // 💡 槍の起き上がりを見せたいので、ディレイ中も表示はONにする
             StartCoroutine(DelayEffectRoutine(delay, data));
         }
         else
         {
             if (sr != null) sr.enabled = true;
+            CreateAuraEffect();
         }
 
-        // 🔄【オーラ同期セーフティ】：もし前回の使い回しオーラが残っていれば、新しいオーダーの真後ろ（-1）へ即座に再配置
+        // 🔄【オーラ同期セーフティ】
         Transform auraChild = transform.Find("PureColorAuraObject");
         if (auraChild != null)
         {
@@ -171,7 +188,6 @@ public class DanmakuBullet : MonoBehaviour
         isGrazeDone = false;
     }
 
-    // 🔵 カウンターナイフ専用の初期化メソッド
     public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
     {
         this.owner = shooter;
@@ -186,6 +202,7 @@ public class DanmakuBullet : MonoBehaviour
         this.isConverging = false;
         this._isKnifeCounter = true;
         this.isAnimated = false;
+        this._isSpearChargeMode = false;
 
         bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
         Vector3 templateScaleKn = isCustomPrefabBullet ? transform.localScale : Vector3.one;
@@ -197,8 +214,6 @@ public class DanmakuBullet : MonoBehaviour
         {
             sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
-
-            // 📊 カウンターナイフ側でも出撃オーダーを強制再分配！
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
@@ -211,41 +226,50 @@ public class DanmakuBullet : MonoBehaviour
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null) Destroy(oldAura.gameObject);
 
-        if (sr != null && data != null)
-        {
-            GameObject auraChild = new GameObject("PureColorAuraObject");
-            auraChild.transform.SetParent(transform);
-            auraChild.transform.localPosition = Vector3.zero;
-            auraChild.transform.localRotation = Quaternion.identity;
-            auraChild.transform.localScale = new Vector3(1.4f, 1.4f, 1.0f);
-
-            SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
-            auraSR.sortingLayerID = sr.sortingLayerID;
-            auraSR.sortingOrder = sr.sortingOrder - 1; // 親の後ろ
-
-            auraSR.material = (data.auraMaterial != null) ? data.auraMaterial : new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
-            auraSR.sprite = (data.auraWhiteSprite != null) ? data.auraWhiteSprite : sr.sprite;
-
-            PlayerStatusManager myStatus = shooter.GetComponent<PlayerStatusManager>();
-            if (myStatus == null) myStatus = shooter.GetComponentInParent<PlayerStatusManager>();
-
-            if (myStatus != null && myStatus.characterData != null)
-            {
-                Color charImageColor = myStatus.characterData.imageColor;
-                charImageColor.a = 1.0f;
-                auraSR.color = charImageColor;
-            }
-            else
-            {
-                Color defaultColor = Color.yellow;
-                defaultColor.a = 1.0f;
-                auraSR.color = defaultColor;
-            }
-        }
+        CreateAuraEffect();
 
         isInitialized = true;
         isActive = true;
         isGrazeDone = false;
+    }
+
+    // =========================================================================
+    // ✨【オーラ歪み調停インフラ】：親の偏った長さに引きずられない正円オーラを生成
+    // =========================================================================
+    private void CreateAuraEffect()
+    {
+        if (transform.Find("PureColorAuraObject") != null) return;
+        if (sr == null || currentData == null) return;
+
+        GameObject auraChild = new GameObject("PureColorAuraObject");
+        auraChild.transform.SetParent(transform);
+        auraChild.transform.localPosition = Vector3.zero;
+        auraChild.transform.localRotation = Quaternion.identity;
+
+        // 🛠️ 歪み対策の核心：親（槍本体）のXとYのスケール比率の偏りを逆算（パージ）し、
+        //    ゲーム画面上で完全に均等（1.4倍の綺麗な正円・楕円にならない形）になるようアライメントします。
+        float parentScaleX = transform.localScale.x != 0 ? transform.localScale.x : 1f;
+        float parentScaleY = transform.localScale.y != 0 ? transform.localScale.y : 1f;
+        auraChild.transform.localScale = new Vector3(1.5f / parentScaleX, 1.5f / parentScaleY, 1.0f);
+
+        SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
+        auraSR.sortingLayerID = sr.sortingLayerID;
+        auraSR.sortingOrder = sr.sortingOrder - 1; // 本体スプライトの直下
+
+        if (currentData.auraMaterial != null) auraSR.material = currentData.auraMaterial;
+        else auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
+
+        // もし槍専用の綺麗な正円オーラ画像（丸型の白い光など）があればauraWhiteSpriteに登録してください。未設定ならスプライトを流用
+        auraSR.sprite = (currentData.auraWhiteSprite != null) ? currentData.auraWhiteSprite : sr.sprite;
+
+        PlayerStatusManager myStatus = null;
+        if (owner != null) myStatus = owner.GetComponent<PlayerStatusManager>();
+        if (myStatus == null && owner != null) myStatus = owner.GetComponentInParent<PlayerStatusManager>();
+
+        int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+        Color auraColor = (myStatus != null && myStatus.characterData != null) ? myStatus.characterData.imageColor : ((ownerId == 1) ? Color.cyan : Color.red);
+        auraColor.a = 0.6f; // 少し透明度を上げてまばゆさを調整
+        auraSR.color = auraColor;
     }
 
     public void StartSelfDestructTimer(float duration)
@@ -285,6 +309,18 @@ public class DanmakuBullet : MonoBehaviour
                 transform.position = Vector3.Lerp(transform.position, owner.transform.position, t);
             }
 
+            // =========================================================================
+            // 🎯【核心修正】：槍弾のX回転起き上がりチャージ演算（90度 ➔ 0度）
+            // =========================================================================
+            if (_isSpearChargeMode && totalDelay > 0)
+            {
+                float progress = 1f - ((float)delayFrames / totalDelay); // 0.0 ➔ 1.0
+
+                // 90度からスタートして0度（完全フラットな起き上がり状態）へLerp
+                float currentXRotation = Mathf.Lerp(90f, 0f, progress);
+                transform.localRotation = Quaternion.Euler(currentXRotation, 0f, angle - 90f);
+            }
+
             delayFrames--;
             if (delayFrames <= 0)
             {
@@ -292,10 +328,20 @@ public class DanmakuBullet : MonoBehaviour
                 SetColliderActive(true);
                 if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
+                // チャージ完了に伴い完全フラットな回転に固定
+                if (_isSpearChargeMode)
+                {
+                    transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
+                }
+
                 if (_isKnifeCounter)
                 {
                     angle = GetAngleToTarget();
                     transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+                }
+                else
+                {
+                    CreateAuraEffect();
                 }
             }
             return;
@@ -359,6 +405,12 @@ public class DanmakuBullet : MonoBehaviour
 
     private IEnumerator DelayEffectRoutine(float delay, BulletData data)
     {
+        // 🛠️ 槍チャージモードの時は大元の丸型魔法陣の生成を完全にスキップ！
+        if (_isSpearChargeMode)
+        {
+            yield break;
+        }
+
         if (effectPrefab != null && data.delaySprite != null)
         {
             activeDelayEffect = Instantiate(effectPrefab, transform.position, Quaternion.identity);

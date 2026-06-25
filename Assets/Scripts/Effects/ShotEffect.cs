@@ -45,7 +45,7 @@ public class ShotEffect : MonoBehaviour
         if (sr == null) sr = GetComponent<SpriteRenderer>();
         if (this == null) yield break;
 
-        SEManager.Instance.Play(SEPath.BULLETBREAK, 0.5f);
+        SEManager.Instance.Play(SEPath.BULLETBREAK, 0.2f);
         // ÅyèCê≥ÅzëÂÇ´Ç≥Ç1.5î{Ç…ê›íË
         sr.color = bulletColor;
         transform.localScale = Vector3.one * scale * 2.0f;

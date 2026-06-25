@@ -11,7 +11,7 @@ using UnityEngine;
 public class PortalBitObject : MonoBehaviour
 {
     private Transform _owner;
-    private PlayerDanmakuEmitter _ownerEmitter;
+    private Emitter_Greed _ownerEmitter;
     private SpriteRenderer _sr;
 
     private float _behindOffsetX; // 💡 距離の絶対値（半径）として流用
@@ -30,7 +30,7 @@ public class PortalBitObject : MonoBehaviour
     private int _bitIndex = 0;
     private bool _isSpellCardEnhanced = false;
 
-    public void Initialize(Transform owner, PlayerSkillData.SkillSettings s, float behindX, float yOffset, float shootAngle, float duration, int interval, PlayerDanmakuEmitter emitter)
+    public void Initialize(Transform owner, PlayerSkillData.SkillSettings s, float behindX, float yOffset, float shootAngle, float duration, int interval, Emitter_Greed emitter)
     {
         _owner = owner;
         _ownerEmitter = emitter;

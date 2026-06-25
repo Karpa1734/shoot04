@@ -113,6 +113,10 @@ public class Emitter_Greed : PlayerDanmakuEmitter
     }
 
 
+    // =========================================================================
+    // 🪙 シャウル専用C：ローテーティング・オールウェイ結界レーザー
+    // 💡 独自のInstantiateおよびバフの重複計算をパージし、中央EXインフラへ中継一本化！
+    // =========================================================================
     private IEnumerator RotatingAllWayLaserRoutine(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
@@ -127,92 +131,47 @@ public class Emitter_Greed : PlayerDanmakuEmitter
             LaserWay = 48;
         }
 
-        // --- 設定パラメータ ---
         int laserCount = Mathf.Max(1, LaserWay);
-        float radius = 1.6f;             // 弾源の半径
-        int stopFrame = 40;              // 回転が止まり始めるフレーム
-        int warningFrame = stopFrame + 60; // 完全に止まってから実線化するまでの「タメ」
+        float radius = 1.6f;
+        int stopFrame = 40;
+        int warningFrame = stopFrame + 60;
 
-        // ★ 回転方向をランダムに決定
         float rotDir = (Random.value < 0.5f) ? 1.0f : -1.0f;
         float initialRotSpeed = 5.0f * rotDir;
-
-        // ★ 追加：回転中にかける「ズレ」の総量
         float totalDriftAngle = 30f * rotDir;
         float driftVelocity = totalDriftAngle / stopFrame;
-
-        // ★ 修正：停止位置（目標角度）をランダムに決定
         float targetAngle = Random.Range(0f, 360f);
 
-        // 停止位置から逆算して、開始時のベース角度を求める
         float estimatedRotation = 245f * rotDir;
         float baseAngle = targetAngle - estimatedRotation;
 
-        BulletManager.LaserColor color = s.bulletData.laserColor;
-        var laserSet = BulletManager.Instance.GetLaserSet(color);
-
-        // =========================================================================
-        // ⚔️【最核心修正】：ループ突入前に、攻撃ランク＆憤怒・嫉妬バフの倍率を動的合算
-        // =========================================================================
-        int finalLaserDamage = s.bulletData.damage;
-        if (myStatus != null && myStatus.characterData != null)
-        {
-            float atkMultiplier = 1.0f;
-            switch (myStatus.characterData.rankAttack)
-            {
-                case StatusRank.E: atkMultiplier = 0.8f; break;
-                case StatusRank.D: atkMultiplier = 0.9f; break;
-                case StatusRank.C: atkMultiplier = 1.0f; break;
-                case StatusRank.B: atkMultiplier = 1.1f; break;
-                case StatusRank.A: atkMultiplier = 1.2f; break;
-                case StatusRank.EX: atkMultiplier = 1.3f; break;
-            }
-
-            // 🧬【憤怒パッシブ】：被弾時バフ（IsAttackBoostActive）が有効なら1.3倍を直撃乗算！
-            if (myStatus.IsAttackBoostActive)
-            {
-                atkMultiplier *= 1.3f;
-            }
-            // 👁️【嫉妬パッシブ】：相手のゲージ量に応じた倍率を同期乗算
-            atkMultiplier *= myStatus.GetJealousyMultiplier();
-
-            finalLaserDamage = Mathf.RoundToInt(finalLaserDamage * atkMultiplier);
-        }
-
+        // 🔄 24連/48連レーザーの一斉召喚インフラ
         for (int i = 0; i < laserCount; i++)
         {
-            GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, transform.position, Quaternion.identity);
-            EnemyLaserBeam laser = laserObj.GetComponent<EnemyLaserBeam>();
+            // 🛠️ 変更の核心：独自の Instantiate ✕ SetupB ✕ チーム・バフ処理を1行のコアインフラへ完全委託！
+            EnemyLaserBeam laser = CreateLaserShot(s.bulletData, transform.position, s.speed, s.count, s.wideAngle, warningFrame, isSetupB: true);
 
             if (laser != null)
             {
                 spawnedLasers.Add(laser);
 
-                // 💡 修正：s.bulletData.damage の生データではなく、バフ計算を終えた finalLaserDamage をインジェクション！
-                laser.SetupB(_rootOwner, targetTag, finalLaserDamage,
-                             transform.position.x, transform.position.y,
-                             s.count, s.wideAngle, color, warningFrame,
-                             BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
-
                 float currentStartAngle = baseAngle + (360f / laserCount * i);
-
-                // 初期オフセット（120度は渦を巻くような大きな曲がり）
                 float aimOffset = 120f * rotDir;
                 float initialLaserAngle = currentStartAngle + aimOffset;
 
-                // データ1：回転開始
+                // データ1：段階的公転加速スピン開始
                 laser.AddData(new EnemyLaserBeam.LaserTransformData
                 {
                     frame = 0,
-                    dist = radius,                // 半径分離す
-                    distAngle = currentStartAngle, // 弾源の公転角
-                    laserAngle = initialLaserAngle, // レーザー自体の向き（曲げる）
+                    dist = radius,
+                    distAngle = currentStartAngle,
+                    laserAngle = initialLaserAngle,
                     distAngleVel = initialRotSpeed,
-                    laserAngleVel = initialRotSpeed + driftVelocity, // 徐々にズレるように自転速度を微調整
+                    laserAngleVel = initialRotSpeed + driftVelocity,
                     isSmooth = true
                 });
 
-                // データ2：停止
+                // データ2：ジャストフレーム完全ロック静止
                 laser.AddData(new EnemyLaserBeam.LaserTransformData
                 {
                     frame = stopFrame,
@@ -225,10 +184,8 @@ public class Emitter_Greed : PlayerDanmakuEmitter
             }
         }
 
-        // 照射終了まで待機
         yield return new WaitForSeconds((warningFrame / 60f) + s.speed);
 
-        // 全て消去
         foreach (var laser in spawnedLasers)
         {
             if (laser != null) laser.ForceClose();
@@ -236,6 +193,7 @@ public class Emitter_Greed : PlayerDanmakuEmitter
 
         _activeSkillCoroutines--;
     }
+
     private bool _isRoundRotReversed = false; // ★ 追加：全方位弾の回転方向反転用フラグ
     /// <summary>
     /// 自機外し全方位弾を、射角を回転させ、段階的に弾速を上げながら連射する
@@ -471,5 +429,13 @@ public class Emitter_Greed : PlayerDanmakuEmitter
             myStatus.DeactivateSpellCard(false);
         }
 
+    }
+    public float ExecuteGetAngleToTargetBridge()
+    {
+        return GetAngleToTarget(transform.position);
+    }
+    public void ExecuteSubShotFromPortal(BulletData data, Vector3 pos, float speed, float angle, float delay)
+    {
+        CreateShot(data, pos, speed, angle, delay);
     }
 }

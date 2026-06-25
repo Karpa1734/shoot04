@@ -290,6 +290,11 @@ public class PlayerStatusManager : MonoBehaviour
                 var greed = GetComponentInChildren<Emitter_Greed>(true);
                 if (greed != null) greed.enabled = true;
             }
+            else if (characterData.characterName == "Linghua") // シャウル側のアセット名
+            {
+                var greed = GetComponentInChildren<Emitter_Lust>(true);
+                if (greed != null) greed.enabled = true;
+            }
         }
         // 看板テキストやUIカラーの流し込みを実行
         ApplyCharacterSettings();

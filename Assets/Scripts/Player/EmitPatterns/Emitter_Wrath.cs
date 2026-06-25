@@ -5,6 +5,7 @@ using UnityEngine;
 public class Emitter_Wrath : PlayerDanmakuEmitter
 {
 
+    protected bool _isXLineReversed;
     // ⚔️ カリンのZスキル＝「しの字」アーク一閃！
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
@@ -298,8 +299,9 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
 
 
     // =========================================================================
-    // 🐉【自律判断完結版】：カリン専用究極EX：神速・虚空絶閃
-    // 💡 親からキックされたこのメソッド自身の内部で領域中かを判定し、15本化を自動執行します！
+    // 🐉【自律判断・インフラ一元化完結版】：カリン専用究極EX：神速・虚空絶閃
+    // 💡 独自のInstantiate、タグ、レイヤー、二重バフ計算を完全パージ！
+    // 💡 親クラスから継承した最強の `CreateLaserShot` インフラを通じて15本の極大空間破砕を執行します！
     // =========================================================================
     protected IEnumerator ExecuteKarinKokuZessenEXRoutine(PlayerSkillData.SkillSettings s)
     {
@@ -307,7 +309,8 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-        _isEXSkillActive = true; // 🎯 共用フラグON
+        _isEXSkillActive = true;
+
         if (myMove == null || myStatus == null)
         {
             _activeSkillCoroutines--;
@@ -367,107 +370,80 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         }
         _rootOwner.transform.position = d_targetPos;
 
-        // 突撃移動の絶対距離（長さ）を正確に計算
+        // 突撃移動の絶対距離（レーザーの長さ）を正確に計算
         float laserDistance = Vector3.Distance(laserStartPos, _rootOwner.transform.position);
 
-        // =========================================================================
-        // 🔮【ここが核心】：呼ばれた側が内部で現在の領域アクティブ状態を直接ジャッジ！
-        // =========================================================================
+        // 🔮【領域検知】：聖少女領域中なら15本バースト、通常空間ならs.count（5本など）
         bool isZoneActive = (myStatus != null && myStatus.isSpellCardActive);
-
-        // 💡 領域展開中であれば、本数（count）を極大全画面飽和の「15本」へ強制オーバーライド！
         int totalLinesCount = isZoneActive ? 15 : Mathf.Max(2, s.count);
         bool isEnhancedLines = (totalLinesCount >= 15);
 
         if (isEnhancedLines)
         {
-            Debug.Log("<color=gold>🔮【自律判断・極大空間破砕】カリン究極EX：聖少女領域を検知したため、内部処理で15本バーストへ拡張執行！</color>");
+            Debug.Log("<color=gold>🔮【自律判断・極大空間破砕】カリン究極EX：聖少女領域を検知したため、15本バーストへ拡張執行！</color>");
         }
-        else
-        {
-            Debug.Log($"<color=cyan>⚔️【通常EX・正統回帰】カリン究極EX：通常空間のため、元のスマートな【{totalLinesCount}本】で展開。</color>");
-        }
+
+        // 幾何学アライメントの完全調停
+        float offsetStep = isEnhancedLines ? 1.2f : 1.8f;
+        float startYOffset = isEnhancedLines ? (-offsetStep * 7f) : (-offsetStep * (float)(totalLinesCount / 2));
 
         // 🔮 虚空砕裂：上下中心追従展開マトリクス
-        if (BulletManager.Instance != null)
+        for (int i = 0; i < totalLinesCount; i++)
         {
-            BulletManager.LaserColor color = s.bulletData.laserColor;
-            var laserSet = BulletManager.Instance.GetLaserSet(color);
+            float currentYOffset = startYOffset + (offsetStep * i);
+            Vector3 finalLaserSpawnPos = new Vector3(laserStartPos.x, laserStartPos.y + currentYOffset, laserStartPos.z);
 
-            // 幾何学アライメントの完全調停
-            float offsetStep = isEnhancedLines ? 1.2f : 1.8f;
-            float startYOffset = isEnhancedLines ? (-offsetStep * 7f) : (-offsetStep * 2f);
+            // 🎯【インフラ完全一元化】：面倒な手動生成、レイヤー分類、バフ適用処理をすべて親の「CreateLaserShot」へ1行で全面委託！
+            // 💡 数理アライメント調停として、countに「レーザーの長さ」、wideAngleに「レーザーの太さ(0.5f)」を流し込んで SetupA をキックします。
+            int dynamicDelay = isEnhancedLines ? (20 + (i * 1)) : 20;
 
-            for (int i = 0; i < totalLinesCount; i++)
+            EnemyLaserBeam zessenLaser = CreateLaserShot(
+                s.bulletData,
+                finalLaserSpawnPos,
+                s.speed,
+                count: Mathf.RoundToInt(laserDistance), // 🛠️ 長さパラメータをcount引数へマッピング中継
+                wideAngle: 0.5f,                      // 🛠️ 太さパラメータをwideAngle引数へマッピング中継
+                warningFrame: dynamicDelay,
+                isSetupB: false                       // 👈 通常直線レーザー（SetupA）を実行
+            );
+
+            if (zessenLaser != null)
             {
-                float currentYOffset = startYOffset + (offsetStep * i);
-                Vector3 finalLaserSpawnPos = new Vector3(laserStartPos.x, laserStartPos.y + currentYOffset, laserStartPos.z);
+                // カスタムスプライトや特殊マテリアルがアセット側にあれば自動同期
+                SpriteRenderer laserSR = zessenLaser.GetComponentInChildren<SpriteRenderer>();
+                bool isCustomSpriteAssigned = (s.bulletData.bulletSprite != null);
 
-                GameObject laserObj = Instantiate(BulletManager.Instance.laserBeamPrefab, finalLaserSpawnPos, Quaternion.identity);
-                EnemyLaserBeam zessenLaser = laserObj.GetComponent<EnemyLaserBeam>();
-
-                if (zessenLaser != null)
+                if (laserSR != null && isCustomSpriteAssigned)
                 {
-                    int dynamicDelay = isEnhancedLines ? (20 + (i * 1)) : 20;
-
-                    // ⚔️ 究極EX斬撃レーザーへの攻撃ランク＆各種パッシブバフの動的結合
-                    int finalLaserDamage = s.bulletData.damage;
-                    if (myStatus != null && myStatus.characterData != null)
-                    {
-                        float atkMultiplier = 1.0f;
-                        switch (myStatus.characterData.rankAttack)
-                        {
-                            case StatusRank.E: atkMultiplier = 0.8f; break;
-                            case StatusRank.D: atkMultiplier = 0.9f; break;
-                            case StatusRank.C: atkMultiplier = 1.0f; break;
-                            case StatusRank.B: atkMultiplier = 1.1f; break;
-                            case StatusRank.A: atkMultiplier = 1.2f; break;
-                            case StatusRank.EX: atkMultiplier = 1.3f; break;
-                        }
-
-                        if (myStatus.IsAttackBoostActive) atkMultiplier *= 1.3f;
-                        atkMultiplier *= myStatus.GetJealousyMultiplier();
-                        finalLaserDamage = Mathf.RoundToInt(finalLaserDamage * atkMultiplier);
-                    }
-
-                    zessenLaser.SetupA(_rootOwner, targetTag, finalLaserDamage,
-                                     finalLaserSpawnPos.x, finalLaserSpawnPos.y,
-                                     laserDistance, 0.5f,
-                                     color, dynamicDelay, BulletManager.Instance.laserSourceEffectPrefab, laserSet.sourceEffectSprite, s.bulletData);
-
-                    SpriteRenderer laserSR = laserObj.GetComponentInChildren<SpriteRenderer>();
-                    bool isCustomSpriteAssigned = (s.bulletData.bulletSprite != null);
-
-                    if (laserSR != null && isCustomSpriteAssigned)
-                    {
-                        laserSR.sprite = s.bulletData.bulletSprite;
-                        if (s.bulletData.material != null) laserSR.material = s.bulletData.material;
-                    }
-
-                    float laserFacingAngle = faceRight ? 0f : 180f;
-                    zessenLaser.AddData(new EnemyLaserBeam.LaserTransformData { frame = 0, angle = laserFacingAngle });
-                    zessenLaser.Fire();
-
-                    if (isCustomSpriteAssigned)
-                    {
-                        foreach (Transform child in laserObj.transform)
-                        {
-                            if (child != null && (child.name.Contains("Root") || child.name.Contains("Effect") || child.name.Contains("Source")))
-                            {
-                                child.gameObject.SetActive(false);
-                            }
-                        }
-                    }
-
-                    float extendedDuration = s.speed + 1.0f;
-                    StartCoroutine(KeepInvertingLaserOffsetRoutine(laserObj, laserDistance, extendedDuration, faceRight));
-                    StartCoroutine(ForceCloseLaserAfterSeconds(zessenLaser, extendedDuration));
+                    laserSR.sprite = s.bulletData.bulletSprite;
+                    if (s.bulletData.material != null) laserSR.material = s.bulletData.material;
                 }
 
-                if (!isEnhancedLines)
+                // 進行方向の回転角度をバインド
+                float laserFacingAngle = faceRight ? 0f : 180f;
+                zessenLaser.AddData(new EnemyLaserBeam.LaserTransformData { frame = 0, angle = laserFacingAngle });
+                zessenLaser.Fire();
+
+                if (isCustomSpriteAssigned)
                 {
-                    yield return null;
+                    foreach (Transform child in zessenLaser.transform)
+                    {
+                        if (child != null && (child.name.Contains("Root") || child.name.Contains("Effect") || child.name.Contains("Source")))
+                        {
+                            child.gameObject.SetActive(false);
+                        }
+                    }
                 }
+
+                float extendedDuration = s.speed + 1.0f;
+                // 判定ボックスのリアルタイム吸いつき追従と、時間切れ自動クローズをキック
+                StartCoroutine(KeepInvertingLaserOffsetRoutine(zessenLaser.gameObject, laserDistance, extendedDuration, faceRight));
+                StartCoroutine(ForceCloseLaserAfterSeconds(zessenLaser, extendedDuration));
+            }
+
+            if (!isEnhancedLines)
+            {
+                yield return null;
             }
         }
 
