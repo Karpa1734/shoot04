@@ -81,7 +81,7 @@ GameObject:
   - component: {fileID: 1703807141928405199}
   - component: {fileID: 5560791515054040909}
   m_Layer: 8
-  m_Name: Spear
+  m_Name: SpearEx
   m_TagString: EnemyBullet
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -97,8 +97,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1472647800508591085}
   m_Father: {fileID: 0}
@@ -147,7 +147,7 @@ SpriteRenderer:
   m_SortingLayerID: 515225517
   m_SortingLayer: 2
   m_SortingOrder: 1000
-  m_Sprite: {fileID: -253019990, guid: 93d2e9ba5be95e34eb6e971f99038895, type: 3}
+  m_Sprite: {fileID: 197234311, guid: 93d2e9ba5be95e34eb6e971f99038895, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

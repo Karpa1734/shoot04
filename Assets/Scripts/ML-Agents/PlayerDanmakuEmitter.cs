@@ -364,11 +364,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     // =========================================================================
     // 🎯【完全一本化・ファクトリ最高拡張版】：すべての弾幕・子弾・特殊軌跡の生成を集約
-    // 💡 引数の末尾に `customMaterial` と `customScale` を追加し、レーザーの太さと加算合成の強制変更をサポート
+    // 💡 引数の末尾に `bool isIndestructible = false` を新規完全ドッキング！
     // =========================================================================
     protected DanmakuBullet CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay,
                                        bool isConverge = false, float accel = 0f, float maxSpeed = 0f,
-                                       Material customMaterial = null, float customScale = 1.0f)
+                                       Material customMaterial = null, float customScale = 1.0f,
+                                       bool isIndestructible = false) // 👈 これを追加！
     {
         if (data == null || data.bulletPrefab == null) return null;
 
@@ -393,8 +394,13 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             atkMultiplier *= myStatus.GetJealousyMultiplier();
             runtimeData.damage = Mathf.RoundToInt(runtimeData.damage * atkMultiplier);
         }
+        bool isSpear = (runtimeData != null && (runtimeData.name.Contains("Spear") || runtimeData.bulletPrefab.name.Contains("Spear")));
 
-        GameObject obj = Instantiate(runtimeData.bulletPrefab, pos, Quaternion.identity);
+        Quaternion initialRotation = isSpear && delay > 0f
+            ? Quaternion.Euler(90f, 0f, angle - 90f)
+            : Quaternion.Euler(0f, 0f, angle - 90f);
+
+        GameObject obj = Instantiate(runtimeData.bulletPrefab, pos, initialRotation);
         string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
         obj.tag = assignedTag;
 
@@ -402,11 +408,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         obj.layer = assignedLayer;
         SetLayerRecursive(obj, assignedLayer);
 
-        // 🛠️【太さの調停】：呼び出し側から customScale が指定されていれば、アセットのスケールに掛け算ブレンド
         float finalBulletScale = runtimeData.bulletScale * customScale;
         obj.transform.localScale = new Vector3(finalBulletScale, finalBulletScale, 1.0f);
 
-        // 🛠️【マテリアル強制加算合成の調停】：customMaterial がパッシングされていれば、本体の見た目を強制上書き
         if (customMaterial != null)
         {
             SpriteRenderer mainSR = obj.GetComponentInChildren<SpriteRenderer>();
@@ -417,7 +421,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (bullet != null)
         {
             float finalMaxSpeed = (maxSpeed == 0f) ? speed : maxSpeed;
+
+            // 💡 先に初期化を走らせる（内部の上書きリスクを完全に回避）
             bullet.Initialize(_rootOwner, targetTag, speed, angle, accel, finalMaxSpeed, 0f, delay, runtimeData, isConverge);
+
+            // 💡 初期化が終わった直後に、本物の耐久フラグをがっちり上書きバインディング！
+            bullet.isIndestructible = isIndestructible;
         }
 
         if (obj != null)

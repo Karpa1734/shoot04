@@ -38,6 +38,7 @@ public static class SEPath{
 	public const string SHOT9               = "SE/Shot9";
 	public const string SLASH               = "SE/Slash";
 	public const string SPELL_OFF           = "SE/SpellOff";
+	public const string STARS               = "SE/stars";
 	public const string SWING38             = "SE/swing38";
 	public const string SYSTEM20            = "SE/system20";
 	public const string SYSTEM23            = "SE/system23";

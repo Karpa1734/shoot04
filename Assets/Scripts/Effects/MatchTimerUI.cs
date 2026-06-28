@@ -443,7 +443,8 @@ public class MatchTimerUI : MonoBehaviour
     private void ClearAllBulletsOnField()
     {
         DanmakuBullet[] pBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
-        foreach (var b in pBullets) b.Deactivate(true);
+        // 💡 force: true を渡して、ラウンド終了時は不滅弾も一斉強制消去！
+        foreach (var b in pBullets) b.Deactivate(true,true);
 
         EnemyBullet[] eBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
         foreach (var b in eBullets) b.Deactivate(true);

@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21264d726d8d3e24a9f6272f291feb5d, type: 3}
-  m_Name: AQUA
+  m_Name: BLUE
   m_EditorClassIdentifier: 
   isLaser: 0
   laserColor: 0
@@ -20,11 +20,11 @@ MonoBehaviour:
   radius: 0.12
   colliderOffset: {x: 0, y: 0}
   damage: 15
-  bulletSprite: {fileID: -6760052105056434222, guid: a1067fdd39ddf094490ab1892c86f300, type: 3}
+  bulletSprite: {fileID: -3838535208358349516, guid: a1067fdd39ddf094490ab1892c86f300, type: 3}
   animationSprites: []
   animationFPS: 10
-  delaySprite: {fileID: 3850066337455968739, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
-  breakColor: {r: 0, g: 1, b: 1, a: 1}
+  delaySprite: {fileID: -827259024503639357, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
+  breakColor: {r: 0, g: 0, b: 1, a: 1}
   material: {fileID: 0}
   auraMaterial: {fileID: 2100000, guid: b955a6fe290ae404496e5fc9dc6bd3da, type: 2}
-  auraWhiteSprite: {fileID: -6760052105056434222, guid: a1067fdd39ddf094490ab1892c86f300, type: 3}
+  auraWhiteSprite: {fileID: 1807487099242753276, guid: a1067fdd39ddf094490ab1892c86f300, type: 3}

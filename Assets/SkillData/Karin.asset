@@ -15,8 +15,8 @@ MonoBehaviour:
   rankHP: 3
   rankMP: 3
   rankAttack: 4
-  rankAgility: 3
-  rankMMPRegen: 1
+  rankAgility: 5
+  rankMMPRegen: 3
   rankSpellZone: 2
   characterName: Karin
   imageColor: {r: 1, g: 0, b: 0, a: 1}
@@ -43,6 +43,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 7d8f266f18fdc1d46b2a90a5d56bb2b0, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.7
+    isChargeSkill: 0
     sePath: Slash
     count: 1
     speed: 4.5
@@ -59,6 +60,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 893a83124dd3cd544b869d72239b9e95, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.8
+    isChargeSkill: 0
     sePath: Slash
     count: 7
     speed: 5
@@ -75,6 +77,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 45fdd80e96a96b84e8d4c748a727f5c0, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 12
+    isChargeSkill: 0
     sePath: 
     count: 0
     speed: 5
@@ -91,6 +94,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 65a549f923218164cb7b228aa015c502, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 10
+    isChargeSkill: 0
     sePath: 
     count: 0
     speed: 0
@@ -107,6 +111,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: d361fc89164f35a4aad6de22b177b018, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 5
+    isChargeSkill: 0
     sePath: 
     count: 5
     speed: 1

@@ -292,8 +292,8 @@ public class PlayerStatusManager : MonoBehaviour
             }
             else if (characterData.characterName == "Linghua") // シャウル側のアセット名
             {
-                var greed = GetComponentInChildren<Emitter_Lust>(true);
-                if (greed != null) greed.enabled = true;
+                var lust = GetComponentInChildren<Emitter_Lust>(true);
+                if (lust != null) lust.enabled = true;
             }
         }
         // 看板テキストやUIカラーの流し込みを実行
@@ -491,8 +491,25 @@ public class PlayerStatusManager : MonoBehaviour
             }
         }
 
+        // =========================================================================
+        // 🎯【バグ根治】：眠っている別キャラのEmitterを誤認取得する事故を完全全面パージ！
+        // 💡 現在有効（enabled == true）になって目覚めている、本物のEmitterだけを動的に抽出します。
+        // =========================================================================
+        PlayerDanmakuEmitter myEmitter = null;
+        PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>();
+        if (allEmitters == null || allEmitters.Length == 0) allEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
 
-        PlayerDanmakuEmitter myEmitter = GetComponentInChildren<PlayerDanmakuEmitter>();
+        foreach (var em in allEmitters)
+        {
+            if (em != null && em.enabled)
+            {
+                myEmitter = em;
+                break;
+            }
+        }
+        if (myEmitter == null) myEmitter = GetComponentInChildren<PlayerDanmakuEmitter>();
+
+
         if (myEmitter != null && myEmitter.IsSyaruBitEXActive)
         {
             invincibleTimer = 0.1f;
@@ -1877,7 +1894,8 @@ public class PlayerStatusManager : MonoBehaviour
     private void ClearAllBulletsOnField()
     {
         DanmakuBullet[] pBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
-        foreach (var b in pBullets) b.Deactivate(true);
+        // 💡 force: true を渡して、ラウンド終了時は不滅弾も一斉強制消去！
+        foreach (var b in pBullets) b.Deactivate(true, force: true);
 
         EnemyBullet[] eBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
         foreach (var b in eBullets) b.Deactivate(true);

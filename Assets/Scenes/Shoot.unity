@@ -10072,13 +10072,13 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 45badbfd-e239-47a7-be20-dbd937cf565a
+    m_Id: 3d849521-89d3-4268-bc6d-95b1118b4e55
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -10087,7 +10087,7 @@ MonoBehaviour:
     m_Name: Skill Z
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 62a8f8e5-3e1d-455c-900f-36edfd2ec338
+    m_Id: 01405ef6-9da7-4e99-8ee3-87d3f2fd1617
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -10096,7 +10096,7 @@ MonoBehaviour:
     m_Name: Skill X
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 4e9c41d2-ad9f-4a75-8786-eee1f5b110fa
+    m_Id: 858eea77-88b4-4e2d-bd98-0cba1d49ca5e
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -10105,7 +10105,7 @@ MonoBehaviour:
     m_Name: Skill C
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 697b2b86-5f9c-4a6e-9c2d-5d6f8cf1edb9
+    m_Id: c91aeb74-a3a4-47f3-b595-441e811d771f
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -10114,7 +10114,7 @@ MonoBehaviour:
     m_Name: Skill V
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 4d4724e3-e0f4-400e-bb5e-fb654bc86a88
+    m_Id: 2b38c5c2-26ee-4c43-aa10-fad4e6115c4c
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -10123,12 +10123,12 @@ MonoBehaviour:
     m_Name: Slow
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 41d8beb4-c68e-4ec6-bfcc-fa548892fcbd
+    m_Id: 44c17c6a-f8ba-4c91-90a5-1c00b57157d6
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  _disableEXAndVJTForDemo: 1
+  _disableEXAndVJTForDemo: 0
 --- !u!114 &695556690
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28423,13 +28423,13 @@ MonoBehaviour:
   opponent: {fileID: 695556676}
   playerID: 2
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: d735e81f-afaa-4d63-9a23-1b611d53b811
+    m_Id: 6b702716-ad87-43d9-a10a-43ae07cc4435
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -28438,7 +28438,7 @@ MonoBehaviour:
     m_Name: Skill Z
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: fbf96782-ac78-473b-939f-6d63b087559d
+    m_Id: 06b510cd-5d31-4789-a749-3667935a1fbd
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -28447,7 +28447,7 @@ MonoBehaviour:
     m_Name: Skill X
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 297f9cab-b0e9-41d2-9347-a20b44f334f4
+    m_Id: cb6c9469-e438-46c4-8ba5-1fddc91685f9
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -28456,7 +28456,7 @@ MonoBehaviour:
     m_Name: Skill C
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 84d9be45-06cf-4b36-818c-9159a4f3cb86
+    m_Id: 0aa73bd9-c69a-4182-891e-1e43a7a6533d
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -28465,7 +28465,7 @@ MonoBehaviour:
     m_Name: Skill V
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: f07db0c0-c565-425d-bd33-b55dfc2802de
+    m_Id: 8a5c2cd3-abc2-45d9-8369-c4608f63341c
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
@@ -28474,12 +28474,12 @@ MonoBehaviour:
     m_Name: Slow
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 61908ee2-d6c7-4d8c-877b-f604ab1710a1
+    m_Id: cbf10fe0-201b-4884-aef1-e22fe57e5b22
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings: []
     m_Flags: 0
-  _disableEXAndVJTForDemo: 1
+  _disableEXAndVJTForDemo: 0
 --- !u!114 &1872656868
 MonoBehaviour:
   m_ObjectHideFlags: 0

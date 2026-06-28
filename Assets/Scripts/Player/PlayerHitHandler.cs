@@ -697,7 +697,7 @@ public class PlayerHitHandler : MonoBehaviour
         DanmakuBullet[] playerBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
         foreach (var b in playerBullets)
         {
-            b.Deactivate(true);
+            b.Deactivate(true, force: true);
         }
 
         EnemyBullet[] enemyBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);

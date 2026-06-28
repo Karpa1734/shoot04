@@ -19,9 +19,9 @@ MonoBehaviour:
   rankMMPRegen: 2
   rankSpellZone: 4
   characterName: Linghua
-  imageColor: {r: 0, g: 1, b: 1, a: 1}
+  imageColor: {r: 0, g: 0, b: 1, a: 1}
   spellCardName: "\u300C\u25B3\u25B3\u25B3\u25B3\u300D"
-  spellCircleSprite: {fileID: 21300000, guid: ac6ca36c2293f6a448d41b3e2d30a114, type: 3}
+  spellCircleSprite: {fileID: 21300000, guid: 051c490da3612634b83abc85c1cb8fb7, type: 3}
   characterOverheatDuration: 20
   characterSpellBGBase: {fileID: 21300000, guid: 707709e9c67f49d4c8bf70624b5f0c08, type: 3}
   characterSpellBGAdditive: {fileID: 21300000, guid: 970de9a025f853f4bb8620ff3b5cb50c, type: 3}
@@ -40,18 +40,19 @@ MonoBehaviour:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
     patternType: 0
-    bulletData: {fileID: 11400000, guid: 9eed4d78a57b2d04eafdcb6483306633, type: 2}
+    bulletData: {fileID: 11400000, guid: 5476c1af008d36944a73b7585b4e9a15, type: 2}
     trailBulletData: {fileID: 0}
-    cooldown: 2
+    cooldown: 1.5
+    isChargeSkill: 1
     sePath: Laser2
     count: 20
-    speed: 6
+    speed: 7
     angleOffset: 0
     wideAngle: 0
     moveSpeedMultiplier: 0.4
-    delay: 2
-    cost: 0
-    ultimateGain: 5
+    delay: 10
+    cost: 50
+    ultimateGain: 8
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
     skillIcon: {fileID: 21300000, guid: 13dbdf5257202324b9450961f7d450a0, type: 3}
@@ -59,6 +60,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 3
+    isChargeSkill: 0
     sePath: 
     count: 10
     speed: 8
@@ -66,8 +68,8 @@ MonoBehaviour:
     wideAngle: 360
     moveSpeedMultiplier: 0
     delay: 15
-    cost: 30
-    ultimateGain: 8
+    cost: 10
+    ultimateGain: 100
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
@@ -75,6 +77,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 33b2b8650a1b5f84d8880d2294fe894c, type: 2}
     trailBulletData: {fileID: 11400000, guid: 50b30e67f1a21ac49b3ddf62fce0f8af, type: 2}
     cooldown: 6
+    isChargeSkill: 0
     sePath: 
     count: 1
     speed: 3
@@ -88,28 +91,30 @@ MonoBehaviour:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
     patternType: 13
-    bulletData: {fileID: 11400000, guid: 5476c1af008d36944a73b7585b4e9a15, type: 2}
+    bulletData: {fileID: 11400000, guid: 780d394183a2cc6489071754715cf0d8, type: 2}
     trailBulletData: {fileID: 0}
-    cooldown: 2
-    sePath: 
+    cooldown: 15
+    isChargeSkill: 0
+    sePath: Slash
     count: 0
-    speed: 4.5
+    speed: 1.5
     angleOffset: 0
     wideAngle: 0
     moveSpeedMultiplier: 0
-    delay: 1
-    cost: 50
-    ultimateGain: 5
+    delay: 10
+    cost: 30
+    ultimateGain: 15
   skillEX:
     skillName: "\u30D5\u30EB\u30FC\u30EB\u30FB\u30C9\u30FB\u30E2\u30CD"
     skillIcon: {fileID: 0}
-    patternType: 4
-    bulletData: {fileID: 11400000, guid: 2e2ee01fb5556ee4483f903aca685098, type: 2}
-    trailBulletData: {fileID: 0}
+    patternType: 0
+    bulletData: {fileID: 11400000, guid: 991876ddeee344c439d0a2821b236af9, type: 2}
+    trailBulletData: {fileID: 11400000, guid: 3dfeb7b8d63c8764fb71c698243e5be1, type: 2}
     cooldown: 0
+    isChargeSkill: 0
     sePath: 
     count: 12
-    speed: 12
+    speed: 8
     angleOffset: 60
     wideAngle: 0
     moveSpeedMultiplier: 0.5

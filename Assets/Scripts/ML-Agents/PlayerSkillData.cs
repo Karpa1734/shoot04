@@ -140,6 +140,9 @@ public class PlayerSkillData : ScriptableObject
         [Tooltip("跡引き（トレイル）に別種の弾を使いたい場合はここに別のアセットを登録してください（未設定ならメイン弾と同じになります）")]
         public BulletData trailBulletData;
         public float cooldown;
+        // 🔮【新設・汎用チャージ属性】：今後増えるチャージスキルは、これにチェックを入れるだけで自動適応されます！
+        [Tooltip("ボタン長押しによる引き絞り/溜めチャージ系スキルの場合はチェックを入れてください")]
+        public bool isChargeSkill;
         public string sePath;
 
         [Header("Pattern Parameters")]

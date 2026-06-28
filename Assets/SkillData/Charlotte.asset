@@ -43,6 +43,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: a5fd71ae477afb7489d0992c800345dc, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.4
+    isChargeSkill: 0
     sePath: 
     count: 3
     speed: 7
@@ -59,6 +60,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.5
+    isChargeSkill: 0
     sePath: 
     count: 5
     speed: 1.5
@@ -75,6 +77,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 1.5
+    isChargeSkill: 0
     sePath: Laser2
     count: 60
     speed: 1.5
@@ -91,6 +94,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 12
+    isChargeSkill: 0
     sePath: 
     count: 0
     speed: 4.5
@@ -107,6 +111,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 2e2ee01fb5556ee4483f903aca685098, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0
+    isChargeSkill: 0
     sePath: 
     count: 12
     speed: 12

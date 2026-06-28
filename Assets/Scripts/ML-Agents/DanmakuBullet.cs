@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using UnityEngine;
-// 🔥 単に「Random」と書いたらUnity側を優先
 using Random = UnityEngine.Random;
 
 public class DanmakuBullet : MonoBehaviour
@@ -40,13 +39,15 @@ public class DanmakuBullet : MonoBehaviour
     private bool _hasSelfDestructTriggered = false;
 
     // =========================================================================
-    // 🧬【槍弾チャージ拡張】：槍専用の内部ワーク変数
+    // 🧬【耐久貫通・多段ヒットインフラ】：敵やフィールドに接触しても消えないフラグ
     // =========================================================================
+    [HideInInspector] public bool isIndestructible = false;
+
+    private int _nextHitEnableFrame = 0;
+    private const int MULTI_HIT_INTERVAL_FRAMES = 5;
+
     private bool _isSpearChargeMode = false;
 
-    // =========================================================================
-    // 📊【上限閾値・完全修復】：小さい弾が最前面（15000～20000）を絶対死守！
-    // =========================================================================
     private static int _smallOrderCounter = 15000;
     private static int _mediumOrderCounter = 10000;
     private static int _largeOrderCounter = 5000;
@@ -59,17 +60,14 @@ public class DanmakuBullet : MonoBehaviour
                 _smallOrderCounter++;
                 if (_smallOrderCounter > 20000) _smallOrderCounter = 15000;
                 return _smallOrderCounter;
-
             case BulletSize.Medium:
                 _mediumOrderCounter++;
                 if (_mediumOrderCounter > 15000) _mediumOrderCounter = 10000;
                 return _mediumOrderCounter;
-
             case BulletSize.Large:
                 _largeOrderCounter++;
                 if (_largeOrderCounter > 10000) _largeOrderCounter = 5000;
                 return _largeOrderCounter;
-
             default:
                 return 1000;
         }
@@ -98,7 +96,6 @@ public class DanmakuBullet : MonoBehaviour
         return true;
     }
 
-    // 🟢 通常の弾幕・槍弾幕の発射初期化
     public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
         this.owner = shooter;
@@ -109,12 +106,13 @@ public class DanmakuBullet : MonoBehaviour
         this.accel = accel;
         this.maxSpeed = maxSpeed;
         this.angularVelocity = angVel;
-        this.delayFrames = Mathf.RoundToInt(delay * 60f); // 🛠️ 秒数からフレーム数へ確実にマッピング修正
+
+        this.delayFrames = Mathf.RoundToInt(delay);
         this.totalDelay = this.delayFrames;
         this.isConverging = converge;
         this._isKnifeCounter = false;
+        this._nextHitEnableFrame = 0;
 
-        // 🎯【槍識別判定】：データ名やプレハブ名に「Spear」が含まれているかをスマートに判定
         _isSpearChargeMode = (data != null && (data.name.Contains("Spear") || data.bulletPrefab.name.Contains("Spear")));
 
         bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
@@ -127,17 +125,10 @@ public class DanmakuBullet : MonoBehaviour
         {
             sr.sprite = data.bulletSprite;
             if (data.material != null) sr.material = data.material;
-
-            // 📊 サイズ別のオーダーを強制上書きパッキング！
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
-        // 🛠️ 初期回転の設定：槍モードなら最初はX回転を90度にしてペラペラ（非表示に近い）状態にする
-        if (_isSpearChargeMode && delay > 0f)
-        {
-            transform.localRotation = Quaternion.Euler(90f, 0f, angle - 90f);
-        }
-        else
+        if (!_isSpearChargeMode || delayFrames <= 0)
         {
             transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
         }
@@ -153,18 +144,12 @@ public class DanmakuBullet : MonoBehaviour
             if (sr != null && data != null) sr.sprite = data.bulletSprite;
         }
 
-        if (col != null && col is CircleCollider2D circleCol && data != null)
-        {
-            circleCol.radius = data.radius;
-            circleCol.offset = data.colliderOffset;
-        }
+        SetColliderActive(delayFrames <= 0);
 
-        SetColliderActive(delay <= 0);
-
-        if (delay > 0)
+        if (delayFrames > 0)
         {
-            if (sr != null) sr.enabled = true; // 💡 槍の起き上がりを見せたいので、ディレイ中も表示はONにする
-            StartCoroutine(DelayEffectRoutine(delay, data));
+            if (sr != null) sr.enabled = true;
+            StartCoroutine(DelayEffectRoutine(data));
         }
         else
         {
@@ -172,7 +157,6 @@ public class DanmakuBullet : MonoBehaviour
             CreateAuraEffect();
         }
 
-        // 🔄【オーラ同期セーフティ】
         Transform auraChild = transform.Find("PureColorAuraObject");
         if (auraChild != null)
         {
@@ -197,6 +181,9 @@ public class DanmakuBullet : MonoBehaviour
         this.accel = 0;
         this.maxSpeed = shootSpeed;
         this.angularVelocity = 0;
+        this.isIndestructible = false;
+        this._nextHitEnableFrame = 0;
+
         this.delayFrames = Mathf.RoundToInt(delayDuration * 60f);
         this.totalDelay = this.delayFrames;
         this.isConverging = false;
@@ -233,9 +220,6 @@ public class DanmakuBullet : MonoBehaviour
         isGrazeDone = false;
     }
 
-    // =========================================================================
-    // ✨【オーラ歪み調停インフラ】：親の偏った長さに引きずられない正円オーラを生成
-    // =========================================================================
     private void CreateAuraEffect()
     {
         if (transform.Find("PureColorAuraObject") != null) return;
@@ -246,20 +230,27 @@ public class DanmakuBullet : MonoBehaviour
         auraChild.transform.localPosition = Vector3.zero;
         auraChild.transform.localRotation = Quaternion.identity;
 
-        // 🛠️ 歪み対策の核心：親（槍本体）のXとYのスケール比率の偏りを逆算（パージ）し、
-        //    ゲーム画面上で完全に均等（1.4倍の綺麗な正円・楕円にならない形）になるようアライメントします。
+        float targetScaleX = 1.5f;
+        float targetScaleY = 1.5f;
+
+        if (_isSpearChargeMode)
+        {
+            targetScaleY = 1.2f;
+            targetScaleX = 1.2f;
+        }
+
         float parentScaleX = transform.localScale.x != 0 ? transform.localScale.x : 1f;
         float parentScaleY = transform.localScale.y != 0 ? transform.localScale.y : 1f;
-        auraChild.transform.localScale = new Vector3(1.5f / parentScaleX, 1.5f / parentScaleY, 1.0f);
+
+        auraChild.transform.localScale = new Vector3(targetScaleX / parentScaleX, targetScaleY / parentScaleY, 1.0f);
 
         SpriteRenderer auraSR = auraChild.AddComponent<SpriteRenderer>();
         auraSR.sortingLayerID = sr.sortingLayerID;
-        auraSR.sortingOrder = sr.sortingOrder - 1; // 本体スプライトの直下
+        auraSR.sortingOrder = sr.sortingOrder - 1;
 
         if (currentData.auraMaterial != null) auraSR.material = currentData.auraMaterial;
         else auraSR.material = new Material(Shader.Find("Legacy Shaders/Particles/Additive"));
 
-        // もし槍専用の綺麗な正円オーラ画像（丸型の白い光など）があればauraWhiteSpriteに登録してください。未設定ならスプライトを流用
         auraSR.sprite = (currentData.auraWhiteSprite != null) ? currentData.auraWhiteSprite : sr.sprite;
 
         PlayerStatusManager myStatus = null;
@@ -268,7 +259,7 @@ public class DanmakuBullet : MonoBehaviour
 
         int ownerId = (myStatus != null) ? myStatus.playerId : 1;
         Color auraColor = (myStatus != null && myStatus.characterData != null) ? myStatus.characterData.imageColor : ((ownerId == 1) ? Color.cyan : Color.red);
-        auraColor.a = 0.6f; // 少し透明度を上げてまばゆさを調整
+        auraColor.a = _isSpearChargeMode ? 0.8f : 0.6f;
         auraSR.color = auraColor;
     }
 
@@ -290,7 +281,7 @@ public class DanmakuBullet : MonoBehaviour
             {
                 _hasSelfDestructTriggered = true;
                 _selfDestructTimer = -1f;
-                Deactivate(true);
+                Deactivate(true, force: true); // 💡 自己破壊は force: true で消去
                 return;
             }
         }
@@ -309,14 +300,9 @@ public class DanmakuBullet : MonoBehaviour
                 transform.position = Vector3.Lerp(transform.position, owner.transform.position, t);
             }
 
-            // =========================================================================
-            // 🎯【核心修正】：槍弾のX回転起き上がりチャージ演算（90度 ➔ 0度）
-            // =========================================================================
             if (_isSpearChargeMode && totalDelay > 0)
             {
-                float progress = 1f - ((float)delayFrames / totalDelay); // 0.0 ➔ 1.0
-
-                // 90度からスタートして0度（完全フラットな起き上がり状態）へLerp
+                float progress = 1f - ((float)delayFrames / totalDelay);
                 float currentXRotation = Mathf.Lerp(90f, 0f, progress);
                 transform.localRotation = Quaternion.Euler(currentXRotation, 0f, angle - 90f);
             }
@@ -328,7 +314,6 @@ public class DanmakuBullet : MonoBehaviour
                 SetColliderActive(true);
                 if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
-                // チャージ完了に伴い完全フラットな回転に固定
                 if (_isSpearChargeMode)
                 {
                     transform.localRotation = Quaternion.Euler(0f, 0f, angle - 90f);
@@ -360,7 +345,7 @@ public class DanmakuBullet : MonoBehaviour
 
         if (Mathf.Abs(transform.position.x) > 10f || Mathf.Abs(transform.position.y) > 10f)
         {
-            Deactivate(false);
+            Deactivate(false, force: true); // 画面外離脱は force: true で消去
         }
     }
 
@@ -403,13 +388,9 @@ public class DanmakuBullet : MonoBehaviour
         }
     }
 
-    private IEnumerator DelayEffectRoutine(float delay, BulletData data)
+    private IEnumerator DelayEffectRoutine(BulletData data)
     {
-        // 🛠️ 槍チャージモードの時は大元の丸型魔法陣の生成を完全にスキップ！
-        if (_isSpearChargeMode)
-        {
-            yield break;
-        }
+        if (_isSpearChargeMode) yield break;
 
         if (effectPrefab != null && data.delaySprite != null)
         {
@@ -426,26 +407,43 @@ public class DanmakuBullet : MonoBehaviour
             ShotEffect logic = activeDelayEffect.GetComponent<ShotEffect>();
             if (logic != null)
             {
-                StartCoroutine(logic.PlayDelay(delay / 60f, data.delaySprite, transform.localScale.x));
+                StartCoroutine(logic.PlayDelay((float)delayFrames / 60f, data.delaySprite, transform.localScale.x));
             }
         }
         yield return null;
     }
 
-    private void OnTriggerEnter2D(Collider2D collision)
+    private void HandleHitCollisionLogic(Collider2D collision)
     {
-        if (!isInitialized || owner == null) return;
+        if (!isInitialized || owner == null || !isActive) return;
         if (collision.gameObject == owner || collision.transform.IsChildOf(owner.transform)) return;
 
         if (collision.CompareTag(targetTag))
         {
-            collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
-            Deactivate(true);
+            if (Time.frameCount >= _nextHitEnableFrame)
+            {
+                _nextHitEnableFrame = Time.frameCount + MULTI_HIT_INTERVAL_FRAMES;
+                collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
+
+                if (!isIndestructible)
+                {
+                    Deactivate(true);
+                }
+            }
         }
     }
 
-    public void Deactivate(bool playBreakEffect)
+    private void OnTriggerEnter2D(Collider2D collision) { HandleHitCollisionLogic(collision); }
+    private void OnTriggerStay2D(Collider2D collision) { HandleHitCollisionLogic(collision); }
+
+    // =========================================================================
+    // 🛡️【最核心修正：システム強制解放オーバーライド対応 Deactivate】
+    // =========================================================================
+    public void Deactivate(bool playBreakEffect, bool force = false)
     {
+        // 🎯 force が true（システム強制終了命令）でない時だけ不滅ガードを有効化！
+        if (isIndestructible && !force) return;
+
         isActive = false;
         if (activeDelayEffect != null) Destroy(activeDelayEffect);
 
@@ -478,8 +476,13 @@ public class DanmakuBullet : MonoBehaviour
         }
     }
 
+    public void Deactivate(bool playBreakEffect)
+    {
+        Deactivate(playBreakEffect, force: false);
+    }
+
     public void Deactivate()
     {
-        Deactivate(false);
+        Deactivate(false, force: false);
     }
 }
