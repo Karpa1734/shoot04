@@ -46,6 +46,14 @@ public class DanmakuAgent : Agent
     // 🌟【デモ用新設】：EXスキル（ULT）と領域展開（VJT）のAI使用を完全に禁止するスイッチ
     [SerializeField] private bool _disableEXAndVJTForDemo = false;
 
+    // =========================================================================
+    // 📐 【新設：AI専用マルチ通常スキルチャージインフラマネージャー】
+    // =========================================================================
+    // 💡 0: チャージなし, 1: Zスキルチャージ中
+    private int _aiCurrentChargingSkillSlot = 0;
+    private int _aiChargeFrameTimer = 0;
+    private const int AI_GENERIC_CHARGE_TARGET_FRAMES = 62; // 💡 基準の最大溜めターゲット（約1.0秒）
+
     public override void Initialize()
     {
         playerMove = GetComponent<PlayerMove>();
@@ -253,12 +261,10 @@ public class DanmakuAgent : Agent
 
         int attackAction = discrete[2];
 
+
         // =========================================================================
         // 🧠【強化学習専用ハッキング＆温存レール】
         // =========================================================================
-        // 💡 核心：PowerShell(IsCommunicatorOn)と接続している「真の強化学習中」のみ、
-        //          ゲージの強制書き換えや報酬ペナルティを執行します。
-        //          これにより、人間のキーボード操作(Heuristic)のときはこの内部が安全にスキップされます！
         if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
             float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
@@ -290,36 +296,69 @@ public class DanmakuAgent : Agent
 
         bool autoSlowToggle = (discrete[3] == 1);
 
-        // ルールベースAIによる危険察知時のみ低速を強制する処理
-        if (_useAutoEvadeAI && PlayerMove.CanShoot)
-        {
-            string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet";
-            Collider2D[] closeColliders = Physics2D.OverlapCircleAll(transform.position, 1.2f);
-            bool isImmediateDanger = false;
-
-            foreach (var col in closeColliders)
-            {
-                if (col != null && (col.CompareTag(targetBulletTag) || col.CompareTag("Laser")))
-                {
-                    isImmediateDanger = true;
-                    break;
-                }
-            }
-            if (isImmediateDanger) autoSlowToggle = true;
-        }
-
-        // 🌟 決定されたアクションをフレーム入力構造体に流し込む（ここが人間・AI共通の心臓部）
-        playerMove.currentFrameInput = new PlayerMove.ReplayFrame
+        // 🌟 決定された移動・低速ステートを一時バッファして生成
+        PlayerMove.ReplayFrame frameInput = new PlayerMove.ReplayFrame
         {
             h = h,
             v = v,
-            slow = autoSlowToggle,
-            shotZ = (attackAction == 1),
-            shotX = (attackAction == 2),
-            shotC = (attackAction == 3),
-            shotV = (attackAction == 4),
-            ultimate = (attackAction == 5)
+            slow = autoSlowToggle
         };
+
+        // =========================================================================
+        // 🔮 【一元化マルチ通常スキルチャージAIインフラの割り込み（AI完全思考解放版）】
+        // =========================================================================
+        // 🛑 A. すでにチャージ中の場合
+        if (_aiCurrentChargingSkillSlot > 0)
+        {
+            _aiChargeFrameTimer++;
+
+            // 💡 核心：AIが今このフレームでも「1:Z」を選び続けている、かつ最大チャージ（62F）未満ならホールドを継続！
+            if (attackAction == 1 && _aiChargeFrameTimer < AI_GENERIC_CHARGE_TARGET_FRAMES)
+            {
+                if (_aiCurrentChargingSkillSlot == 1) frameInput.shotZ = true;
+            }
+            else
+            {
+                // 🎯【AIの意思で解放】：AIが「1:Z」以外を選んだ（ボタンを離した）、または最大タメに達した瞬間！
+                if (_aiCurrentChargingSkillSlot == 1) frameInput.shotZ = false;
+
+                if (_aiChargeFrameTimer >= AI_GENERIC_CHARGE_TARGET_FRAMES)
+                {
+                    Debug.Log($"<color=lime>🎯 [AI CHARGE RELEASE] 最大チャージ満了による自動リリース！</color>");
+                }
+                else
+                {
+                    Debug.Log($"<color=cyan>⚡ [AI TACTICAL RELEASE] AIが敵の動きを読み、{_aiChargeFrameTimer}Fで戦略的に途中リリースしました！</color>");
+                }
+
+                _aiCurrentChargingSkillSlot = 0;
+                _aiChargeFrameTimer = 0;
+            }
+        }
+        // 🛑 B. 新規発動の監査
+        else
+        {
+            frameInput.shotZ = (attackAction == 1);
+            frameInput.shotX = (attackAction == 2);
+            frameInput.shotC = (attackAction == 3);
+            frameInput.shotV = (attackAction == 4);
+            frameInput.ultimate = (attackAction == 5);
+
+            // Zスキル（1）が選ばれ、かつアセットがチャージ技である場合はチャージロックを起動
+            if (attackAction == 1 && statusManager != null && statusManager.characterData != null)
+            {
+                if (statusManager.characterData.skillZ.isChargeSkill)
+                {
+                    _aiCurrentChargingSkillSlot = 1;
+                    _aiChargeFrameTimer = 1;
+                    frameInput.shotZ = true; // 1フレーム目の点火ホールド
+                    Debug.Log($"<color=orange>ToT [AI CHARGE START] AIの意思でZスキルのチャージを開始しました。</color>");
+                }
+            }
+        }
+
+        // 完成したパーフェクトなフレーム入力を自機の実体に直撃同期！
+        playerMove.currentFrameInput = frameInput;
 
         // 💡 領域展開（VJT）の発動執行
         if (attackAction == 6 && statusManager != null && !statusManager.isSpellCardActive)
@@ -781,5 +820,11 @@ public class DanmakuAgent : Agent
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, _detectionRadius);
+    }
+    public override void OnEpisodeBegin()
+    {
+        // 既存の初期化処理はそのまま維持
+        _aiCurrentChargingSkillSlot = 0;
+        _aiChargeFrameTimer = 0;
     }
 }

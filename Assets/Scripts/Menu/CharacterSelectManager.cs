@@ -37,7 +37,8 @@ public class CharacterSelectManager : MonoBehaviour
     // 1P/2Pが最終決定した「カーソル位置」のインデックス保存用（RandomならRandomのインデックスを保持）
     private int _finalP1CharacterId = -1;
     private int _finalP2CharacterId = -1;
-
+    // 🌟【新設】：フェーズ切り替え時やシーン遷移直後の決定キー暴発（突き抜け）を防ぐ入力冷却タイマー
+    private float _inputCooldownTimer = 0f;
     // 🕒 長押し（ホールド）スクロール管理用タイマー
     private float _keyHoldTimer = 0f;
     private bool _isFirstScrollDone = false;
@@ -49,6 +50,8 @@ public class CharacterSelectManager : MonoBehaviour
 
     void OnEnable()
     {
+        // 🎯【核心連動】：選択画面が起動したため、ゲームシーン側の直接デバッグ上書きを永久ロック（禁止）します
+        PlayerStatusManager.FromCharacterSelect = true;
         // =========================================================================
         // 💾【セーブシステム統合】：独自Bitセーブインフラからクリアフラグをデコード
         // =========================================================================
@@ -82,6 +85,8 @@ public class CharacterSelectManager : MonoBehaviour
 
         if (gameStartText != null) gameStartText.gameObject.SetActive(false);
 
+        // 🎯 画面が開いた直後の0.2秒間は入力を受け付けない（暴発ガード）
+        _inputCooldownTimer = 0.2f;
         InitializeCharacterSelectUI();
         UpdateSelectionVisuals();
     }
@@ -111,7 +116,11 @@ public class CharacterSelectManager : MonoBehaviour
     {
         int prevCursor = _currentCursor;
         int maxIndex = _selectableCharacterCount;
-
+        // 🎯 毎フレーム、入力冷却タイマーを安全に減算カウントダウン
+        if (_inputCooldownTimer > 0f)
+        {
+            _inputCooldownTimer -= Time.deltaTime;
+        }
         // GameStart準備完了フェーズ（カーソルロック状態）
         if (_isGameStartReadyPhase)
         {
@@ -167,7 +176,7 @@ public class CharacterSelectManager : MonoBehaviour
             UpdateSelectionVisuals();
         }
 
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (Input.GetKeyDown(KeyCode.Z) && _inputCooldownTimer <= 0f)
         {
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
             ConfirmSelection();
@@ -270,11 +279,16 @@ public class CharacterSelectManager : MonoBehaviour
             {
                 _isP2SelectingPhase = true;
                 _currentCursor = 0;
+
+                // 🎯【最核心】：1P決定の瞬間に 0.2秒 の冷却時間をチャージし、2Pの即時自動決定を100%阻止！
+                _inputCooldownTimer = 0.2f;
+
                 UpdateSelectionVisuals();
             }
             else if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.Story)
             {
                 _finalP2CharacterId = 7;
+                _inputCooldownTimer = 0.2f;
                 EnterGameStartReady();
             }
         }
@@ -282,6 +296,7 @@ public class CharacterSelectManager : MonoBehaviour
         else
         {
             _finalP2CharacterId = _currentCursor;
+            _inputCooldownTimer = 0.2f; // 2P決定時からGameStart画面への移行時も安全にガード
             EnterGameStartReady();
         }
     }

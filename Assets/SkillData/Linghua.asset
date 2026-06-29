@@ -59,17 +59,17 @@ MonoBehaviour:
     patternType: 17
     bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
     trailBulletData: {fileID: 0}
-    cooldown: 3
+    cooldown: 4
     isChargeSkill: 0
     sePath: 
     count: 10
-    speed: 8
+    speed: 4
     angleOffset: 23
     wideAngle: 360
     moveSpeedMultiplier: 0
     delay: 15
     cost: 10
-    ultimateGain: 100
+    ultimateGain: 8
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}

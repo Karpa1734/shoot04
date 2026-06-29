@@ -163,11 +163,24 @@ public class LustTrackingShield : MonoBehaviour
         if (_owner == null) return;
         if (transform.localScale.x < 0.1f) return;
 
+        // ⭕ 修正後：不滅フラグを絶対にすり抜けさせない安全盾の溶接
         if ((collision.CompareTag("PlayerBullet") || collision.CompareTag("EnemyBullet")) && !collision.CompareTag(gameObject.tag))
         {
-            DanmakuBullet bullet = collision.GetComponent<DanmakuBullet>();
-            if (bullet != null) bullet.Deactivate(true);
-            else Destroy(collision.gameObject);
+            // 親オブジェクトも含めてコンポーネントを安全にスキャン
+            DanmakuBullet bullet = collision.GetComponentInParent<DanmakuBullet>();
+            if (bullet != null)
+            {
+                // 💡 相手が不滅弾（isIndestructible）なら消去を絶対に拒絶してスルーする！
+                if (!bullet.isIndestructible)
+                {
+                    bullet.Deactivate(true);
+                }
+            }
+            else
+            {
+                // コンポーネントが無く、かつタグが弾の場合のみ、安全を確認して消去
+                Destroy(collision.gameObject);
+            }
         }
 
         if (collision.CompareTag("Player") && collision.transform != _owner)

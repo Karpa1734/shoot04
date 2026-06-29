@@ -1,4 +1,4 @@
-﻿// --- SkillManager.cs 【引数バグ修正・領域中コストフリー大連射完全適合版】 ---
+﻿// --- SkillManager.cs 【チャージ解放時コスト消費＆アルカナ充填＆シールド即時パージ完全適合版】 ---
 using KanKikuchi.AudioManager;
 using UnityEngine;
 
@@ -48,48 +48,42 @@ public class SkillManager : MonoBehaviour
 
     void Start()
     {
-        playerMove = GetComponentInParent<PlayerMove>(); 
-        hitHandler = GetComponentInParent<PlayerHitHandler>(); 
-        emitter = GetComponentInParent<PlayerDanmakuEmitter>(); 
-        statusManager = GetComponentInParent<PlayerStatusManager>(); 
+        playerMove = GetComponentInParent<PlayerMove>();
+        hitHandler = GetComponentInParent<PlayerHitHandler>();
+        emitter = GetComponentInParent<PlayerDanmakuEmitter>();
+        statusManager = GetComponentInParent<PlayerStatusManager>();
 
-        if (ultimateGaugeUI != null && playerMove != null) 
+        if (ultimateGaugeUI != null && playerMove != null)
         {
-            ultimateGaugeUI.Initialize(playerMove); 
+            ultimateGaugeUI.Initialize(playerMove);
         }
 
-        if (statusManager != null) 
+        if (statusManager != null)
         {
-            skillData = statusManager.characterData; 
+            skillData = statusManager.characterData;
         }
 
-        if (playerMove != null && skillData != null) 
+        if (playerMove != null && skillData != null)
         {
-            playerMove.currentEnergy = playerMove.maxEnergy; 
-            if (energyGauge != null) energyGauge.Initialize(playerMove); 
+            playerMove.currentEnergy = playerMove.maxEnergy;
+            if (energyGauge != null) energyGauge.Initialize(playerMove);
         }
 
-        if (skillData != null) 
+        if (skillData != null)
         {
-            if (uiZ != null) uiZ.SetSkillIcon(skillData.skillZ.skillIcon); 
-            if (uiX != null) uiX.SetSkillIcon(skillData.skillX.skillIcon); 
-            if (uiC != null) uiC.SetSkillIcon(skillData.skillC.skillIcon); 
-            if (uiV != null) uiV.SetSkillIcon(skillData.skillV.skillIcon); 
+            if (uiZ != null) uiZ.SetSkillIcon(skillData.skillZ.skillIcon);
+            if (uiX != null) uiX.SetSkillIcon(skillData.skillX.skillIcon);
+            if (uiC != null) uiC.SetSkillIcon(skillData.skillC.skillIcon);
+            if (uiV != null) uiV.SetSkillIcon(skillData.skillV.skillIcon);
         }
     }
 
     void Update()
     {
-        if (playerMove == null || skillData == null || statusManager == null) return; 
+        if (playerMove == null || skillData == null || statusManager == null) return;
 
-        // =========================================================================
-        // 🛑【核心新設：最上流・世界時間停止監査セキュリティ】
-        // =========================================================================
-        // 💡 ポーズ画面やULTの演出停止等、Time.timeScale が 0 の時は、
-        //    入力スキャンやマナの自動回復を含むすべてのスキル判定を完全にフリーズ（遮断）します。
         if (Mathf.Approximately(Time.timeScale, 0f))
         {
-            // 安全弁：万が一チャージ中に時間が止まった場合、チャージ状態を安全にリセットクリア
             if (_isZCharging)
             {
                 _isZCharging = false;
@@ -97,297 +91,302 @@ public class SkillManager : MonoBehaviour
             return;
         }
 
-        // =========================================================================
-        // 🎯【目覚めているEmitterの動的リアルタイムキャッチインフラ】
-        // =========================================================================
-        PlayerDanmakuEmitter activeEmitter = null; 
-        PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>(); 
-        foreach (var em in allEmitters) 
+        PlayerDanmakuEmitter activeEmitter = null;
+        PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>();
+        if (allEmitters == null || allEmitters.Length == 0) allEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+
+        foreach (var em in allEmitters)
         {
-            if (em != null && em.enabled) 
+            if (em != null && em.enabled)
             {
-                activeEmitter = em; 
-                break; 
+                activeEmitter = em;
+                break;
             }
         }
 
-        if (activeEmitter == null) activeEmitter = emitter; 
+        if (activeEmitter == null) activeEmitter = emitter;
 
-        // =========================================================================
-        // 🎯【マナ自動回復ディレイ制御セクター】
-        // =========================================================================
-        const float BASE_WAIT_SECONDS = 0.5f; 
+        const float BASE_WAIT_SECONDS = 0.5f;
 
-        if (activeEmitter != null && activeEmitter.IsAnySkillActive) 
+        if (activeEmitter != null && activeEmitter.IsAnySkillActive)
         {
-            float passiveDelayRate = 1.0f; 
-            if (statusManager != null && statusManager.HasPassiveSkill(PassiveSkillType.GreedReduction)) 
+            float passiveDelayRate = 1.0f;
+            if (statusManager != null && statusManager.HasPassiveSkill(PassiveSkillType.GreedReduction))
             {
-                passiveDelayRate = 0.7f; // ⚡ 30%短縮
+                passiveDelayRate = 0.7f;
             }
 
-            if (statusManager.isSpellCardActive) 
+            if (statusManager.isSpellCardActive)
             {
-                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 0.5f) * passiveDelayRate; 
+                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 0.5f) * passiveDelayRate;
             }
-            else if (statusManager.isOverheated) 
+            else if (statusManager.isOverheated)
             {
-                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 2.0f) * passiveDelayRate; 
+                _recoveryCooldownTimer = (BASE_WAIT_SECONDS * 2.0f) * passiveDelayRate;
             }
             else
             {
-                _recoveryCooldownTimer = BASE_WAIT_SECONDS * passiveDelayRate; 
+                _recoveryCooldownTimer = BASE_WAIT_SECONDS * passiveDelayRate;
             }
         }
         else
         {
-            if (_recoveryCooldownTimer > 0f) 
+            if (_recoveryCooldownTimer > 0f)
             {
-                _recoveryCooldownTimer -= Time.deltaTime; 
+                _recoveryCooldownTimer -= Time.deltaTime;
             }
         }
 
-        if (_recoveryCooldownTimer <= 0f) 
+        if (_recoveryCooldownTimer <= 0f)
         {
-            float regenMultiplier = 1.0f; 
-            if (statusManager.isOverheated) regenMultiplier = 0.5f; 
-            else if (statusManager.isSpellCardActive) 
+            float regenMultiplier = 1.0f;
+            if (statusManager.isOverheated) regenMultiplier = 0.5f;
+            else if (statusManager.isSpellCardActive)
             {
-                regenMultiplier = 2.0f; 
+                regenMultiplier = 2.0f;
 
-                if (statusManager.characterData != null && statusManager.characterData.vjtEffectType == VJTEffectType.GreedCast) 
+                if (statusManager.characterData != null && statusManager.characterData.vjtEffectType == VJTEffectType.GreedCast)
                 {
-                    regenMultiplier *= 1.5f; 
+                    regenMultiplier *= 1.5f;
                 }
             }
 
-            if (playerMove != null && playerMove.Opponent != null) 
+            if (playerMove != null && playerMove.Opponent != null)
             {
-                PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>(); 
-                if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null) 
+                PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                if (oppStatus != null && oppStatus.isSpellCardActive && oppStatus.characterData != null)
                 {
-                    if (oppStatus.characterData.vjtEffectType == VJTEffectType.GreedCast) 
+                    if (oppStatus.characterData.vjtEffectType == VJTEffectType.GreedCast)
                     {
-                        regenMultiplier *= 0.5f; 
+                        regenMultiplier *= 0.5f;
                     }
                 }
             }
 
-            if (statusManager != null && statusManager.IsSlothRegenBlocked()) 
+            if (statusManager != null && statusManager.IsSlothRegenBlocked())
             {
-                regenMultiplier = 0f; 
+                regenMultiplier = 0f;
             }
 
-            if (statusManager != null && statusManager.IsSlothBoostActive()) 
+            if (statusManager != null && statusManager.IsSlothBoostActive())
             {
-                regenMultiplier *= 1.5f; 
+                regenMultiplier *= 1.5f;
             }
 
             playerMove.currentEnergy = Mathf.Min(
                 playerMove.maxEnergy,
                 playerMove.currentEnergy + (playerMove.energyRegenRate * regenMultiplier * Time.deltaTime)
-            ); 
+            );
         }
 
-        UpdateTimers(); 
-        UpdateAllCooldownUI(); 
+        UpdateTimers();
+        UpdateAllCooldownUI();
 
-        if (!PlayerMove.CanShoot) return; 
-        if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return; 
+        if (!PlayerMove.CanShoot) return;
+        if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
-        bool zPressed = false; 
-        bool xPressed = false; 
-        bool cPressed = false; 
-        bool vPressed = false; 
-        bool exPressed = false; 
-        bool vjtPressed = false; 
+        bool zPressed = false;
+        bool xPressed = false;
+        bool cPressed = false;
+        bool vPressed = false;
+        bool exPressed = false;
+        bool vjtPressed = false;
 
-        DanmakuAgent agent = GetComponentInParent<DanmakuAgent>(); 
+        DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
 
-        // 🤖 A. 敵AIまたはリプレイ再生時の入力抽出
-        if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing)) 
+        if (agent != null && (agent._useAutoEvadeAI || playerMove.currentMode == PlayerMove.ReplayMode.Playing))
         {
-            var input = playerMove.currentFrameInput; 
-            zPressed = input.shotZ; 
-            xPressed = input.shotX; 
-            cPressed = input.shotV ? false : input.shotC; 
-            vPressed = input.shotV; 
-            exPressed = input.ultimate; 
+            var input = playerMove.currentFrameInput;
+            zPressed = input.shotZ;
+            xPressed = input.shotX;
+            cPressed = input.shotV ? false : input.shotC;
+            vPressed = input.shotV;
+            exPressed = input.ultimate;
 
-            vjtPressed = (agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate && 
-                          playerMove.ultimateEnergy >= 200f && !statusManager.isSpellCardActive); 
+            vjtPressed = (agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
+                          playerMove.ultimateEnergy >= 200f && !statusManager.isSpellCardActive);
         }
-        // ⌨️ 🎮 B. 人間操作の入力スキャン
         else
         {
-            if (InputManager.Instance != null) 
+            if (InputManager.Instance != null)
             {
-                var inputSet = (playerMove.playerId == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2; 
+                var inputSet = (playerMove.playerId == 1) ? InputManager.Instance.player1 : InputManager.Instance.player2;
 
-                zPressed = inputSet.skillZ.action.IsPressed(); 
-                xPressed = inputSet.skillX.action.IsPressed(); 
-                cPressed = inputSet.skillC.action.IsPressed(); 
-                vPressed = inputSet.skillV.action.IsPressed(); 
+                zPressed = inputSet.skillZ.action.IsPressed();
+                xPressed = inputSet.skillX.action.IsPressed();
+                cPressed = inputSet.skillC.action.IsPressed();
+                vPressed = inputSet.skillV.action.IsPressed();
 
-                bool isZX_Combination = (zPressed && xPressed); 
-                if (isZX_Combination && (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.X))) 
+                bool isZX_Combination = (zPressed && xPressed);
+                if (isZX_Combination && (Input.GetKeyDown(KeyCode.Z) || Input.GetKeyDown(KeyCode.X)))
                 {
-                    vjtPressed = true; 
+                    vjtPressed = true;
                 }
 
-                if (!vjtPressed && inputSet.skillVJT != null && inputSet.skillVJT.action != null) 
+                if (!vjtPressed && inputSet.skillVJT != null && inputSet.skillVJT.action != null)
                 {
-                    if (inputSet.skillVJT.action.WasPressedThisFrame()) 
+                    if (inputSet.skillVJT.action.WasPressedThisFrame())
                     {
-                        vjtPressed = true; 
+                        vjtPressed = true;
                     }
                 }
 
-                if (inputSet.skillEX != null && inputSet.skillEX.action != null) 
+                if (inputSet.skillEX != null && inputSet.skillEX.action != null)
                 {
-                    exPressed = inputSet.skillEX.action.WasPressedThisFrame(); 
+                    exPressed = inputSet.skillEX.action.WasPressedThisFrame();
                 }
                 else
                 {
-                    if (cPressed && vPressed && (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.V))) 
+                    if (cPressed && vPressed && (Input.GetKeyDown(KeyCode.C) || Input.GetKeyDown(KeyCode.V)))
                     {
-                        exPressed = true; 
+                        exPressed = true;
                     }
                 }
             }
         }
 
-        // 🔮 1. 領域展開（VJT）の執行
         if (vjtPressed)
         {
-            Debug.Log($"<color=orange>🔮 [VJT INPUT SUCCESS] Player {playerMove.playerId} の領域入力（Z+X / パッド）が完全成立！ (現在のアルカナゲージ: {playerMove.ultimateEnergy:F1}%)</color>"); 
+            Debug.Log($"<color=orange>🔮 [VJT INPUT SUCCESS] Player {playerMove.playerId} の領域入力が完全成立！</color>");
             statusManager.ActivateSpellCard();
-            return; 
+            return;
         }
 
-        // 👑 2. 必殺技（EX/ULT）の執行
         if (exPressed)
         {
-            if (statusManager.isSpellCardActive) 
+            if (statusManager.isSpellCardActive)
             {
-                if (timerEX <= 0f) 
+                if (timerEX <= 0f)
                 {
-                    playerMove.ultimateEnergy = 0f; 
-                    emitter.FireEX(skillData.skillEX); 
-                    timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN; 
-                    Debug.Log("<color=magenta>👑 [VJT-ULT] 領域維持必殺技を射出しました！</color>"); 
+                    playerMove.ultimateEnergy = 0f;
+                    activeEmitter.FireEX(skillData.skillEX);
+                    timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
                 }
             }
             else
             {
-                if (timerEX <= 0f && playerMove.ultimateEnergy >= 100f) 
+                if (timerEX <= 0f && playerMove.ultimateEnergy >= 100f)
                 {
-                    playerMove.ultimateEnergy -= 100f; 
-                    emitter.FireEX(skillData.skillEX); 
-                    timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN; 
-                    Debug.Log("<color=lime>★★ 1ストック通常Exスキルを発動しました ★★</color>"); 
-                }
-                else
-                {
-                    Debug.LogWarning($"⚠️ [EX BLOCK] 必殺条件を満たしていません。 (リキャスト残り: {timerEX:F1}秒 / アルカナ: {playerMove.ultimateEnergy:F1}%)"); 
+                    playerMove.ultimateEnergy -= 100f;
+                    activeEmitter.FireEX(skillData.skillEX);
+                    timerEX = skillData.skillEX.cooldown > 0f ? skillData.skillEX.cooldown : EX_COOLDOWN;
                 }
             }
-            return; 
-        }
-        if (activeEmitter is Emitter_Lust lustEmitter && lustEmitter.IsShieldActive)
-        {
-            // シールドが展開されている間は、押しっぱなし（zPressed）を強制的に踏み倒して無効化！
-            zPressed = false;
-        }
-        if (activeEmitter != null && activeEmitter.IsUltimateSkillActive) 
-        {
-            return; 
+            return;
         }
 
-        bool isVjtActive = (statusManager != null && statusManager.isSpellCardActive); 
-        HandleSkillInput(zPressed, ref timerZ, skillData.skillZ, isVjtActive); 
-        HandleSkillInput(xPressed, ref timerX, skillData.skillX, isVjtActive); 
-        HandleSkillInput(cPressed, ref timerC, skillData.skillC, isVjtActive); 
-        HandleSkillInput(vPressed, ref timerV, skillData.skillV, isVjtActive); 
+        if (activeEmitter != null && activeEmitter.IsUltimateSkillActive)
+        {
+            return;
+        }
+
+        bool isVjtActive = (statusManager != null && statusManager.isSpellCardActive);
+        // 💡 修正：動的スキャンで特定した現在有効なアクティブ Emitter（activeEmitter）を引数に手渡します！
+        HandleSkillInput(zPressed, ref timerZ, skillData.skillZ, isVjtActive, activeEmitter);
+        HandleSkillInput(xPressed, ref timerX, skillData.skillX, isVjtActive, activeEmitter);
+        HandleSkillInput(cPressed, ref timerC, skillData.skillC, isVjtActive, activeEmitter);
+        HandleSkillInput(vPressed, ref timerV, skillData.skillV, isVjtActive, activeEmitter);
     }
 
-    private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings, bool isVjtActive)
+    private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings, bool isVjtActive, PlayerDanmakuEmitter activeEmitter)
     {
-        bool isCostAllowed = (playerMove.currentEnergy >= settings.cost); 
+        bool isCostAllowed = (playerMove.currentEnergy >= settings.cost);
 
-        if (settings.isChargeSkill) 
+        if (settings.isChargeSkill)
         {
-            if (isPressed && timer <= 0 && isCostAllowed && !_isZCharging) 
+            // 💡 A. チャージ開始（最初の押し込みフレーム）
+            if (isPressed && timer <= 0 && isCostAllowed && !_isZCharging)
             {
-                _isZCharging = true; 
-                _recoveryDelayTimer = 0f; 
-                emitter.Fire(settings); 
+                _isZCharging = true;
+                _recoveryDelayTimer = 0f;
+                activeEmitter.Fire(settings); // ➔ 槍のチャージ（インジケーター収束）演出のみを開始
             }
 
-            if (!isPressed && _isZCharging) 
+            // 💡 B. チャージ解放（ボタンを離して、実際に槍が戦場へ放たれたジャストの瞬間！）
+            // 💡 AIの入力終了フラグ、または「溜めタイマー満了によるAI側の強制リリース」のどちらからでも確実にフックします
+            if (!isPressed && _isZCharging)
             {
-                _isZCharging = false; 
-                playerMove.currentEnergy -= settings.cost; 
+                _isZCharging = false;
 
-                float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f; 
-                timer = settings.cooldown * cooldownMultiplier; 
+                // 🎯 1. 【コスト消費】：ボタンを離したこの瞬間にマナコストを消費（先払いを防止）
+                playerMove.currentEnergy -= settings.cost;
+
+                // 🎯 2. 【アルカナゲージ加算】：チャージ開始時をブロックし、この発射時の「1回だけ」に集約加算！
+                if (playerMove != null && statusManager != null)
+                {
+                    float finalGain = settings.ultimateGain; // アセット設定値（例: 15f など）
+                    if (statusManager.isOverheated)
+                    {
+                        finalGain *= 0.5f; // 術式焼き切れ時は獲得量半減
+                    }
+                    playerMove.AddUltimateEnergy(finalGain);
+                }
+
+                // 🎯 3. 【シールド消滅】：槍が出たこの瞬間に、展開中のシールドを安全・確実に直撃パージ！
+                if (activeEmitter is Emitter_Lust lustEmitter && lustEmitter.IsShieldActive)
+                {
+                    lustEmitter.PurgeActiveShield();
+                }
+
+                float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f;
+                timer = settings.cooldown * cooldownMultiplier;
             }
         }
         else
         {
-            if (isPressed && timer <= 0 && isCostAllowed) 
+            // 通常の単発スキル（従来通りの一瞬でコスト消費する処理）
+            if (isPressed && timer <= 0 && isCostAllowed)
             {
-                _recoveryDelayTimer = 0f; 
-                playerMove.currentEnergy -= settings.cost; 
-                emitter.Fire(settings); 
+                _recoveryDelayTimer = 0f;
+                playerMove.currentEnergy -= settings.cost;
+                activeEmitter.Fire(settings);
 
-                float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f; 
-                timer = settings.cooldown * cooldownMultiplier; 
+                float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f;
+                timer = settings.cooldown * cooldownMultiplier;
             }
         }
     }
-
     private void UpdateTimers()
     {
-        float dtMultiplier = 1.0f; 
-        if (statusManager != null && statusManager.IsSlothBoostActive()) 
+        float dtMultiplier = 1.0f;
+        if (statusManager != null && statusManager.IsSlothBoostActive())
         {
-            dtMultiplier = 1.3f; 
+            dtMultiplier = 1.3f;
         }
 
-        float dt = Time.deltaTime * dtMultiplier; 
+        float dt = Time.deltaTime * dtMultiplier;
 
-        if (timerZ > 0) timerZ -= dt; 
-        if (timerX > 0) timerX -= dt; 
-        if (timerC > 0) timerC -= dt; 
-        if (timerV > 0) timerV -= dt; 
-        if (timerEX > 0) timerEX -= dt; 
+        if (timerZ > 0) timerZ -= dt;
+        if (timerX > 0) timerX -= dt;
+        if (timerC > 0) timerC -= dt;
+        if (timerV > 0) timerV -= dt;
+        if (timerEX > 0) timerEX -= dt;
     }
 
     private void ResetAllTimers()
     {
-        timerZ = timerX = timerC = timerV = timerEX = 0; 
-        burstCountZ = burstCountX = burstCountC = burstCountV = 0; 
-        burstResetTimerZ = burstResetTimerX = burstResetTimerC = burstResetTimerV = 0; 
+        timerZ = timerX = timerC = timerV = timerEX = 0;
+        burstCountZ = burstCountX = burstCountC = burstCountV = 0;
+        burstResetTimerZ = burstResetTimerX = burstResetTimerC = burstResetTimerV = 0;
     }
 
     private void UpdateAllCooldownUI()
     {
-        if (skillData == null) return; 
-        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f)); 
-        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f)); 
-        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f)); 
-        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f)); 
+        if (skillData == null) return;
+        if (uiZ != null) uiZ.UpdateCooldown(timerZ, skillData.skillZ.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
+        if (uiX != null) uiX.UpdateCooldown(timerX, skillData.skillX.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
+        if (uiC != null) uiC.UpdateCooldown(timerC, skillData.skillC.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
+        if (uiV != null) uiV.UpdateCooldown(timerV, skillData.skillV.cooldown * (statusManager.isOverheated ? 1.5f : 1.0f));
     }
 
     public void InstantFullRecovery()
     {
-        ResetAllTimers(); 
-        if (playerMove != null) 
+        ResetAllTimers();
+        if (playerMove != null)
         {
-            playerMove.currentEnergy = playerMove.maxEnergy; 
+            playerMove.currentEnergy = playerMove.maxEnergy;
         }
-        _recoveryDelayTimer = 0f; 
-        UpdateAllCooldownUI(); 
+        _recoveryDelayTimer = 0f;
+        UpdateAllCooldownUI();
     }
 }

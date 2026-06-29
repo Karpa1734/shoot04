@@ -169,19 +169,41 @@ public class PlayerStatusManager : MonoBehaviour
         public StatusRank spellZone;
     }
     private CharacterRankBackup _originalBackup;
-
+    // =========================================================================
+    // 💡【新設】：キャラクター選択画面を通過したかを確実に記憶する静的フラグ
+    // =========================================================================
+    public static bool FromCharacterSelect = false;
 
     // =========================================================================
     // 🧠【構造大手術】：Awake ✕ Start のデータバインド優先順位の完全正常化
+    // =========================================================================
+    // =========================================================================
+    // 🧠【構造大手術】：Awake の段階で選択データを完全確定させ、Startでの競合を根絶
+    // =========================================================================
+    // =========================================================================
+    // 🧠【構造大手術：Awake ✕ 選択画面フラグの厳密なる調停】
     // =========================================================================
     void Awake()
     {
         _playerMove = GetComponent<PlayerMove>();
 
-        // 🚨 修正：Awakeではインスペクターに設定されているピュアな「characterData」を最優先保護します。
-        //          ここでGameSelectionDataを参照して上書きする処理は、競合バグの温床となるため完全パージしました。
-        if (characterData != null)
+        // ⭕ 修正の核心：キャラクター選択画面（セレクト）から正規に遷移してきた場合【のみ】データベースからロード。
+        //    直接ゲームシーンを再生したデバッグ時は、インスペクターに直付けされた characterData を100%最優先保護します！
+        if (FromCharacterSelect && allCharacterDataDatabase != null && allCharacterDataDatabase.Length > 0)
         {
+            int targetSelectedId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
+            if (targetSelectedId >= 0 && targetSelectedId < allCharacterDataDatabase.Length)
+            {
+                characterData = Instantiate(allCharacterDataDatabase[targetSelectedId]);
+            }
+            else if (characterData != null)
+            {
+                characterData = Instantiate(characterData);
+            }
+        }
+        else if (characterData != null)
+        {
+            // 🔧 直接起動デバッグ時は、インスペクターのアタッチデータをそのままディープコピーして使用
             characterData = Instantiate(characterData);
         }
 
@@ -216,7 +238,7 @@ public class PlayerStatusManager : MonoBehaviour
         }
 
         if (hitboxSprite1 != null) originalSprite1Scale = hitboxSprite1.transform.localScale;
-        if (hitboxSprite2 != null) originalSprite2Scale = hitboxSprite2.transform.localScale; // ✨「localScale」に正しく修正
+        if (hitboxSprite2 != null) originalSprite2Scale = hitboxSprite2.transform.localScale;
 
         _myOwnCharacterRenderer = GetComponent<SpriteRenderer>();
         if (_myOwnCharacterRenderer == null) _myOwnCharacterRenderer = GetComponentInChildren<SpriteRenderer>();
@@ -231,17 +253,41 @@ public class PlayerStatusManager : MonoBehaviour
             }
         }
 
-        // 📊 基礎ランク評価を計算（ここでのアセットはインスペクター直アタッチのピュアデータ）
+        // 📊 どのStart()よりも先に、選ばれたキャラの6大ステータス（最大マナや速度）を完全に確定させます
         ApplyCharacterRanks();
+
+        // 🎯【最核心】：確定した正しい characterData に基づき、使用しない大罪Emitterを最速仕分け
+        if (characterData != null)
+        {
+            PlayerDanmakuEmitter[] allEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+            foreach (var em in allEmitters) em.enabled = false;
+
+            if (characterData.characterName == "Karin")
+            {
+                var wrath = GetComponentInChildren<Emitter_Wrath>(true);
+                if (wrath != null) wrath.enabled = true;
+            }
+            else if (characterData.characterName == "Charlotte")
+            {
+                var greed = GetComponentInChildren<Emitter_Greed>(true);
+                if (greed != null) greed.enabled = true;
+            }
+            else if (characterData.characterName == "Linghua")
+            {
+                var lust = GetComponentInChildren<Emitter_Lust>(true);
+                if (lust != null) lust.enabled = true;
+            }
+        }
     }
 
     void Start()
     {
         // =========================================================================
-        // 🛠️【エディタ直接起動セーフティ】：最優先でインスペクターのデータを static へ逆インジェクション
+        // 🛠️【エディタ直接起動セーフティ（フラグ監査版）】
+        // 💡 選択画面を通らずにこのシーン単体で直接再生された場合のみ、アタッチされたデータで後追い同期
         // =========================================================================
 #if UNITY_EDITOR
-        if (characterData != null && allCharacterDataDatabase != null)
+        if (!FromCharacterSelect && characterData != null && allCharacterDataDatabase != null)
         {
             for (int i = 0; i < allCharacterDataDatabase.Length; i++)
             {
@@ -249,54 +295,18 @@ public class PlayerStatusManager : MonoBehaviour
                 {
                     if (playerId == 1) GameSelectionData.SelectedCharacterP1 = i;
                     else if (playerId == 2) GameSelectionData.SelectedCharacterP2 = i;
+
+                    // エディタ直接起動の時のみ、ここでアセットをリロードしてパラメータを再適用
+                    characterData = Instantiate(allCharacterDataDatabase[i]);
+                    ApplyCharacterRanks();
                     break;
                 }
             }
+            Debug.Log($"<color=yellow>🔧 [DEBUG MODE] シーン直接起動を検知。インスペクターのデバッグ用データ【{characterData.characterName}】を同期しました。</color>");
         }
 #endif
 
-        // =========================================================================
-        // 🚨【正規ルート用同期】：キャラクター選択画面から来た場合は、ここで正常に上書きロード
-        // =========================================================================
-        if (allCharacterDataDatabase != null && allCharacterDataDatabase.Length > 0)
-        {
-            int targetSelectedId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
-            if (targetSelectedId >= 0 && targetSelectedId < allCharacterDataDatabase.Length)
-            {
-                characterData = Instantiate(allCharacterDataDatabase[targetSelectedId]);
-                ApplyCharacterRanks();
-            }
-        }
-
-        // =========================================================================
-        // 🎯【大罪Emitter・不要コンポーネント物理消去インフラ】（#ifの外側へ配置！）
-        // 💡 1つのオブジェクトにWrathもGreedも全乗りしていても、ビルド後・実機でも
-        //    選ばれなかった方のスクリプトを根こそぎ消去し、GetComponentの混線を物理的に0%にします。
-        // =========================================================================
-        if (characterData != null)
-        {
-            // 一度オブジェクトに付いているEmitterを全員一斉に眠らせる
-            PlayerDanmakuEmitter[] allEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
-            foreach (var em in allEmitters) em.enabled = false;
-
-            // ⚠️ インスペクターの characterData.characterName に設定されている文字列と完全一致させてください
-            if (characterData.characterName == "Karin")
-            {
-                var wrath = GetComponentInChildren<Emitter_Wrath>(true);
-                if (wrath != null) wrath.enabled = true;
-            }
-            else if (characterData.characterName == "Charlotte") // シャウル側のアセット名
-            {
-                var greed = GetComponentInChildren<Emitter_Greed>(true);
-                if (greed != null) greed.enabled = true;
-            }
-            else if (characterData.characterName == "Linghua") // シャウル側のアセット名
-            {
-                var lust = GetComponentInChildren<Emitter_Lust>(true);
-                if (lust != null) lust.enabled = true;
-            }
-        }
-        // 看板テキストやUIカラーの流し込みを実行
+        // 看板テキストやUIカラー、COM名への流し込みを実行
         ApplyCharacterSettings();
 
         if (HasPassiveSkill(PassiveSkillType.PrideStatusSteal))
@@ -312,9 +322,16 @@ public class PlayerStatusManager : MonoBehaviour
 
         currentHP = maxHP;
 
+        // マナ（Energy）の初期値を最大ランク基準に完全同期
+        if (_playerMove != null)
+        {
+            _playerMove.currentEnergy = _playerMove.maxEnergy;
+        }
+
         StartCoroutine(SetupInitialUI());
         StartCoroutine(InitUIWithDelay());
     }
+    
     /// <summary>
     /// 📊 6大パラメーター・ランクインフラの動的展開マトリクス
     /// </summary>
@@ -536,9 +553,11 @@ public class PlayerStatusManager : MonoBehaviour
 
             // 自分、または対戦相手のどちらかが「通常状態（Normal）」でなくなった＝決着演出が始まったら、
             // このフレームのタイマーおよびゲージの減少計算を完全スキップ（フリーズ）させます。
-            bool isRoundEnded = (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) ||
-                                (oppHitHandler != null && oppHitHandler.currentState != PlayerHitHandler.PlayerState.Normal);
-
+            //bool isRoundEnded = (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) ||
+            // (oppHitHandler != null && oppHitHandler.currentState != PlayerHitHandler.PlayerState.Normal);
+            // ⭕ 修正後：ただの被弾（Hit）や食らいボム時はフリーズさせず、真の撃墜ダウン（Down）時のみタイマーを停止！
+            bool isRoundEnded = (hitHandler != null && hitHandler.currentState == PlayerHitHandler.PlayerState.Down) ||
+                                (oppHitHandler != null && oppHitHandler.currentState == PlayerHitHandler.PlayerState.Down);
             if (!isRoundEnded)
             {
 

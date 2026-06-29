@@ -133,8 +133,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
         if (_isEXSkillActive && s.patternType != SkillPatternType.Line) return;
 
+        var myStatusMgr = GetComponentInParent<PlayerStatusManager>();
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
-        if (myMove != null)
+        if (myMove != null && myStatusMgr != null && s.skillName != myStatusMgr.characterData.skillZ.skillName)
         {
             float finalGain = s.ultimateGain;
             PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -167,7 +168,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         // =========================================================================
         // 🔮【大罪仕分けパージ】：技名によるポリモーフィック自動中継インフラ
         // =========================================================================
-        var myStatusMgr = GetComponentInParent<PlayerStatusManager>();
+
         if (myStatusMgr != null && myStatusMgr.characterData != null)
         {
             var data = myStatusMgr.characterData; 

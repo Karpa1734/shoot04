@@ -88,6 +88,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             float spawnTimer = 0f;
             float spawnInterval = 5f / 60f;
 
+            // 💡 修正：while全体の強制離脱（break）条件をパージし、時間またはレイヤー維持のライフサイクルを絶対保証
             while (currentElapsed < bulletLifeTime || layersBulletMatrix.Count < totalLayers)
             {
                 yield return new WaitForFixedUpdate();
@@ -97,7 +98,15 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
                 if (nextLayerToSpawn < totalLayers && (nextLayerToSpawn == 0 || spawnTimer >= spawnInterval))
                 {
-                    if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
+                    // ⭕ 修正の核心：被弾中または射撃不可の時は、ループを破壊（break）するのではなく、
+                    //                「新規生成のフェーズだけを丸ごとスキップ（continue）」させる盾へ切り替えます！
+                    //                これにより、すでに戦場に出ているレイヤーの回転計算（下部）へ安全にタイムラインが流れます。
+                    if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                    {
+                        // 生成はスキップするが、タイマーをリセットして無限連打を防ぐ
+                        spawnTimer = 0f;
+                        continue;
+                    }
 
                     spawnTimer = 0f;
                     int layer = nextLayerToSpawn;
@@ -139,6 +148,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                     }
                 }
 
+                // 🎯【自律公転制御】：新規生成がスキップされていても、この回転アニメーション処理は毎フレーム100%確実に稼働し続けます！
                 for (int layerIndex = 0; layerIndex < layersBulletMatrix.Count; layerIndex++)
                 {
                     float rotDirection = (layerIndex % 2 == 0) ? 1.0f : -1.0f;
@@ -411,10 +421,26 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                 yield return new WaitForFixedUpdate();
                 elapsedFrames++;
 
+                // ⭕ 修正後：AI操作中か人間操作中かを自動判別し、AIならインフラフレームの shotZ を最優先信用する！
                 if (elapsedFrames >= 3)
                 {
-                    if (zAction != null && !zAction.IsPressed()) isKeyReleased = true;
-                    else if (zAction == null && !Input.anyKey) isKeyReleased = true;
+                    DanmakuAgent agent = GetComponentInChildren<DanmakuAgent>();
+                    if (agent == null) agent = GetComponentInParent<DanmakuAgent>();
+
+                    // 🤖 AI自動操作モードの時のホールド・リリース判定
+                    if (agent != null && agent._useAutoEvadeAI)
+                    {
+                        if (myMove != null && !myMove.currentFrameInput.shotZ)
+                        {
+                            isKeyReleased = true; // AIが62Fに達して shotZ = false にした瞬間にリリース
+                        }
+                    }
+                    // 🧑 人間がキーボード・パッドで手動操作している時の判定
+                    else
+                    {
+                        if (zAction != null && !zAction.IsPressed()) isKeyReleased = true;
+                        else if (zAction == null && !Input.anyKey) isKeyReleased = true;
+                    }
                 }
             }
 
@@ -426,7 +452,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             for (int i = 0; i < wayCount; i++)
             {
                 float finalSpearAngle = startAngle + (stepAngle * i);
-                CreateShot(s.bulletData, transform.position, s.speed, finalSpearAngle, delay: s.delay, isConverge: false, accel: 0f, maxSpeed: 0f, customMaterial: null, customScale: sizeMultiplier, false);
+                CreateShot(s.bulletData, transform.position, s.speed, finalSpearAngle, delay: s.delay, isConverge: false, accel: 0f, maxSpeed: 0f, customMaterial: null, customScale: sizeMultiplier, true);
             }
 
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT2, 0.4f);
@@ -540,7 +566,17 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             _activeSkillCoroutines--;
         }
     }
-
+    // =========================================================================
+    // 🛡️✨【新設】：通常Zスキル（チャージ槍）の入力時に、展開中のシールドを即座に完全パージする窓口
+    // =========================================================================
+    public void PurgeActiveShield()
+    {
+        if (IsShieldActive)
+        {
+            Debug.Log("<color=red>🛡️➔⚡【シールド強制終了連動】Zスキル発動を検知したため、生存中のV魔槍シールドを即座にパージします。</color>");
+            _currentActiveShield.ForceRequestDespawn();
+        }
+    }
     // =========================================================================
     // 👑【色欲EX必殺術式】：必殺の突撃大槍に、不滅の弾消し耐性を完全溶接！
     // =========================================================================
