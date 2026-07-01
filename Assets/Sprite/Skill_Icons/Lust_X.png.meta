@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: bccbbc091fc5dc548b545377b615a4e0
+guid: 740ee69dee449674d92d64c732a964ab
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6271564980804511212
-    second: Elis_Z_0
+      213: -3366660204506598503
+    second: Lust_X_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Elis_Z_0
+      name: Lust_X_0
       rect:
         serializedVersion: 2
-        x: 14
-        y: 14
-        width: 72
-        height: 72
+        x: 30
+        y: 19
+        width: 40
+        height: 62
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 41a1e5dc0ece6f8a0800000000000000
-      internalID: -6271564980804511212
+      spriteID: 993b0fe91683741d0800000000000000
+      internalID: -3366660204506598503
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Elis_Z_0: -6271564980804511212
+      Lust_X_0: -3366660204506598503
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

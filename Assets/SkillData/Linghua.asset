@@ -38,7 +38,7 @@ MonoBehaviour:
   vjtEffectType: 2
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
-    skillIcon: {fileID: 21300000, guid: ac97f36b6d2d8c646907fd29f2085360, type: 3}
+    skillIcon: {fileID: 21300000, guid: 2e4c353f323c3f34b9ebbd5eeed3e752, type: 3}
     patternType: 0
     bulletData: {fileID: 11400000, guid: 5476c1af008d36944a73b7585b4e9a15, type: 2}
     trailBulletData: {fileID: 0}
@@ -55,7 +55,7 @@ MonoBehaviour:
     ultimateGain: 8
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
-    skillIcon: {fileID: 21300000, guid: 13dbdf5257202324b9450961f7d450a0, type: 3}
+    skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
     patternType: 17
     bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
     trailBulletData: {fileID: 0}
@@ -69,10 +69,10 @@ MonoBehaviour:
     moveSpeedMultiplier: 0
     delay: 15
     cost: 10
-    ultimateGain: 8
+    ultimateGain: 80
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
-    skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
+    skillIcon: {fileID: 21300000, guid: b351b8db71d0f994e9b172445ec0ee9a, type: 3}
     patternType: 18
     bulletData: {fileID: 11400000, guid: 33b2b8650a1b5f84d8880d2294fe894c, type: 2}
     trailBulletData: {fileID: 11400000, guid: 50b30e67f1a21ac49b3ddf62fce0f8af, type: 2}
@@ -89,7 +89,7 @@ MonoBehaviour:
     ultimateGain: 10
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
-    skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
+    skillIcon: {fileID: 21300000, guid: 467c361a2ad62174fa23d22b481dd4d8, type: 3}
     patternType: 13
     bulletData: {fileID: 11400000, guid: 780d394183a2cc6489071754715cf0d8, type: 2}
     trailBulletData: {fileID: 0}

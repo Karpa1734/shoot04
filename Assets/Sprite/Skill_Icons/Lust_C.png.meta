@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: ac97f36b6d2d8c646907fd29f2085360
+guid: b351b8db71d0f994e9b172445ec0ee9a
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 4731964900426378033
-    second: Charl_Z_0
+      213: -8104525018526015780
+    second: Lust_C_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Charl_Z_0
+      name: Lust_C_0
       rect:
         serializedVersion: 2
-        x: 14
-        y: 16
-        width: 70
-        height: 69
+        x: 9
+        y: 12
+        width: 82
+        height: 79
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 13be78381015ba140800000000000000
-      internalID: 4731964900426378033
+      spriteID: cde9d7d6f61f68f80800000000000000
+      internalID: -8104525018526015780
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Charl_Z_0: 4731964900426378033
+      Lust_C_0: -8104525018526015780
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

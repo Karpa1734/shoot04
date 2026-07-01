@@ -202,7 +202,7 @@ public class PlayerHitHandler : MonoBehaviour
         if (isTrainingMode)
         {
             // 1. 全弾幕・レーザーを即座に消去して画面をクリーンにする
-            ClearAllBullets();
+            ClearAllBullets(true);
 
             // 2. スローモーションを発生させず、完全に等速（1.0f）を維持
             Time.timeScale = 1.0f;
@@ -320,7 +320,7 @@ public class PlayerHitHandler : MonoBehaviour
         {
             myStatusManager.SubtractLifeAndCheckRebirth();
         }
-        ClearAllBullets();
+        ClearAllBullets(true);
 
         // 2勝決着時のみ、この爆散の瞬間にSEを最優先再生
         if (isMatchGameOver)
@@ -492,137 +492,162 @@ public class PlayerHitHandler : MonoBehaviour
     /// 🌟【人間操作100%完全除外】：AI操作のキャラクターのみを初期位置へ自動巡航させます。
     /// 人間が操作しているキャラクターは自動移動も、最終フィックス（ワープ）も完全に「ノータッチ」にします。
     /// </summary>
+   // =========================================================================
+    // 🌟【同一シーン連動型リセットインフラ】：槍EX等によるデータ残存・チカチカを100%パージ
+    // =========================================================================
     IEnumerator RoundResetSequence()
     {
         // 🌟【スローモーション解除の確実化】：自動移動開始のファーストフレームで確実に等倍復帰
-        Time.timeScale = 1.0f;
+        Time.timeScale = 1.0f; 
 
         // 全員の当たり判定やスプライトを復元
-        foreach (var p in PlayerMove.AllPlayers)
+        foreach (var p in PlayerMove.AllPlayers) 
         {
-            if (p == null) continue;
-            PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>();
-            if (hh != null)
+            if (p == null) continue; 
+            PlayerHitHandler hh = p.GetComponentInChildren<PlayerHitHandler>(); 
+            if (hh != null) 
             {
-                hh.SetPlayerActiveState(true);
-                hh.currentState = PlayerState.Normal;
+                hh.SetPlayerActiveState(true); 
+                hh.currentState = PlayerState.Normal; 
             }
 
-            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-            if (ps != null)
+            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>(); 
+            if (ps != null) 
             {
-                StartCoroutine(ps.GradualHealthRecovery(1.0f));
+                StartCoroutine(ps.GradualHealthRecovery(1.0f)); 
+
+                // =========================================================================
+                // 🛡️【最核心】：次ラウンドのスキル封印 ＆ UIチカチカバグの完全パージ
+                // 💡 理由：同一シーン維持リセットのため、強制停止したEXコルーチンの残存データを
+                //          ここで物理的に上書き初期化し、次ラウンドへの持ち込みを遮断します。
+                // =========================================================================
+                ps.isSpellCardActive = false; // 領域強制OFF
+                ps.isOverheated = false;      // 冷却デバフ強制OFF[cite: 11, 16, 32]
+                ps.spellTimer = 0f; 
+                ps.overheatTimer = 0f; 
+                ps.invincibleTimer = 0f; 
+                
+                // ゲージアニメーションフラグを叩き落としてチカチカを根治
+                System.Reflection.FieldInfo animBarField = typeof(PlayerStatusManager).GetField("isAnimatingSpellBar", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (animBarField != null) animBarField.SetValue(ps, false); 
+
+                // 確定したマナ上限を最新の状態で再同期
+                ps.SyncBarsImmediately(); 
             }
-        }
 
-        float moveDuration = 1.8f;
-        float elapsed = 0f;
-
-        System.Collections.Generic.Dictionary<GameObject, Vector3> startPositions = new System.Collections.Generic.Dictionary<GameObject, Vector3>();
-        System.Collections.Generic.Dictionary<GameObject, Vector3> targetPositions = new System.Collections.Generic.Dictionary<GameObject, Vector3>();
-
-        foreach (var p in PlayerMove.AllPlayers)
-        {
-            if (p == null) continue;
-            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-            if (ps != null)
+            // 🎯 各プレイヤーに付いている全エミッターのEX発動中ロックを完全解除
+            PlayerDanmakuEmitter[] allEmitters = p.GetComponentsInChildren<PlayerDanmakuEmitter>(true); 
+            foreach (var emitter in allEmitters) 
             {
-                startPositions[p.gameObject] = p.transform.position;
-                float targetX = (ps.playerId == 2) ? 3.5f : -3.5f;
-                targetPositions[p.gameObject] = new Vector3(targetX, 0f, 0f);
-            }
-        }
-
-        while (elapsed < moveDuration)
-        {
-            elapsed += Time.deltaTime;
-            float rawPercent = Mathf.Clamp01(elapsed / moveDuration);
-            float smoothPercent = rawPercent * rawPercent * (3f - 2f * rawPercent);
-
-            foreach (var p in PlayerMove.AllPlayers)
-            {
-                if (p == null || !startPositions.ContainsKey(p.gameObject)) continue;
-
-                // 🌟【大バグ修正】：対戦相手が人間操作プレイヤーである場合はAIフラグを100%「偽(false)」にロック！
-                bool isAIControlled = false;
-
-                // ストーリーモードで、かつ自分以外のオブジェクト（敵のボスなど）である場合のみをAI操作として正しく検出
-                if (GameModeManager.IsStoryMode)
+                if (emitter != null)
                 {
-                    PlayerStatusManager currentPs = p.GetComponent<PlayerStatusManager>();
-                    if (currentPs != null && currentPs.playerId == 2)
+                    System.Reflection.FieldInfo exActiveField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (exActiveField != null)
                     {
-                        isAIControlled = true;
-                    }
-                    else if (p.name.Contains("AI") || p.name.Contains("Enemy") || p.name.Contains("CPU"))
-                    {
-                        isAIControlled = true;
+                        exActiveField.SetValue(emitter, false); // 硬直ロックを強制パージ[cite: 6, 19]
                     }
                 }
+            }
 
-                if (isAIControlled)
+            // 無敵点滅アニメーションも確定OFF
+            PlayerAnimation pAnim = p.GetComponentInChildren<PlayerAnimation>(true); 
+            if (pAnim != null)
+            {
+                pAnim.isInvincible = false; 
+            }
+        }
+
+        float moveDuration = 1.8f; 
+        float elapsed = 0f; 
+
+        System.Collections.Generic.Dictionary<GameObject, Vector3> startPositions = new System.Collections.Generic.Dictionary<GameObject, Vector3>(); 
+        System.Collections.Generic.Dictionary<GameObject, Vector3> targetPositions = new System.Collections.Generic.Dictionary<GameObject, Vector3>(); 
+
+        foreach (var p in PlayerMove.AllPlayers) 
+        {
+            if (p == null) continue; 
+            PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>(); 
+            if (ps != null) 
+            {
+                startPositions[p.gameObject] = p.transform.position; 
+                float targetX = (ps.playerId == 2) ? 3.5f : -3.5f; 
+                targetPositions[p.gameObject] = new Vector3(targetX, 0f, 0f); 
+            }
+        }
+
+        while (elapsed < moveDuration) 
+        {
+            elapsed += Time.deltaTime; 
+            float rawPercent = Mathf.Clamp01(elapsed / moveDuration); 
+            float smoothPercent = rawPercent * rawPercent * (3f - 2f * rawPercent); 
+
+            foreach (var p in PlayerMove.AllPlayers) 
+            {
+                if (p == null || !startPositions.ContainsKey(p.gameObject)) continue; 
+
+                bool isAIControlled = false; 
+                if (GameModeManager.IsStoryMode) 
                 {
-                    // 🔷 AI（CPU）操作キャラクターのみ、最高速度を活かした滑らかな加減速で定位置に引き戻す
-                    Vector3 nextPos = Vector3.Lerp(startPositions[p.gameObject], targetPositions[p.gameObject], smoothPercent);
-                    p.transform.position = nextPos;
-
-                    float clampedX = Mathf.Clamp(p.transform.position.x, -8.5f, 8.5f);
-                    float clampedY = Mathf.Clamp(p.transform.position.y, -4.5f, 4.5f);
-                    p.transform.position = new Vector3(clampedX, clampedY, 0f);
+                    PlayerStatusManager currentPs = p.GetComponent<PlayerStatusManager>(); 
+                    if (currentPs != null && currentPs.playerId == 2) 
+                    {
+                        isAIControlled = true; 
+                    }
+                    else if (p.name.Contains("AI") || p.name.Contains("Enemy") || p.name.Contains("CPU")) 
+                    {
+                        isAIControlled = true; 
+                    }
                 }
-                else
+
+                if (isAIControlled) 
                 {
-                    // 🟢【人間操作プレイヤー】：座標の書き換えを一切行わず、100%ノータッチ。
-                    // その場に完全に維持させ、被弾アニメーションの物理挙動を邪魔しません。
+                    Vector3 nextPos = Vector3.Lerp(startPositions[p.gameObject], targetPositions[p.gameObject], smoothPercent); 
+                    p.transform.position = nextPos; 
+
+                    float clampedX = Mathf.Clamp(p.transform.position.x, -8.5f, 8.5f); 
+                    float clampedY = Mathf.Clamp(p.transform.position.y, -4.5f, 4.5f); 
+                    p.transform.position = new Vector3(clampedX, clampedY, 0f); 
                 }
             }
-            yield return null;
+            yield return null; 
         }
 
-        // 🌟【大修正】：ラウンド開始直前の最終位置固定処理でも、人間操作プレイヤーのワープを鉄壁ガード！
-        foreach (var p in PlayerMove.AllPlayers)
+        foreach (var p in PlayerMove.AllPlayers) 
         {
-            if (p == null) continue;
+            if (p == null) continue; 
 
-            bool isAIControlled = false;
-            if (GameModeManager.IsStoryMode)
+            bool isAIControlled = false; 
+            if (GameModeManager.IsStoryMode) 
             {
-                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-                if (ps != null && ps.playerId == 2) isAIControlled = true;
-                else if (p.name.Contains("AI") || p.name.Contains("Enemy") || p.name.Contains("CPU")) isAIControlled = true;
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>(); 
+                if (ps != null && ps.playerId == 2) isAIControlled = true; 
+                else if (p.name.Contains("AI") || p.name.Contains("Enemy") || p.name.Contains("CPU")) isAIControlled = true; 
             }
 
-            if (isAIControlled)
+            if (isAIControlled) 
             {
-                // AIキャラのみ目標位置（±3.5）にジャストフィット
-                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>();
-                float targetX = (ps != null && ps.playerId == 2) ? 3.5f : -3.5f;
-                p.transform.position = new Vector3(targetX, 0f, 0f);
-            }
-            else
-            {
-                // 🟢 人間操作プレイヤーは位置の強制ワープ移動を完全に禁止（ノータッチ）！！
-                // 前のラウンドで撃墜された、あるいは生き残ったそのポジションから滑らかに第2ラウンドを開始させます。
+                PlayerStatusManager ps = p.GetComponent<PlayerStatusManager>(); 
+                float targetX = (ps != null && ps.playerId == 2) ? 3.5f : -3.5f; 
+                p.transform.position = new Vector3(targetX, 0f, 0f); 
             }
         }
 
-        if (MatchTimerUI.Instance != null)
+        if (MatchTimerUI.Instance != null) 
         {
-            MatchTimerUI.Instance.ResetRoundTimer(99f);
+            MatchTimerUI.Instance.ResetRoundTimer(99f); 
         }
 
-        // 移動完了後にカウントダウンをキックして開始
-        if (GameStartCountdown.Instance != null)
+        if (GameStartCountdown.Instance != null) 
         {
-            GameStartCountdown.Instance.StartCountdown();
+            GameStartCountdown.Instance.StartCountdown(); 
         }
-        else
+        else 
         {
-            PlayerMove.CanInput = true;
+            PlayerMove.CanInput = true; 
         }
 
-        isTriggeredByTimeUp = false;
-        yield return null;
+        isTriggeredByTimeUp = false; 
+        yield return null; 
     }
 
     /// <summary>
@@ -692,18 +717,50 @@ public class PlayerHitHandler : MonoBehaviour
         if (playerMove != null) playerMove.enabled = active;
     }
 
-    private void ClearAllBullets()
+    // =========================================================================
+    // ⭕ 修正後：ラウンド決着時、画面上の弾だけでなく自機のEX状態・チカチカ点滅も完全初期化
+    // =========================================================================
+    private void ClearAllBullets(bool force)
     {
         DanmakuBullet[] playerBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
         foreach (var b in playerBullets)
         {
-            b.Deactivate(true, force: true);
+            b.Deactivate(true, force: force);
         }
 
         EnemyBullet[] enemyBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
         foreach (var b in enemyBullets)
         {
             b.Deactivate(true);
+        }
+
+        // =========================================================================
+        // 🛡️【最核心修正】：次ラウンドのスキル封印 ＆ 永久チカチカ点滅バグの根治パージ
+        // =========================================================================
+        if (force)
+        {
+            // 1. 自機にアタッチされているすべての Emitter のEXスキル稼働フラグを強制的に false へリセット
+            PlayerDanmakuEmitter[] allEmitters = transform.root.GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+            foreach (var emitter in allEmitters)
+            {
+                if (emitter != null)
+                {
+                    System.Reflection.FieldInfo exActiveField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (exActiveField != null)
+                    {
+                        exActiveField.SetValue(emitter, false);
+                    }
+                }
+            }
+
+            // 2. 自機のアニメーションコンポーネントの無敵チカチカフラグを強制的に OFF にリセット
+            PlayerAnimation anim = transform.root.GetComponentInChildren<PlayerAnimation>(true);
+            if (anim != null)
+            {
+                anim.isInvincible = false;
+            }
+
+            Debug.Log("<color=lime>✨ [ROUND CLEANUP SUCCESS] 次ラウンドへの移行を検知。すべてのEX硬直ロックとチカチカ無敵状態を完全リセットしました！</color>");
         }
     }
 

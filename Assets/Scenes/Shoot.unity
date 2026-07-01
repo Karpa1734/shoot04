@@ -819,6 +819,8 @@ MonoBehaviour:
     - {fileID: 271050246}
     - {fileID: 768887188}
     - {fileID: 481938710}
+    - {fileID: 267064002}
+    - {fileID: 1243188947}
   _topRight:
     objects:
     - {fileID: 210674557}
@@ -827,6 +829,8 @@ MonoBehaviour:
     - {fileID: 1176254089}
     - {fileID: 923055834}
     - {fileID: 1921456977}
+    - {fileID: 1940294105}
+    - {fileID: 1810326689}
   _bottomLeft:
     objects:
     - {fileID: 2129134890}
@@ -28423,7 +28427,7 @@ MonoBehaviour:
   opponent: {fileID: 695556676}
   playerID: 2
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 1
+  _useAutoEvadeAI: 0
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move

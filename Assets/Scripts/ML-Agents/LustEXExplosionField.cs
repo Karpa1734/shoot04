@@ -266,8 +266,11 @@ public class LustEXExplosionField : MonoBehaviour
 
             if (_emitter != null)
             {
-                FieldInfo exActiveField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", BindingFlags.NonPublic | BindingFlags.Instance);
-                if (exActiveField != null) exActiveField.SetValue(_emitter, false);
+                System.Reflection.FieldInfo exActiveField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (exActiveField != null)
+                {
+                    exActiveField.SetValue(_emitter, false);
+                }
             }
         }
     }

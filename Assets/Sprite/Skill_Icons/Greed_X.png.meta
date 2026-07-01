@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 73d5c1ed8e9ae80418a5d429f71a16ee
+guid: 7aeb424a66555004dae2b97903dc4a9f
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -7357707152211744086
-    second: Elis_X_0
+      213: -4581032370722180228
+    second: Greed_X_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Elis_X_0
+      name: Greed_X_0
       rect:
         serializedVersion: 2
-        x: 11
-        y: 9
-        width: 80
-        height: 80
+        x: 19
+        y: 19
+        width: 62
+        height: 62
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: aaa611fe35c24e990800000000000000
-      internalID: -7357707152211744086
+      spriteID: c73f9868457ec60c0800000000000000
+      internalID: -4581032370722180228
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Elis_X_0: -7357707152211744086
+      Greed_X_0: -4581032370722180228
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

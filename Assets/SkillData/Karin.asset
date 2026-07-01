@@ -38,7 +38,7 @@ MonoBehaviour:
   vjtEffectType: 1
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
-    skillIcon: {fileID: 21300000, guid: 8cc885d7fad1f0b43ac224300fc02e4a, type: 3}
+    skillIcon: {fileID: 21300000, guid: 81389833fb952f642beb021b1fa0032e, type: 3}
     patternType: 14
     bulletData: {fileID: 11400000, guid: 7d8f266f18fdc1d46b2a90a5d56bb2b0, type: 2}
     trailBulletData: {fileID: 0}
@@ -55,7 +55,7 @@ MonoBehaviour:
     ultimateGain: 4
   skillX:
     skillName: "\u72C2\u6C17\u306E\u7344\u708E"
-    skillIcon: {fileID: 21300000, guid: 38d9f25aa2ca0c84babea6b8b7f7427d, type: 3}
+    skillIcon: {fileID: 21300000, guid: 24cad1715cbe98e47bd620be71fbdabd, type: 3}
     patternType: 15
     bulletData: {fileID: 11400000, guid: 893a83124dd3cd544b869d72239b9e95, type: 2}
     trailBulletData: {fileID: 0}

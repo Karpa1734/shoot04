@@ -1,5 +1,6 @@
 ﻿// --- PlayerStatusManager.cs 【VJTタイムベース・UIブロック・エラー完全解消版】 ---
 using KanKikuchi.AudioManager;
+using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -92,7 +93,7 @@ public class PlayerStatusManager : MonoBehaviour
     public float initialUltimateEnergy = 0f;   // 発動した瞬間のアルカナゲージ量を記憶する用
 
     public float overheatDuration = 5f;        // 術式焼き切れのデバフ持続時間（5秒）
-    private float overheatTimer = 0f;
+    [NonSerialized] public float overheatTimer = 0f;
 
 
     private float appearanceElapsed = 0f;
@@ -327,6 +328,37 @@ public class PlayerStatusManager : MonoBehaviour
         {
             _playerMove.currentEnergy = _playerMove.maxEnergy;
         }
+
+        // =========================================================================
+        // 🛡️【最核心修正】：ラウンドまたぎ時の永久チカチカ ✕ スキル封印バグの根絶パージ
+        // 💡 理由：前ラウンドでEX魔槍を撃った状態のまま決着がついた際、メモリに残った
+        //          各種バフ・デバフ・タイマーを新ラウンド開始時に強制初期化します。
+        // =========================================================================
+        isSpellCardActive = false;
+        isOverheated = false;
+        spellTimer = 0f;
+        overheatTimer = 0f;
+        invincibleTimer = 0f;
+
+        // 自機のエミッター全体のEXフラグを最速で叩き落とす
+        PlayerDanmakuEmitter[] startupEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+        foreach (var em in startupEmitters)
+        {
+            if (em != null)
+            {
+                System.Reflection.FieldInfo exField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (exField != null) exField.SetValue(em, false);
+            }
+        }
+
+        // アニメーションの点滅も強制停止
+        PlayerAnimation startupAnim = GetComponentInChildren<PlayerAnimation>(true);
+        if (startupAnim != null)
+        {
+            startupAnim.isInvincible = false;
+        }
+
+
 
         StartCoroutine(SetupInitialUI());
         StartCoroutine(InitUIWithDelay());
@@ -1912,11 +1944,11 @@ public class PlayerStatusManager : MonoBehaviour
     /// </summary>
     private void ClearAllBulletsOnField()
     {
-        DanmakuBullet[] pBullets = Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
+        DanmakuBullet[] pBullets = UnityEngine.Object.FindObjectsByType<DanmakuBullet>(FindObjectsSortMode.None);
         // 💡 force: true を渡して、ラウンド終了時は不滅弾も一斉強制消去！
         foreach (var b in pBullets) b.Deactivate(true, force: true);
 
-        EnemyBullet[] eBullets = Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
+        EnemyBullet[] eBullets = UnityEngine.Object.FindObjectsByType<EnemyBullet>(FindObjectsSortMode.None);
         foreach (var b in eBullets) b.Deactivate(true);
     }
     /// <summary>
@@ -2015,7 +2047,7 @@ public class PlayerStatusManager : MonoBehaviour
                     for (int i = 0; i < 12; i++)
                     {
                         // 相手の現在地を中心に、半径 1.8 ユニット以内の広範囲にばらつかせて画面を覆い尽くします
-                        Vector2 randomOffset = Random.insideUnitCircle * 1.8f;
+                        Vector2 randomOffset = UnityEngine.Random.insideUnitCircle * 1.8f;
                         Vector3 spawnPosition = oppObj.transform.position + new Vector3(randomOffset.x, randomOffset.y, 0f);
 
                         // 霧オブジェクトを生成
