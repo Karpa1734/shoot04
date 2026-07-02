@@ -181,10 +181,10 @@ public class SkillManager : MonoBehaviour
 
         UpdateTimers();
         UpdateAllCooldownUI();
-
         if (!PlayerMove.CanShoot) return;
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 
+        // 📊【安全圏】：ここから下で初めて各入力を評価するため、カウントダウン中の暴発リスクが完全に0になります。
         bool zPressed = false;
         bool xPressed = false;
         bool cPressed = false;
@@ -203,7 +203,8 @@ public class SkillManager : MonoBehaviour
             vPressed = input.shotV;
             exPressed = input.ultimate;
 
-            vjtPressed = (agent._useAutoEvadeAI && playerMove.currentFrameInput.ultimate &&
+            // 🎯 領域展開の自動判定（CanShootの二重チェックで絶対安全化）
+            vjtPressed = (agent._useAutoEvadeAI && input.ultimate &&
                           playerMove.ultimateEnergy >= 200f && !statusManager.isSpellCardActive);
         }
         else
@@ -245,6 +246,7 @@ public class SkillManager : MonoBehaviour
             }
         }
 
+        // 🔮 領域展開の発動執行
         if (vjtPressed)
         {
             Debug.Log($"<color=orange>🔮 [VJT INPUT SUCCESS] Player {playerMove.playerId} の領域入力が完全成立！</color>");
@@ -252,6 +254,7 @@ public class SkillManager : MonoBehaviour
             return;
         }
 
+        // 👑 超必殺技の発動執行
         if (exPressed)
         {
             if (statusManager.isSpellCardActive)
@@ -280,12 +283,11 @@ public class SkillManager : MonoBehaviour
             return;
         }
 
-        bool isVjtActive = (statusManager != null && statusManager.isSpellCardActive);
-        // 💡 修正：動的スキャンで特定した現在有効なアクティブ Emitter（activeEmitter）を引数に手渡します！
-        HandleSkillInput(zPressed, ref timerZ, skillData.skillZ, isVjtActive, activeEmitter);
-        HandleSkillInput(xPressed, ref timerX, skillData.skillX, isVjtActive, activeEmitter);
-        HandleSkillInput(cPressed, ref timerC, skillData.skillC, isVjtActive, activeEmitter);
-        HandleSkillInput(vPressed, ref timerV, skillData.skillV, isVjtActive, activeEmitter);
+        bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
+        HandleSkillInput(zPressed, ref timerZ, skillData.skillZ, isMyVjtActive, activeEmitter);
+        HandleSkillInput(xPressed, ref timerX, skillData.skillX, isMyVjtActive, activeEmitter);
+        HandleSkillInput(cPressed, ref timerC, skillData.skillC, isMyVjtActive, activeEmitter);
+        HandleSkillInput(vPressed, ref timerV, skillData.skillV, isMyVjtActive, activeEmitter);
     }
 
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings, bool isVjtActive, PlayerDanmakuEmitter activeEmitter)

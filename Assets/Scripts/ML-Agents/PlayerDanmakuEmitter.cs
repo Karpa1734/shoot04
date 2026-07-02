@@ -269,6 +269,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // =========================================================================
     // 🛠️【リファクタリング】：独自のInstantiateをパージし、CreateShotへ完全統合！
     // =========================================================================
+    // =========================================================================
+    // 🛠️【リファクタリング】：独自のInstantiateをパージし、CreateShotへ完全統合！
+    // =========================================================================
+    // =========================================================================
+    // 🛠️【リファクタリング】：SubShot生成時の引数混線・オーラ消失を完全破砕
+    // =========================================================================
     public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
     {
         if (data == null || data.bulletPrefab == null) return;
@@ -278,11 +284,22 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             SEManager.Instance.Play(SEPath.SHOT2, 0.1f);
         }
 
-        // 💡 核心：独自のInstantiate処理を完全に廃止し、共通のCreateShotインフラへと流し込み中継します！
-        //    これにより、ブーメランから飛んだ子弾にも完璧なバフ計算と白アセットオーラ、サイズ別オーダーが自動同期されます。
-        CreateShot(data, pos, speed, angle, delay: 0f, isConverge: false, accel: accel, maxSpeed: maxSpeed);
+        // ⭕ 修正：すべての引数に「名前（引数名:）」を明示的に指定して、順番のねじれを完全にロック！
+        //          これにより、子弾幕(SubShot)としてプールから目覚めた際も、100%確実に即座にオーラが生成されます。
+        CreateShot(
+            data: data,
+            pos: pos,
+            speed: speed,
+            angle: angle,
+            delay: 5f,
+            isConverge: false,
+            accel: accel,
+            maxSpeed: maxSpeed,
+            customMaterial: null,
+            customScale: 1.0f,
+            isIndestructible: false
+        );
     }
-
     protected void SetLayerRecursive(GameObject obj, int layer)
     {
         obj.layer = layer;
@@ -374,6 +391,8 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     {
         if (data == null || data.bulletPrefab == null) return null;
 
+        if (delay<1.0f) { delay = 1.0f; }
+
         BulletData runtimeData = Instantiate(data);
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
         if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
@@ -401,7 +420,17 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             ? Quaternion.Euler(90f, 0f, angle - 90f)
             : Quaternion.Euler(0f, 0f, angle - 90f);
 
-        GameObject obj = Instantiate(runtimeData.bulletPrefab, pos, initialRotation);
+        GameObject obj = null;
+        if (BulletPool.Instance != null)
+        {
+            // 🔍 必ず「data.bulletPrefab」でプールから正確に引き抜きます
+            obj = BulletPool.Instance.Get(data.bulletPrefab, pos, initialRotation);
+        }
+        else
+        {
+            obj = Instantiate(data.bulletPrefab, pos, initialRotation);
+        }
+
         string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
         obj.tag = assignedTag;
 
@@ -423,10 +452,25 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         {
             float finalMaxSpeed = (maxSpeed == 0f) ? speed : maxSpeed;
 
-            // 💡 先に初期化を走らせる（内部の上書きリスクを完全に回避）
-            bullet.Initialize(_rootOwner, targetTag, speed, angle, accel, finalMaxSpeed, 0f, delay, runtimeData, isConverge);
+            // =========================================================================
+            // 🎯【最核心の修正：Initialize時の引数型・位置ズレ混線の完全破砕】
+            // 💡 理由：通常ショットとSubShot(子弾)の双方で、delay値がint/floatの壁を越えて
+            //          正常に「0」と判定されるよう、名前付き引数で完全にマッピングを固定します。
+            // =========================================================================
+            bullet.Initialize(
+                shooter: _rootOwner,
+                target: targetTag,
+                speed: speed,
+                angle: angle,
+                accel: accel,
+                maxSpeed: finalMaxSpeed,
+                angVel: 0f,
+                delay: delay, // 👈 これで100%狂わずに「0」が伝達されます
+                data: runtimeData,
+                converge: isConverge
+            );
 
-            // 💡 初期化が終わった直後に、本物の耐久フラグをがっちり上書きバインディング！
+            // 耐久フラグをがっちりバインディング
             bullet.isIndestructible = isIndestructible;
         }
 

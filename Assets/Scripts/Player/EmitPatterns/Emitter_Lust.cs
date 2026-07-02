@@ -38,19 +38,34 @@ public class Emitter_Lust : PlayerDanmakuEmitter
     {
         yield return StartCoroutine(ExecuteSkillEXLust(s));
     }
-
-    private List<DanmakuBullet> _activeCageBullets = new List<DanmakuBullet>();
+    // 🌟 世代ID追跡型：檻の多重上書きパージ誤消去バグ完全クリーン版
+    private List<Tuple<DanmakuBullet, int>> _activeCageBulletsWithGenId = new List<Tuple<DanmakuBullet, int>>();
 
     private IEnumerator ExecuteEnemyEnclosureShrinkingRingRoutine(PlayerSkillData.SkillSettings s)
     {
-        if (_activeCageBullets != null && _activeCageBullets.Count > 0)
+        // =========================================================================
+        // 🛡️【絶対防壁】：2発目連打時、リストに残っている古い弾の「世代ID」を監査。
+        // 💡 理由：同じプレハブがすでにプールから引き抜かれて通常ショット等になっていても、
+        //          instanceGenerationId が異なるため、無関係な弾を誤消去するリスクが0%になります！
+        // =========================================================================
+        if (_activeCageBulletsWithGenId != null && _activeCageBulletsWithGenId.Count > 0)
         {
-            for (int b = _activeCageBullets.Count - 1; b >= 0; b--)
+            for (int b = _activeCageBulletsWithGenId.Count - 1; b >= 0; b--)
             {
-                DanmakuBullet oldBullet = _activeCageBullets[b];
-                if (oldBullet != null && oldBullet.gameObject.activeSelf) oldBullet.Deactivate(true);
+                var bulletTuple = _activeCageBulletsWithGenId[b];
+                DanmakuBullet oldBullet = bulletTuple.Item1;
+                int spawnedGenId = bulletTuple.Item2;
+
+                if (oldBullet != null && oldBullet.gameObject.activeSelf)
+                {
+                    // 🔍 プレハブの元本が一致し、かつ「生成された当時の世代ID」が今も維持されている場合のみ、本物の古い檻とみなしてパージ！
+                    if (oldBullet.originPrefab == s.bulletData.bulletPrefab && oldBullet.instanceGenerationId == spawnedGenId)
+                    {
+                        oldBullet.Deactivate(true);
+                    }
+                }
             }
-            _activeCageBullets.Clear();
+            _activeCageBulletsWithGenId.Clear();
         }
 
         _activeSkillCoroutines++;
@@ -59,7 +74,8 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
-        List<List<Tuple<Transform, float>>> layersBulletMatrix = new List<List<Tuple<Transform, float>>>();
+        // 内部構造の整合性を死守するためのマトリクス（形状は既存のものを完全継承）
+        List<List<Tuple<Transform, float, DanmakuBullet, int>>> layersBulletMatrix = new List<List<Tuple<Transform, float, DanmakuBullet, int>>>();
         bool isGenerationFinished = false;
 
         try
@@ -88,7 +104,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             float spawnTimer = 0f;
             float spawnInterval = 5f / 60f;
 
-            // 💡 修正：while全体の強制離脱（break）条件をパージし、時間またはレイヤー維持のライフサイクルを絶対保証
             while (currentElapsed < bulletLifeTime || layersBulletMatrix.Count < totalLayers)
             {
                 yield return new WaitForFixedUpdate();
@@ -98,12 +113,8 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
                 if (nextLayerToSpawn < totalLayers && (nextLayerToSpawn == 0 || spawnTimer >= spawnInterval))
                 {
-                    // ⭕ 修正の核心：被弾中または射撃不可の時は、ループを破壊（break）するのではなく、
-                    //                「新規生成のフェーズだけを丸ごとスキップ（continue）」させる盾へ切り替えます！
-                    //                これにより、すでに戦場に出ているレイヤーの回転計算（下部）へ安全にタイムラインが流れます。
                     if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
                     {
-                        // 生成はスキップするが、タイマーをリセットして無限連打を防ぐ
                         spawnTimer = 0f;
                         continue;
                     }
@@ -114,7 +125,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                     float stepAngle = 360f / wayCount;
                     float layerStartAngleOffset = layer * (stepAngle * 0.3f);
 
-                    List<Tuple<Transform, float>> currentLayerList = new List<Tuple<Transform, float>>();
+                    List<Tuple<Transform, float, DanmakuBullet, int>> currentLayerList = new List<Tuple<Transform, float, DanmakuBullet, int>>();
                     PlaySkillSE(s.sePath);
 
                     for (int i = 0; i < wayCount; i++)
@@ -132,8 +143,11 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                             bullet.isMovementSuspended = true;
                             bullet.StartSelfDestructTimer(bulletLifeTime);
 
-                            _activeCageBullets.Add(bullet);
-                            currentLayerList.Add(new Tuple<Transform, float>(bullet.transform, initPlacementAngle));
+                            // 🎯 参照ポインタと一緒に、目覚めた瞬間の「固有の世代ID」をセットで記憶！
+                            var bulletRecord = new Tuple<DanmakuBullet, int>(bullet, bullet.instanceGenerationId);
+                            _activeCageBulletsWithGenId.Add(bulletRecord);
+
+                            currentLayerList.Add(new Tuple<Transform, float, DanmakuBullet, int>(bullet.transform, initPlacementAngle, bullet, bullet.instanceGenerationId));
                         }
                     }
 
@@ -148,7 +162,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                     }
                 }
 
-                // 🎯【自律公転制御】：新規生成がスキップされていても、この回転アニメーション処理は毎フレーム100%確実に稼働し続けます！
+                // 🎯【自律公転駆動】：ここでも世代IDの生存監査をリアルタイム適用
                 for (int layerIndex = 0; layerIndex < layersBulletMatrix.Count; layerIndex++)
                 {
                     float rotDirection = (layerIndex % 2 == 0) ? 1.0f : -1.0f;
@@ -161,8 +175,12 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                     {
                         var bulletTuple = currentLayerBullets[i];
                         Transform bulletTx = bulletTuple.Item1;
+                        DanmakuBullet bLogic = bulletTuple.Item3;
+                        int originGenId = bulletTuple.Item4;
 
-                        if (bulletTx == null || !bulletTx.gameObject.activeSelf) continue;
+                        // 🛡️ 監査：途中で死んでプールでリサイクルされ、別目的の弾幕になっていたら位置の書き換え命令を即座に遮断！
+                        if (bulletTx == null || !bulletTx.gameObject.activeSelf || bLogic == null || bLogic.instanceGenerationId != originGenId)
+                            continue;
 
                         float updatedPlacementAngle = bulletTuple.Item2 + deltaRotation;
                         float rad = updatedPlacementAngle * Mathf.Deg2Rad;
@@ -187,7 +205,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             }
         }
     }
-
     // =========================================================================
     // 🔶 色欲専用C：公転・反射の軌跡（跡引きトレイル弾幕）
     // 💡【弾消し耐性溶接】：Cスキルのブーメラン親弾（メイン弾）に弾消し耐性（isIndestructible: true）を付与！

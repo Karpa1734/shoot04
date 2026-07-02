@@ -201,29 +201,32 @@ public class BoomerangObject : MonoBehaviour
         fader.Setup(_afterimageFadeTime, _afterimageStartAlpha); //
     }
 
-    private void FireSubDanmaku() //
+    private void FireSubDanmaku()
     {
-        BulletData dataToUse = (_subDanmakuData != null) ? _subDanmakuData : _subBulletData; //
-        if (_ownerEmitter == null || dataToUse == null) return; //
+        BulletData dataToUse = (_subDanmakuData != null) ? _subDanmakuData : _subBulletData;
+        if (_ownerEmitter == null || dataToUse == null) return;
 
-        Vector3 firePos = (_muzzleTransform != null) ? _muzzleTransform.position : transform.position; //
+        Vector3 firePos = (_muzzleTransform != null) ? _muzzleTransform.position : transform.position;
 
-        int fireway = 1; //
-        float baseAngle = transform.eulerAngles.z; //
-        float angleStep = 360f / fireway; //
+        int fireway = 1;
+        float baseAngle = transform.eulerAngles.z;
+        float angleStep = 360f / fireway;
 
         for (int i = 0; i < fireway; i++)
         {
+            // ⭕ 修正の核心：すべての引数に「名前（引数名:）」を完全明示バインド！
+            //    Emitter側の定義 (data, pos, speed, angle, accel, maxSpeed, tag, layer) とのズレを物理的に破壊し、
+            //    プールから引き出された子弾幕にも100%確実にオーラを溶接させます。
             _ownerEmitter.ExecuteSubShot(
-                dataToUse,
-                firePos,
-                0f,
-                baseAngle + (i * angleStep),
-                _subBulletAccel,
-                _subBulletMaxSpeed,
-                gameObject.tag,
-                gameObject.layer
-            ); //
+                data: dataToUse,
+                pos: firePos,
+                speed: 0f,
+                angle: baseAngle + (i * angleStep),
+                accel: _subBulletAccel,
+                maxSpeed: _subBulletMaxSpeed,
+                tag: gameObject.tag,
+                layer: gameObject.layer
+            );
         }
     }
 

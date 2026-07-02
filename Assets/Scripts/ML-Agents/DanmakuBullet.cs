@@ -42,7 +42,9 @@ public class DanmakuBullet : MonoBehaviour
     // 🧬【耐久貫通・多段ヒットインフラ】：敵やフィールドに接触しても消えないフラグ
     // =========================================================================
     [HideInInspector] public bool isIndestructible = false;
-
+    [HideInInspector] public GameObject originPrefab;
+    // 🌟【最核心新設】：プール再利用時に前回の世代のコルーチンからの誤消去命令を物理遮断するID
+    [HideInInspector] public int instanceGenerationId = 0;
     private int _nextHitEnableFrame = 0;
     private const int MULTI_HIT_INTERVAL_FRAMES = 5;
 
@@ -98,6 +100,27 @@ public class DanmakuBullet : MonoBehaviour
 
     public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
+        // =========================================================================
+        // 🎯【最核心：プール再利用ステートの完全パージインフラ】
+        // 💡 理由：前回の発射で付与された「移動停止フラグ」や「自己破壊タイマー」「古いオーラ」が
+        //          使い回し時に残っていると、弾が止まったりオーラがバグるため、ここで100%一斉クリーンアップします。
+        // =========================================================================
+        this.isMovementSuspended = false;       // 👈 これが残っていると弾がその場から動きません
+        this._hasSelfDestructTriggered = false;
+        this._selfDestructTimer = -1f;
+        this.isGrazeDone = false;
+        // 🎯 弾がプールから目覚める（リサイクルされる）たびに、世代IDを一加算して生まれ変わらせる！
+        this.instanceGenerationId++;
+        // 前回の古いオーラオブジェクト（子オブジェクト）が残っていれば確実に物理破棄
+        Transform oldAura = transform.Find("PureColorAuraObject");
+        if (oldAura != null)
+        {
+            Destroy(oldAura.gameObject);
+        }
+
+        // =========================================================================
+        // 📊 正規初期化バインドの執行
+        // =========================================================================
         this.owner = shooter;
         this.targetTag = target;
         this.currentData = data;
@@ -106,7 +129,7 @@ public class DanmakuBullet : MonoBehaviour
         this.accel = accel;
         this.maxSpeed = maxSpeed;
         this.angularVelocity = angVel;
-
+        this.originPrefab = data != null ? data.bulletPrefab : null;
         this.delayFrames = Mathf.RoundToInt(delay);
         this.totalDelay = this.delayFrames;
         this.isConverging = converge;
@@ -124,7 +147,19 @@ public class DanmakuBullet : MonoBehaviour
         if (sr != null && data != null)
         {
             sr.sprite = data.bulletSprite;
-            if (data.material != null) sr.material = data.material;
+
+            // ⭕ 修正の核心：データ側に個別の特殊マテリアルが指定されている場合はそれを適用。
+            //    指定がない（null）場合は、プール残骸の加算合成を完全に剥がすため、Unity標準のデフォルトスプライトマテリアル（Sprites-Default）へ強制リセット！
+            if (data.material != null)
+            {
+                sr.material = data.material;
+            }
+            else
+            {
+                // 💡 通常の不透明・半透明描画を行うデフォルトマテリアルに安全還元します
+                sr.material = SpriteCullingFixInfrastrucure();
+            }
+
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
@@ -154,13 +189,14 @@ public class DanmakuBullet : MonoBehaviour
         else
         {
             if (sr != null) sr.enabled = true;
-            CreateAuraEffect();
+            CreateAuraEffect(); // 💡 上記で oldAura を消去しているため、ここで100%正しい色のオーラが新造されます
         }
 
-        Transform auraChild = transform.Find("PureColorAuraObject");
-        if (auraChild != null)
+        // オーラのレイヤー順序調整セーフティ
+        Transform freshAuraChild = transform.Find("PureColorAuraObject");
+        if (freshAuraChild != null)
         {
-            SpriteRenderer auraSR = auraChild.GetComponent<SpriteRenderer>();
+            SpriteRenderer auraSR = freshAuraChild.GetComponent<SpriteRenderer>();
             if (auraSR != null && sr != null)
             {
                 auraSR.sortingOrder = sr.sortingOrder - 1;
@@ -169,11 +205,31 @@ public class DanmakuBullet : MonoBehaviour
 
         isInitialized = true;
         isActive = true;
-        isGrazeDone = false;
     }
 
     public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
     {
+        // =========================================================================
+        // 🎯【プール再利用ステートの完全パージインフラ（ナイフカウンター版）】
+        // 💡 理由：通常の初期化と同様、プールから使い回された際に前回の『移動停止フラグ』や
+        //          『自己破壊タイマー』が残っていると、カウンターナイフの挙動が致命的に壊れるため根絶します。
+        // =========================================================================
+        this.isMovementSuspended = false;       // 👈 残っているとナイフが射出されても進みません
+        this._hasSelfDestructTriggered = false;
+        this._selfDestructTimer = -1f;          // 👈 残っていると射出した瞬間に不純に自爆します
+        this.isGrazeDone = false;
+        // 🎯 弾がプールから目覚める（リサイクルされる）たびに、世代IDを一加算して生まれ変わらせる！
+        this.instanceGenerationId++;
+        // 前回の古いオーラオブジェクト（子オブジェクト）が残っていればここで最速で物理破棄
+        Transform oldAura = transform.Find("PureColorAuraObject");
+        if (oldAura != null)
+        {
+            Destroy(oldAura.gameObject);
+        }
+
+        // =========================================================================
+        // 📊 ナイフカウンター専用初期化バインドの執行
+        // =========================================================================
         this.owner = shooter;
         this.targetTag = target;
         this.currentData = data;
@@ -183,7 +239,7 @@ public class DanmakuBullet : MonoBehaviour
         this.angularVelocity = 0;
         this.isIndestructible = false;
         this._nextHitEnableFrame = 0;
-
+        this.originPrefab = data != null ? data.bulletPrefab : null;
         this.delayFrames = Mathf.RoundToInt(delayDuration * 60f);
         this.totalDelay = this.delayFrames;
         this.isConverging = false;
@@ -200,26 +256,41 @@ public class DanmakuBullet : MonoBehaviour
         if (sr != null && data != null)
         {
             sr.sprite = data.bulletSprite;
-            if (data.material != null) sr.material = data.material;
+
+            // ⭕ 修正の核心：ナイフカウンター側も通常マテリアルへの復元を絶対保証
+            if (data.material != null)
+            {
+                sr.material = data.material;
+            }
+            else
+            {
+                sr.material = SpriteCullingFixInfrastrucure();
+            }
+
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
-
+        // カウンター待機時の初期ランダム角度を設定
         _knifeCurrentAngle = Random.Range(0f, 360f);
         transform.rotation = Quaternion.Euler(0, 0, _knifeCurrentAngle - 90f);
 
         if (sr != null) sr.enabled = true;
         SetColliderActive(false);
 
-        Transform oldAura = transform.Find("PureColorAuraObject");
-        if (oldAura != null) Destroy(oldAura.gameObject);
-
+        // 💡 上記の最上部で oldAura を安全に消去しているため、ここで100%最新の所有者カラーでオーラが新造されます
         CreateAuraEffect();
 
         isInitialized = true;
         isActive = true;
-        isGrazeDone = false;
     }
-
+    /// <summary>
+    /// 🛡️ プール再利用時にマテリアルをUnity標準のSprites-Defaultへ安全にリセットするためのインフラ関数
+    /// </summary>
+    private Material SpriteCullingFixInfrastrucure()
+    {
+        return Shader.Find("Sprites/Default") != null
+            ? Canvas.GetDefaultCanvasMaterial()
+            : new Material(Shader.Find("Sprites/Default"));
+    }
     private void CreateAuraEffect()
     {
         if (transform.Find("PureColorAuraObject") != null) return;
@@ -466,9 +537,9 @@ public class DanmakuBullet : MonoBehaviour
         SetColliderActive(false);
         transform.rotation = Quaternion.identity;
 
-        if (currentData != null && currentData.bulletPrefab != null && BulletPool.Instance != null)
+        if (originPrefab != null && BulletPool.Instance != null)
         {
-            BulletPool.Instance.Release(currentData.bulletPrefab, gameObject);
+            BulletPool.Instance.Release(originPrefab, gameObject);
         }
         else
         {

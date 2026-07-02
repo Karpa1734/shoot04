@@ -99,33 +99,34 @@ public class GreedTaxPossessionField : MonoBehaviour
         }
     }
 
-    private void OnTriggerEnter2D(Collider2D collision) //
+    private void OnTriggerEnter2D(Collider2D collision)
     {
-        if (!_isInitialized || string.IsNullOrEmpty(_targetBulletTag)) return; //
+        if (!_isInitialized || string.IsNullOrEmpty(_targetBulletTag)) return;
 
-        if (collision.CompareTag(_targetBulletTag)) //
+        // =========================================================================
+        // 🎯 1. 敵の通常弾幕（Bullet）を検知してカウンターナイフを生成・射出する処理
+        // =========================================================================
+        if (collision.CompareTag(_targetBulletTag))
         {
-            DanmakuBullet enemyBullet = collision.GetComponent<DanmakuBullet>(); //
-            if (enemyBullet != null) //
+            DanmakuBullet enemyBullet = collision.GetComponent<DanmakuBullet>();
+            if (enemyBullet != null)
             {
-                Vector3 spawnPos = collision.transform.position; //
-                enemyBullet.Deactivate(false); //
+                Vector3 spawnPos = collision.transform.position;
 
-                if (_playerMove != null) _playerMove.AddUltimateEnergy(_energyGainPerBullet); //
+                // 敵弾を画面からパージしてプールへ回収（システム回収命令は force: true）
+                enemyBullet.Deactivate(false, force: true);
 
-                if (_knifeBulletData != null && _knifeBulletData.bulletPrefab != null) //
+                if (_playerMove != null) _playerMove.AddUltimateEnergy(_energyGainPerBullet);
+
+                if (_knifeBulletData != null && _knifeBulletData.bulletPrefab != null)
                 {
-                    // =========================================================================
-                    // 🎯【強欲カウンター攻撃ランク変調】：アセットを汚さないランタイムクローン
-                    // =========================================================================
-                    BulletData runtimeKnifeData = Instantiate(_knifeBulletData);
-
-                    PlayerStatusManager myStatus = _owner.GetComponent<PlayerStatusManager>();
-                    if (myStatus == null) myStatus = _owner.GetComponentInParent<PlayerStatusManager>();
+                    // 📊 攻撃ランクの乗算計算
+                    float atkMultiplier = 1.0f;
+                    PlayerStatusManager myStatus = _owner != null ? _owner.GetComponent<PlayerStatusManager>() : null;
+                    if (myStatus == null && _owner != null) myStatus = _owner.GetComponentInParent<PlayerStatusManager>();
 
                     if (myStatus != null && myStatus.characterData != null)
                     {
-                        float atkMultiplier = 1.0f;
                         switch (myStatus.characterData.rankAttack)
                         {
                             case StatusRank.E: atkMultiplier = 0.6f; break;
@@ -135,52 +136,82 @@ public class GreedTaxPossessionField : MonoBehaviour
                             case StatusRank.A: atkMultiplier = 1.4f; break;
                             case StatusRank.EX: atkMultiplier = 1.6f; break;
                         }
-                        runtimeKnifeData.damage = Mathf.RoundToInt(runtimeKnifeData.damage * atkMultiplier);
                     }
 
-                    // 複製されたデータ基準でプレハブを実体化
-                    GameObject knifeObj = Instantiate(runtimeKnifeData.bulletPrefab, spawnPos, Quaternion.identity);
+                    // -----------------------------------------------------------------
+                    // ⭕ プール上限1000発ロック対応＆キーの絶対元本一本化インフラ
+                    // -----------------------------------------------------------------
+                    GameObject knifeObj = null;
 
-                    knifeObj.tag = gameObject.tag; //
-                    knifeObj.layer = gameObject.layer; //
-                    foreach (Transform child in knifeObj.GetComponentsInChildren<Transform>()) //
-                        child.gameObject.layer = gameObject.layer; //
-
-                    DanmakuBullet bulletLogic = knifeObj.GetComponent<DanmakuBullet>(); //
-                    if (bulletLogic != null) //
+                    // 🎯【最核心修正】：Instantiateを完全破棄！大元のプレハブ元本キーでプールからGetします。
+                    if (BulletPool.Instance != null)
                     {
-                        // 拡張された runtimeKnifeData を安全に結合！
-                        bulletLogic.InitializeKnifeCounter(_owner, _targetTag, _knifeShootSpeed, _knifeDelayDuration, runtimeKnifeData); //
+                        knifeObj = BulletPool.Instance.Get(_knifeBulletData.bulletPrefab, spawnPos, Quaternion.identity);
+                    }
+                    else
+                    {
+                        knifeObj = Instantiate(_knifeBulletData.bulletPrefab, spawnPos, Quaternion.identity);
                     }
 
-                    knifeObj.transform.localScale = runtimeKnifeData.bulletPrefab.transform.localScale * _knifeScaleMultiplier; //
+                    // 💡 セーフティ：総数が1000発に達してプールが新規生成を拒絶(Null)した場合は安全にスルーします
+                    if (knifeObj != null)
+                    {
+                        // チーム所属に応じたタグとレイヤーの厳密なパッシング同期
+                        knifeObj.tag = gameObject.tag;
+                        knifeObj.layer = gameObject.layer;
+
+                        // 子オブジェクト（コライダー等）のレイヤーも再帰的に同期
+                        SetLayerRecursiveInfrastrucure(knifeObj, gameObject.layer);
+
+                        // アセットを汚さないためにランタイムクローンを作成し、ダメージ計算を反映
+                        BulletData runtimeKnifeData = Instantiate(_knifeBulletData);
+                        runtimeKnifeData.damage = Mathf.RoundToInt(runtimeKnifeData.damage * atkMultiplier);
+
+                        DanmakuBullet bulletLogic = knifeObj.GetComponent<DanmakuBullet>();
+                        if (bulletLogic != null)
+                        {
+                            // 拡張された runtimeKnifeData（originPrefabが記録される側）を安全にインジェクション
+                            bulletLogic.InitializeKnifeCounter(_owner, _targetTag, _knifeShootSpeed, _knifeDelayDuration, runtimeKnifeData);
+                        }
+
+                        // 元本のプレハブスケールに基づき、カスタムサイズを算出適用
+                        knifeObj.transform.localScale = _knifeBulletData.bulletPrefab.transform.localScale * _knifeScaleMultiplier;
+                    }
                 }
             }
         }
 
         // =========================================================================
-        // 🎯【修正：自機レーザーの絶対保護 ＆ 敵レーザーのみの狙撃判定】
+        // 🎯 2. 自機レーザーの絶対保護 ＆ 敵レーザーのみの狙撃・吸収判定
         // =========================================================================
-        if (collision.CompareTag("Laser")) //
+        if (collision.CompareTag("Laser"))
         {
-            EnemyLaserBeam laser = collision.GetComponent<EnemyLaserBeam>(); //
-            if (laser != null) //
+            EnemyLaserBeam laser = collision.GetComponent<EnemyLaserBeam>();
+            if (laser != null)
             {
-                // 💡 核心チェック：レーザーオブジェクトの「レイヤー（所属）」をスキャン！
-                // 💡 もしレーザーの所属レイヤーが「自分自身（このシールドオブジェクト）の属する弾レイヤー」と
-                // 💡 【一致している場合】は、自分が撃ったレーザーなので消去を100%完全スキップ（保護）します！
+                // 💡 核心チェック：同じレイヤー（味方チーム）のレーザーであれば消去を100%完全スキップ
                 if (collision.gameObject.layer == gameObject.layer)
                 {
                     return;
                 }
 
-                // 💡 所属レイヤーが異なっている（＝敵が撃ったレーザー）場合のみ、ForceCloseを執行して吸収！
-                laser.ForceClose(); //
-                if (_playerMove != null) _playerMove.AddUltimateEnergy(_energyGainPerBullet * 4f); //
+                // 敵のレーザーのみを強制遮断・吸収
+                laser.ForceClose();
+                if (_playerMove != null) _playerMove.AddUltimateEnergy(_energyGainPerBullet * 4f);
             }
         }
+    }
 
-
-
+    /// <summary>
+    /// 🛡️ 生成された子オブジェクトすべてのレイヤーを安全にチーム用レイヤーへ上書きするヘルパー関数
+    /// </summary>
+    private void SetLayerRecursiveInfrastrucure(GameObject obj, int layer)
+    {
+        if (obj == null) return;
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursiveInfrastrucure(child.gameObject, layer);
+        }
     }
 }

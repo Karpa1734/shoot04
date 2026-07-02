@@ -1344,6 +1344,7 @@ public class PlayerStatusManager : MonoBehaviour
                     // 🌟 相手の現在の星（life）が既に 1 だった場合、今回の勝利で 2 に到達するため【マッチ終了】
                     if (oppStatus.life >= 1)
                     {
+                        
                         oppStatus.life = 2;
                         oppStatus.UpdateUI();
                         UpdateUI();
