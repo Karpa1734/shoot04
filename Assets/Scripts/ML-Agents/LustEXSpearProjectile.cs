@@ -241,11 +241,24 @@ public class LustEXSpearProjectile : MonoBehaviour
 
         exField.Initialize(_owner, _subBulletData, _emitter, duration: 1.5f);
 
-        // 💡 自爆による安全削除のために不滅フラグを一時的に倒す
+        // =========================================================================
+        // 🎯【最核心修正：物理破棄をパージし、プールインフラへの安全無音パージへ統合】
+        // 💡 理由：Destroyだとオーラエフェクト等の子オブジェクトが不完全に虚空に残り、
+        //          爆発最大化の瞬間に重なって色化け・サイズバグを起こしていました。
+        //          Deactivate(false) を通すことで、残骸を出さずに美しくプールへ返却します。
+        // =========================================================================
         DanmakuBullet bullet = GetComponent<DanmakuBullet>();
-        if (bullet != null) bullet.isIndestructible = false;
-
-        Destroy(gameObject);
+        if (bullet != null)
+        {
+            // 不滅フラグを強制解除し、システム強制終了（force: true）で無音パージしてプールへ安全返却
+            bullet.isIndestructible = false;
+            bullet.Deactivate(playBreakEffect: false, force: true);
+        }
+        else
+        {
+            // セーフティ：万が一コンポーネントがない場合のみ物理破棄
+            Destroy(gameObject);
+        }
     }
 
     private void OnDestroy()

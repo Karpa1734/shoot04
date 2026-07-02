@@ -275,9 +275,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // =========================================================================
     // 🛠️【リファクタリング】：SubShot生成時の引数混線・オーラ消失を完全破砕
     // =========================================================================
-    public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
+    public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer, float delay_ = 0f)
     {
         if (data == null || data.bulletPrefab == null) return;
+
+        if (delay_ < 1) { delay_ = 1; }
 
         if (SEManager.Instance != null)
         {
@@ -291,13 +293,39 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             pos: pos,
             speed: speed,
             angle: angle,
-            delay: 5f,
+            delay: delay_,
             isConverge: false,
             accel: accel,
             maxSpeed: maxSpeed,
             customMaterial: null,
             customScale: 1.0f,
             isIndestructible: false
+        );
+    }
+    public void ExecuteSubShot02(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
+    {
+        if (data == null || data.bulletPrefab == null) return;
+
+
+        if (SEManager.Instance != null)
+        {
+            SEManager.Instance.Play(SEPath.SHOT2, 0.1f);
+        }
+
+        // ⭕ 修正：すべての引数に「名前（引数名:）」を明示的に指定して、順番のねじれを完全にロック！
+        //          これにより、子弾幕(SubShot)としてプールから目覚めた際も、100%確実に即座にオーラが生成されます。
+        CreateShot(
+            data: data,
+            pos: pos,
+            speed: speed,
+            angle: angle,
+            delay: 0,
+            isConverge: false,
+            accel: accel,
+            maxSpeed: maxSpeed,
+            customMaterial: null,
+            customScale: 1.0f,
+            isIndestructible: true
         );
     }
     protected void SetLayerRecursive(GameObject obj, int layer)

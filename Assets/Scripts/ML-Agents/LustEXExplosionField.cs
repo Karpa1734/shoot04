@@ -106,12 +106,12 @@ public class LustEXExplosionField : MonoBehaviour
                 float curveSign = (row % 2 == 0) ? 1.0f : -1.0f;
                 float assignedAngularVelocity = baseAngleVelocityFrame * curveSign;
 
-                float angleOffsetForRow = row * 6.0f;
+                float angleOffsetForRow = isSpellActive ? row * 17.0f : row * 11.0f;
 
                 for (int i = 0; i < shotCount; i++)
                 {
                     float finalAngle = (i * angleStep) + angleOffsetForRow;
-                    _emitter.ExecuteSubShot(_bulletData, transform.position, speedForLayer, finalAngle, accel: 0f, maxSpeed: 0f, gameObject.tag, gameObject.layer);
+                    _emitter.ExecuteSubShot02(_bulletData, transform.position, speedForLayer, finalAngle, accel: 0f, maxSpeed: 0f, gameObject.tag, gameObject.layer);
                 }
 
                 // 領域巨大化に伴い、検出オーバーラップ円の走査半径も1.5fから倍率補正
