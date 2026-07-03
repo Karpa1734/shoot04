@@ -34,7 +34,8 @@ public class PlayerHitHandler : MonoBehaviour
 
     // 🌟【新規管理フラグ】：時間切れによる強制爆発コルーチン呼び出しであるかを判別する
     [HideInInspector] public bool isTriggeredByTimeUp = false;
-
+    [Tooltip("作成したDamagePopupのプレハブを登録してください")]
+    public GameObject damagePopupPrefab; // 🌟新規追加
     private SpriteRenderer characterRenderer;
     private ItemEffectHandler itemHandler;
 
@@ -106,6 +107,7 @@ public class PlayerHitHandler : MonoBehaviour
         bool willSpellCardEnd = myStatusManager != null && myStatusManager.isSpellCardActive && (myStatusManager.spellHP - damage <= 0);
         bool isLastHitOnNormalHP = myStatusManager != null && !myStatusManager.isSpellCardActive && (myStatusManager.currentHP - damage <= 0);
 
+
         if (myStatusManager != null)
         {
             DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
@@ -116,6 +118,20 @@ public class PlayerHitHandler : MonoBehaviour
 
             // ダメージの実際の適用
             isDown = myStatusManager.ApplyDamage(damage);
+
+            // 🌟【新規追加】：ダメージポップアッププレハブを動的生成
+            if (damagePopupPrefab != null)
+            {
+                // 少しだけプレイヤーの頭上寄りの座標に生成 (Y座標を +0.5f など)
+                Vector3 spawnPos = hitPos + new Vector3(0f, 0.5f, 0f);
+                GameObject popupGo = Instantiate(damagePopupPrefab, spawnPos, Quaternion.identity);
+
+                DamagePopup popupScript = popupGo.GetComponent<DamagePopup>();
+                if (popupScript != null)
+                {
+                    popupScript.Setup(damage);
+                }
+            }
         }
 
         // 【音響条件3】：スペルカード（VJT）が被弾ダメージによって破砕終了した瞬間は、被弾音を100%カットして早期リターン

@@ -94,7 +94,7 @@ public class PlayerStatusManager : MonoBehaviour
 
     public float overheatDuration = 5f;        // 術式焼き切れのデバフ持続時間（5秒）
     [NonSerialized] public float overheatTimer = 0f;
-
+    public TextMeshProUGUI hpNumericText;
 
     private float appearanceElapsed = 0f;
     private float animatedSpellHP = 0f;
@@ -504,6 +504,9 @@ public class PlayerStatusManager : MonoBehaviour
         {
             _failedSpellSoundTimer -= Time.deltaTime;
         }
+
+
+
         // =========================================================================
         // 🍰【新規実装】暴食：【生命への超還元】（通常時：毎秒アルカナ0.5%消費➔体力0.5%自動回復 / 領域中：消費なしで再生力10倍）
         // =========================================================================
@@ -569,6 +572,25 @@ public class PlayerStatusManager : MonoBehaviour
         }
 
         if (deathBombTimer > 0) deathBombTimer -= Time.deltaTime;
+
+        // --- 🌟【新規追加】：ライフバー用HP数値テキストの動的更新マトリクス ---
+        if (hpNumericText != null)
+        {
+            if (isSpellCardActive)
+            {
+                // 🔶 聖少女領域（VJT）展開中：上乗せバリアHPの生数値を可視化（例: 2450.0 / 3000.0）
+                // 見やすさのため、バリア中はテキストのカラーをゴールド等に変調させることも可能です
+                hpNumericText.text = $"{animatedSpellHP:F1} / {spellMaxHP:F1}";
+                hpNumericText.color = new Color(1f, 0.85f, 0f); // ゴールド
+            }
+            else
+            {
+                // 🔷 通常状態：本体HPの生数値を可視化（例: 85.3 / 100.0）
+                hpNumericText.text = $"{currentHP:F1} / {maxHP:F1}";
+                hpNumericText.color = Color.white; // 通常時は白
+            }
+        }
+
 
         // 【VJT実行中のリアルタイム毎フレーム制御】
         // 【VJT実行中のリアルタイム毎フレーム制御】
@@ -1353,7 +1375,7 @@ public class PlayerStatusManager : MonoBehaviour
                     else
                     {
                         // 🌟 相手の現在の星が 0 だった場合は、今回で 1 個目が灯るので【ラウンド継続】
-                        oppStatus.life = 1;
+                        oppStatus.life = 0;
                         oppStatus.UpdateUI();
                         UpdateUI();
                         return false; // まだ1本目なので、次のラウンドへ進む (false)

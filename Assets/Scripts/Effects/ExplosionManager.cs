@@ -1,48 +1,58 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 
 public class ExplosionManager : MonoBehaviour
 {
-    [Header("�G�t�F�N�g�ݒ�")]
-    [Tooltip("�Ԃт�̃v���n�u�iPetalLogic�X�N���v�g���t�������́j")]
+    [Header("エフェクト設定")]
+    [Tooltip("花びらのプレハブ（PetalLogicスクリプトが付いたもの）")]
     public GameObject petalPrefab;
-    [Tooltip("��x�ɐ�������Ԃт�̐�")]
+    [Tooltip("一度に生成する花びらの数")]
     public int petalCount = 30;
-    [Tooltip("�Ԃт炪��юU��́i���x�j�͈̔�")]
+    [Tooltip("花びらが飛び散る力（速度）の範囲")]
     public Vector2 explosionForceRange = new Vector2(3f, 8f);
 
     private void Start()
     {
-        Explode(); // �������J�n
+        Explode(); // 爆発を開始
     }
-    // �����𔭐�������֐��i�g���K�[�Ƃ��ČĂяo���j
+
+    // 爆発を発生させる関数（トリガーとして呼び出す）
     public void Explode()
     {
         for (int i = 0; i < petalCount; i++)
         {
-            // �Ԃт�𐶐�
-            GameObject petal = Instantiate(petalPrefab, transform.position, Quaternion.identity);
+            // 花びらを生成[cite: 27]
+            GameObject petal = Instantiate(petalPrefab, transform.position, Quaternion.identity); //[cite: 27]
 
-            // �Ԃт�̃X�N���v�g���擾
-            PetalLogic petalLogic = petal.GetComponent<PetalLogic>();
-            if (petalLogic != null)
+            // 花びらのスクリプトを取得[cite: 27]
+            PetalLogic petalLogic = petal.GetComponent<PetalLogic>(); //[cite: 27]
+            if (petalLogic != null) //[cite: 27]
             {
-                // �����_����3D�������v�Z
-                Vector3 randomDirection = Random.onUnitSphere; // ���ʏ�̃����_���ȓ_�i����1�̃x�N�g���j
+                // ランダムな3D方向を計算[cite: 27]
+                Vector3 randomDirection = Random.onUnitSphere; // 球面上のランダムな点（長さ1のベクトル）[cite: 27]
 
-                // �����_���ȗ͂��|���ď������x��ݒ�
-                float force = Random.Range(explosionForceRange.x, explosionForceRange.y);
-                petalLogic.velocity = randomDirection * force;
+                // ランダムな力を掛けて初期速度を設定[cite: 27]
+                float force = Random.Range(explosionForceRange.x, explosionForceRange.y); //[cite: 27]
+                petalLogic.velocity = randomDirection * force; //[cite: 27]
             }
         }
+
+        // =========================================================================
+        // 🎯【最核心修正：セルフデスライフサイクルインフラ】
+        // 💡 理由：花びらを一斉にバラまき終えたら、このエミッター（親）自体の役割は
+        //          100%終了しているため、次の物理フレームまたは数秒後に自身を完全物理削除します。
+        //          これにより、ヒエラルキーにManagerが無限に溜まるリークを完全に根絶します。
+        // =========================================================================
+        // ※もし花びら以外の消滅SEなどの鳴り終わりを待ちたい場合は、Destroy(gameObject, 2.0f); のようにディレイ秒数を指定してください
+        Destroy(gameObject);
     }
 
-    // �e�X�g�p�F�X�y�[�X�L�[�������Ɣ����𔭐�������
+    // テスト用：スペースキーを押すと爆発を発生させる[cite: 27]
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space)) //[cite: 27]
         {
-            Explode();
+            Explode(); //[cite: 27]
         }
     }
 }

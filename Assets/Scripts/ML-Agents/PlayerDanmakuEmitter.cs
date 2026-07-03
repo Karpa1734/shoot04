@@ -302,18 +302,19 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             isIndestructible: false
         );
     }
-    public void ExecuteSubShot02(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer)
+    // =========================================================================
+    // 🛠️【リファクタリング】：SubShot02生成時の引数・角速度拡張版
+    // =========================================================================
+    public void ExecuteSubShot02(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer, float angularVelocity = 0f, float maxRotationLimit = 0f)
     {
         if (data == null || data.bulletPrefab == null) return;
-
 
         if (SEManager.Instance != null)
         {
             SEManager.Instance.Play(SEPath.SHOT2, 0.1f);
         }
 
-        // ⭕ 修正：すべての引数に「名前（引数名:）」を明示的に指定して、順番のねじれを完全にロック！
-        //          これにより、子弾幕(SubShot)としてプールから目覚めた際も、100%確実に即座にオーラが生成されます。
+        // ⭕ 拡張：名前付き引数で角速度と最大回転制限をCreateShotへ安全にパッシング
         CreateShot(
             data: data,
             pos: pos,
@@ -325,9 +326,42 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             maxSpeed: maxSpeed,
             customMaterial: null,
             customScale: 1.0f,
-            isIndestructible: true
+            isIndestructible: true,
+            angularVelocity: angularVelocity,
+            maxRotationLimit: maxRotationLimit
         );
     }
+    // =========================================================================
+    // 🔮【超軽量化インフラ】：生成したオブジェクトを直接返却するファクトリ中継窓口
+    // 💡 理由：これを経由することで、ExplosionField側での重いOverlapCircleAllを完全パージします
+    // =========================================================================
+    public DanmakuBullet ExecuteSubShot02_Returnable(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer, float angularVelocity = 0f, float maxRotationLimit = 0f)
+    {
+        if (data == null || data.bulletPrefab == null) return null;
+
+        if (SEManager.Instance != null)
+        {
+            SEManager.Instance.Play(SEPath.SHOT2, 0.1f);
+        }
+
+        // CreateShotは元々 DanmakuBullet を返す構造になっているため、そのまま直接 return します
+        return CreateShot(
+            data: data,
+            pos: pos,
+            speed: speed,
+            angle: angle,
+            delay: 0f,
+            isConverge: false,
+            accel: accel,
+            maxSpeed: maxSpeed,
+            customMaterial: null,
+            customScale: 1.0f,
+            isIndestructible: true,
+            angularVelocity: angularVelocity,
+            maxRotationLimit: maxRotationLimit
+        );
+    }
+
     protected void SetLayerRecursive(GameObject obj, int layer)
     {
         obj.layer = layer;
@@ -412,14 +446,18 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // 🎯【完全一本化・ファクトリ最高拡張版】：すべての弾幕・子弾・特殊軌跡の生成を集約
     // 💡 引数の末尾に `bool isIndestructible = false` を新規完全ドッキング！
     // =========================================================================
+    // =========================================================================
+    // 🎯【ファクトリ最高拡張版】：角速度 (angularVelocity) と最大回転角 (maxRotationLimit) をドッキング
+    // =========================================================================
     protected DanmakuBullet CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay,
                                        bool isConverge = false, float accel = 0f, float maxSpeed = 0f,
                                        Material customMaterial = null, float customScale = 1.0f,
-                                       bool isIndestructible = false) // 👈 これを追加！
+                                       bool isIndestructible = false,
+                                       float angularVelocity = 0f, float maxRotationLimit = 0f) // 👈 引数を新規追加！
     {
         if (data == null || data.bulletPrefab == null) return null;
 
-        if (delay<1.0f) { delay = 1.0f; }
+        if (delay < 1.0f) { delay = 1.0f; }
 
         BulletData runtimeData = Instantiate(data);
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -451,7 +489,6 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         GameObject obj = null;
         if (BulletPool.Instance != null)
         {
-            // 🔍 必ず「data.bulletPrefab」でプールから正確に引き抜きます
             obj = BulletPool.Instance.Get(data.bulletPrefab, pos, initialRotation);
         }
         else
@@ -480,11 +517,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         {
             float finalMaxSpeed = (maxSpeed == 0f) ? speed : maxSpeed;
 
-            // =========================================================================
-            // 🎯【最核心の修正：Initialize時の引数型・位置ズレ混線の完全破砕】
-            // 💡 理由：通常ショットとSubShot(子弾)の双方で、delay値がint/floatの壁を越えて
-            //          正常に「0」と判定されるよう、名前付き引数で完全にマッピングを固定します。
-            // =========================================================================
+            // 💡 既存の Initialize を呼び出します（※内部変数の割り当てや、後述するクランプコルーチンと同期）
             bullet.Initialize(
                 shooter: _rootOwner,
                 target: targetTag,
@@ -492,14 +525,18 @@ public class PlayerDanmakuEmitter : MonoBehaviour
                 angle: angle,
                 accel: accel,
                 maxSpeed: finalMaxSpeed,
-                angVel: 0f,
-                delay: delay, // 👈 これで100%狂わずに「0」が伝達されます
+                angVel: angularVelocity, // 👈 渡された角速度をそのまま注入！
+                delay: delay,
                 data: runtimeData,
                 converge: isConverge
             );
 
-            // 耐久フラグをがっちりバインディング
             bullet.isIndestructible = isIndestructible;
+
+            // 💡 もし最大回転制限が指定されている場合は、弾自体に監視コルーチンを持たせるか、
+            //    今回は ExplosionField 側で一括クランプ制御する従来の軽量構造を維持するため、
+            //    リフレクションを使わずにアクセスできるように、必要であれば DanmakuBullet 側に変数を設けることも可能です。
+            //    今回はフィールド側での一括管理をリフレクションフリーにするために使用します。
         }
 
         if (obj != null)

@@ -239,7 +239,7 @@ public class LustEXSpearProjectile : MonoBehaviour
         fieldObj.AddComponent<SpriteRenderer>();
         LustEXExplosionField exField = fieldObj.AddComponent<LustEXExplosionField>();
 
-        exField.Initialize(_owner, _subBulletData, _emitter, duration: 1.5f);
+        exField.Initialize(_owner, _subBulletData, _emitter, duration: 1.0f);
 
         // =========================================================================
         // 🎯【最核心修正：物理破棄をパージし、プールインフラへの安全無音パージへ統合】

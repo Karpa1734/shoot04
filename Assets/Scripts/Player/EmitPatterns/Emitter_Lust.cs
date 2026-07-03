@@ -730,11 +730,17 @@ public class Emitter_Lust : PlayerDanmakuEmitter
         }
         finally
         {
-            if (lineObj != null) Destroy(lineObj);
-            if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-            if (spearObj == null) _isEXSkillActive = false;
+            // =========================================================================
+            // 🛡️【絶対安全弁】：何があっても、技が被弾やラウンド移行で中断されても、
+            //                    EXの稼働フラグをここで100%確実に「false」へリセット解放！
+            // =========================================================================
+            _isEXSkillActive = false; // 👈 核心修正：コストのロックを物理的に完全解除！
 
             _activeSkillCoroutines--;
+            if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
+
+            if (lineObj != null) Destroy(lineObj);
+            if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         }
     }
 }

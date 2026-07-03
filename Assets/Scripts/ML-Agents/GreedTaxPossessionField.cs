@@ -111,6 +111,8 @@ public class GreedTaxPossessionField : MonoBehaviour
             DanmakuBullet enemyBullet = collision.GetComponent<DanmakuBullet>();
             if (enemyBullet != null)
             {
+                // ⭕ 修正の核心：消えない弾幕（不滅フラグ）が立っている場合は、100%完全スルーして形状を維持！
+                if (enemyBullet.isIndestructible) return;
                 Vector3 spawnPos = collision.transform.position;
 
                 // 敵弾を画面からパージしてプールへ回収（システム回収命令は force: true）
