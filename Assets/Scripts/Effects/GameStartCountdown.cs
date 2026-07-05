@@ -101,6 +101,18 @@ public class GameStartCountdown : MonoBehaviour
 
         while (elapsed < duration)
         {
+            // =========================================================================
+            // 🎯【最核心修正：ポーズ時間軸完全調停ガード】
+            // 💡 理由：PauseManagerによってゲームが一時停止（Time.timeScale == 0f）している間は、
+            //          unscaledDeltaTimeの加算をスキップしてコルーチンをその場で完全フリーズさせます。
+            //          被弾スロー（0.3f）の時は通常通り等速でカウントが進みます。
+            // =========================================================================
+            if (Mathf.Approximately(Time.timeScale, 0f))
+            {
+                yield return null; // ポーズ中は時間の蓄積を行わず次のフレームまで待機
+                continue;
+            }
+
             float t = elapsed / duration;
             // スケールアニメーション
             countdownText.transform.localScale = baseScale * Mathf.Lerp(fontSizePulse, 1f, t);

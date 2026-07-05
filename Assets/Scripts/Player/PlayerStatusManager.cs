@@ -327,6 +327,7 @@ public class PlayerStatusManager : MonoBehaviour
         if (_playerMove != null)
         {
             _playerMove.currentEnergy = _playerMove.maxEnergy;
+            Debug.Log($"<color=cyan>💧 初期マナを最大ランク基準に完全同期しました。currentEnergy={_playerMove.currentEnergy}, maxEnergy={_playerMove.maxEnergy}</color>");
         }
 
         // =========================================================================
@@ -1375,7 +1376,7 @@ public class PlayerStatusManager : MonoBehaviour
                     else
                     {
                         // 🌟 相手の現在の星が 0 だった場合は、今回で 1 個目が灯るので【ラウンド継続】
-                        oppStatus.life = 0;
+                        oppStatus.life = 1;
                         oppStatus.UpdateUI();
                         UpdateUI();
                         return false; // まだ1本目なので、次のラウンドへ進む (false)

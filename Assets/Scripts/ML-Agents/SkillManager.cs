@@ -1,5 +1,6 @@
 ﻿// --- SkillManager.cs 【チャージ解放時コスト消費＆アルカナ充填＆シールド即時パージ完全適合版】 ---
 using KanKikuchi.AudioManager;
+using TMPro;
 using UnityEngine;
 
 public class SkillManager : MonoBehaviour
@@ -45,7 +46,14 @@ public class SkillManager : MonoBehaviour
 
     // 🧬【汎用チャージマネジメントスロット】：各スロットが現在溜め状態にあるかを追跡
     private bool _isZCharging = false;
-
+    // =========================================================================
+    // 🌟【新規追加】：コスト生数値および自然回復待機タイマー用のUIアタッチ枠
+    // =========================================================================
+    [Header("🔧 Cost Debug UI Slots")]
+    [Tooltip("コストの現在値と最大値を表示するTMPテキストを登録してください")]
+    public TextMeshProUGUI energyNumericText;
+    [Tooltip("マナ自然回復が再開するまでの待機硬直タイマーを表示するTMPテキストを登録してください")]
+    public TextMeshProUGUI recoveryDelayNumericText;
     void Start()
     {
         playerMove = GetComponentInParent<PlayerMove>();
@@ -63,9 +71,17 @@ public class SkillManager : MonoBehaviour
             skillData = statusManager.characterData;
         }
 
+        // =========================================================================
+        // 🎯【最核心修正：Start実行順序調停マトリクス】
+        // 💡 理由：PlayerStatusManagerでの最大マナ計算（ApplyCharacterRanks）が終わった直後に、
+        //          SkillManager側からも強制的にマナの初期状態をMAXへ叩き込みます。
+        //          これにより、カウントダウン中からテキストが最小値で取り残されるバグを100%根絶します。
+        // =========================================================================
         if (playerMove != null && skillData != null)
         {
+            // ここで最速で最大マナをインフラ充填
             playerMove.currentEnergy = playerMove.maxEnergy;
+
             if (energyGauge != null) energyGauge.Initialize(playerMove);
         }
 
@@ -76,12 +92,21 @@ public class SkillManager : MonoBehaviour
             if (uiC != null) uiC.SetSkillIcon(skillData.skillC.skillIcon);
             if (uiV != null) uiV.SetSkillIcon(skillData.skillV.skillIcon);
         }
+
+        ResetAllTimers();
+        UpdateAllCooldownUI();
+
+        // ⭕ 順序調整：マナが確実にMAX(100)で固定されたこのタイミングでUIテキストを先行起動！
+        UpdateCostNumericText();
     }
 
     void Update()
     {
         if (playerMove == null || skillData == null || statusManager == null) return;
-
+        if (!PlayerMove.CanShoot)
+        {
+            playerMove.currentEnergy = playerMove.maxEnergy;
+        }
         if (Mathf.Approximately(Time.timeScale, 0f))
         {
             if (_isZCharging)
@@ -136,8 +161,7 @@ public class SkillManager : MonoBehaviour
                 _recoveryCooldownTimer -= Time.deltaTime;
             }
         }
-
-        if (_recoveryCooldownTimer <= 0f)
+        if (_recoveryCooldownTimer <= 0f && PlayerMove.CanShoot)
         {
             float regenMultiplier = 1.0f;
             if (statusManager.isOverheated) regenMultiplier = 0.5f;
@@ -288,6 +312,38 @@ public class SkillManager : MonoBehaviour
         HandleSkillInput(xPressed, ref timerX, skillData.skillX, isMyVjtActive, activeEmitter);
         HandleSkillInput(cPressed, ref timerC, skillData.skillC, isMyVjtActive, activeEmitter);
         HandleSkillInput(vPressed, ref timerV, skillData.skillV, isMyVjtActive, activeEmitter);
+
+        UpdateCostNumericText();
+    }
+    // =========================================================================
+    // 🌟【新設マトリクス】：コスト数値の整数化 ✕ Regen時完全非表示 ✕ 初期同期インフラ
+    // =========================================================================
+    private void UpdateCostNumericText()
+    {
+        if (playerMove == null) return;
+
+        if (energyNumericText != null)
+        {
+            // 💡 修正：:F1（小数点表示）を廃止し、(int)へキャストして「完全な整数」として描写
+            int currentEnergyInt = (int)playerMove.currentEnergy;
+            int maxEnergyInt = (int)playerMove.maxEnergy;
+            energyNumericText.text = $"{currentEnergyInt} / {maxEnergyInt}";
+        }
+
+        if (recoveryDelayNumericText != null)
+        {
+            // 💡 自然回復がロックされている（タイマー稼働中）間だけ秒数を表示
+            if (_recoveryCooldownTimer > 0f)
+            {
+                recoveryDelayNumericText.text = $"{_recoveryCooldownTimer:F1}s";
+                recoveryDelayNumericText.color = new Color(1f, 1f, 1f); // 白色
+            }
+            else
+            {
+                // 💡 ご指定：Regen状態（タイマーが0以下）の時は、文字を非表示（空文字）にする
+                recoveryDelayNumericText.text = "";
+            }
+        }
     }
 
     private void HandleSkillInput(bool isPressed, ref float timer, PlayerSkillData.SkillSettings settings, bool isVjtActive, PlayerDanmakuEmitter activeEmitter)

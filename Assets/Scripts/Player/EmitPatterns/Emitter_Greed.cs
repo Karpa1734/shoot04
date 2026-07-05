@@ -94,8 +94,8 @@ public class Emitter_Greed : PlayerDanmakuEmitter
                     }
                 }
 
-                PlaySkillSE(s.sePath);
 
+                PlaySkillSE(s.sePath);
                 // 2フレーム待機 (FixedUpdate 2回分)
                 for (int j = 0; j < 7; j++)
                 {
@@ -145,6 +145,7 @@ public class Emitter_Greed : PlayerDanmakuEmitter
         float estimatedRotation = 245f * rotDir;
         float baseAngle = targetAngle - estimatedRotation;
 
+        PlaySkillSE(s.sePath);
         // 🔄 24連/48連レーザーの一斉召喚インフラ
         for (int i = 0; i < laserCount; i++)
         {

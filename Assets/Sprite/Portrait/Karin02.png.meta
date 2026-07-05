@@ -1,13 +1,13 @@
 fileFormatVersion: 2
-guid: e53a6aea23b9ce747a4b25df7c2b632b
+guid: fdcbd3d125b5d8b41a09e0419acaaae3
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 6093325839638765291
-    second: Karin_0
+      213: -6502909469228348891
+    second: Karin02_0
   - first:
-      213: 3490587842989978088
-    second: Karin_1
+      213: 4275594987227852013
+    second: Karin02_1
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -103,13 +103,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Karin_0
+      name: Karin02_0
       rect:
         serializedVersion: 2
-        x: 571
-        y: 3989
-        width: 29
-        height: 59
+        x: 300
+        y: 1314
+        width: 11
+        height: 21
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -118,20 +118,20 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: bee906c3197df8450800000000000000
-      internalID: 6093325839638765291
+      spriteID: 52ace18aa4601c5a0800000000000000
+      internalID: -6502909469228348891
       vertices: []
       indices: 
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Karin_1
+      name: Karin02_1
       rect:
         serializedVersion: 2
-        x: 622
-        y: 382
-        width: 3518
-        height: 5450
+        x: 317
+        y: 115
+        width: 1171
+        height: 1813
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -140,8 +140,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 8e1f6b6362f017030800000000000000
-      internalID: 3490587842989978088
+      spriteID: dec2821ecf6f55b30800000000000000
+      internalID: 4275594987227852013
       vertices: []
       indices: 
       edges: []
@@ -160,8 +160,8 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Karin_0: 6093325839638765291
-      Karin_1: 3490587842989978088
+      Karin02_0: -6502909469228348891
+      Karin02_1: 4275594987227852013
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

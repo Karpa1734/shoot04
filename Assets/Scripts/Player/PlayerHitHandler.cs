@@ -679,10 +679,11 @@ public class PlayerHitHandler : MonoBehaviour
 
         if (isMatchGameOver)
         {
-            // 👑 決着時：1.5秒スローを見せたら等速に復帰
+            // 👑 1. 決着時：1.5秒のスローモーション演出
             yield return new WaitForSecondsRealtime(1.5f);
             Time.timeScale = 1.0f;
 
+            // 「Game Set !!」の文字をフェードアウト
             if (myStatusManager != null && myStatusManager.koText != null)
             {
                 yield return myStatusManager.StartCoroutine(myStatusManager.FadeOutKOAnimation(0.4f));
@@ -690,9 +691,69 @@ public class PlayerHitHandler : MonoBehaviour
 
             yield return new WaitForSeconds(0.2f);
 
+            // =========================================================================
+            // 🎯【演出改善①】：会話が始まる「直前」のタイミングで勝者メッセージをパッと表示！
+            // =========================================================================
             ShowWinMessage();
-            yield return new WaitForSecondsRealtime(3.5f);
 
+            yield return new WaitForSeconds(1.0f);
+            // =========================================================================
+            // 👑【勝敗キャラ自動検知 ✕ 2通りCSV動的分岐インフラ】
+            // =========================================================================
+            NovelSystem.NovelDialogManager dialogManager = UnityEngine.Object.FindAnyObjectByType<NovelSystem.NovelDialogManager>();
+            if (dialogManager != null)
+            {
+                // シーン上の全プレイヤーから 1P と 2P の名前を純粋にスキャン抽出
+                string p1Name = "Player1";
+                string p2Name = "Player2";
+                int winnerPlayerId = 1;
+
+                if (PlayerMove.AllPlayers != null && PlayerMove.AllPlayers.Count >= 2)
+                {
+                    PlayerStatusManager s1 = PlayerMove.AllPlayers[0].GetComponent<PlayerStatusManager>();
+                    PlayerStatusManager s2 = PlayerMove.AllPlayers[1].GetComponent<PlayerStatusManager>();
+
+                    if (s1 != null && s1.characterData != null) p1Name = s1.characterData.characterName;
+                    if (s2 != null && s2.characterData != null) p2Name = s2.characterData.characterName;
+
+                    if (playerMove.Opponent != null)
+                    {
+                        PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                        if (oppStatus != null) winnerPlayerId = oppStatus.playerId;
+                    }
+                }
+
+                // 引数を再定義して会話システムをキック！
+                dialogManager.StartVictoryDialogue(p1Name, p2Name, winnerPlayerId);
+
+                // 会話（3秒自動進行 or Zキー）が終わるまで、勝者テキストを出したままホールド待機
+                while (NovelSystem.NovelDialogManager.isTalking)
+                {
+                    yield return null;
+                }
+
+                // =========================================================================
+                // 🎯【演出改善②】：会話が終了した瞬間（Canvas非表示後）、勝者メッセージを非表示に
+                // =========================================================================
+                if (myStatusManager != null && myStatusManager.winText != null)
+                {
+                    myStatusManager.winText.gameObject.SetActive(false);
+                }
+
+                // 前のステップで実装した、会話終了後の心地いい余韻タイム（1秒間の静寂ウェイト）
+                yield return new WaitForSecondsRealtime(1.0f);
+            }
+            else
+            {
+                // 会話マネージャーがシーンにいない場合のセーフティフォールバック
+                yield return new WaitForSecondsRealtime(3.5f);
+                if (myStatusManager != null && myStatusManager.winText != null)
+                {
+                    myStatusManager.winText.gameObject.SetActive(false);
+                }
+            }
+
+            // 👑 4. すべての演出と1秒の余韻を完全に消化しきったら、満を持してポーズ画面（リザルトメニュー）へ！
             if (myStatusManager != null) myStatusManager.TriggerGameOver();
         }
         else

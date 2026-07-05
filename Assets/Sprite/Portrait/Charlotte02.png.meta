@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: b9751a24af91ec347b8f8ddd4f921d4e
+guid: d6b13b72076762b4b9230f9f4f8e6465
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 3709271384050466249
-    second: Charlotte_0
+      213: 4712492215743067584
+    second: Charlotte02_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Charlotte_0
+      name: Charlotte02_0
       rect:
         serializedVersion: 2
-        x: 1305
-        y: 349
-        width: 1978
-        height: 5174
+        x: 529
+        y: 118
+        width: 678
+        height: 1768
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 9cd79d5dbaaf97330800000000000000
-      internalID: 3709271384050466249
+      spriteID: 0c5b82ec3b2266140800000000000000
+      internalID: 4712492215743067584
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Charlotte_0: 3709271384050466249
+      Charlotte02_0: 4712492215743067584
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
