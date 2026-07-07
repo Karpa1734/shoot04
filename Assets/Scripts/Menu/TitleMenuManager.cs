@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
 using KanKikuchi.AudioManager;
@@ -17,34 +17,34 @@ public class TitleMenuManager : MonoBehaviour
     public Color unselectedColor = new Color(0.5f, 0.5f, 0.5f, 1f);
 
     [Header("Scene Settings")]
-    public string gameSceneName = "Shoot"; // ƒQ[ƒ€–{•Ò‚ÌƒV[ƒ“–¼
+    public string gameSceneName = "Shoot"; // ã‚²ãƒ¼ãƒ æœ¬ç·¨ã®ã‚·ãƒ¼ãƒ³å
     [Header("Practice Menu")]
-    public GameObject practiceSubMenu; // —ûK—pƒƒjƒ…[‚ÌUI
+    public GameObject practiceSubMenu; // ç·´ç¿’ç”¨ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã®UI
     private int selectedIndex = 0;
     [Header("Character Select UI")]
-    public GameObject characterSelectSubMenu; // ƒCƒ“ƒXƒyƒNƒ^[‚ÅƒLƒƒƒ‰‘I‘ğƒpƒlƒ‹‚ğ“o˜^
-    // --- TitleMenuManager.cs ‚ÌC³ ---
+    public GameObject characterSelectSubMenu; // ã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼ã§ã‚­ãƒ£ãƒ©é¸æŠãƒ‘ãƒãƒ«ã‚’ç™»éŒ²
+    // --- TitleMenuManager.cs ã®ä¿®æ­£ ---
 
     void Start()
     {
-        // ‰Šúó‘Ô‚Å—ûK—pƒƒjƒ…[‚ğ”ñ•\¦‚É‚·‚é
+        // åˆæœŸçŠ¶æ…‹ã§ç·´ç¿’ç”¨ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’éè¡¨ç¤ºã«ã™ã‚‹
         if (practiceSubMenu != null) practiceSubMenu.SetActive(false);
 
         if (menuTexts == null || menuTexts.Length == 0) return;
 
-        // menuSelectable ‚Ì‰Šú‰»ƒƒWƒbƒN‚ğC³
+        // menuSelectable ã®åˆæœŸåŒ–ãƒ­ã‚¸ãƒƒã‚¯ã‚’ä¿®æ­£
         if (menuSelectable == null || menuSelectable.Length != menuTexts.Length)
         {
             System.Array.Resize(ref menuSelectable, menuTexts.Length);
             for (int i = 0; i < menuSelectable.Length; i++)
             {
-                // ƒCƒ“ƒfƒbƒNƒX 0(Start), 3(Practice), 9(Exit) ‚È‚Ç‚ğ—LŒø‚É‚·‚éİ’è
-                // ‚±‚±‚Å‚ÍŠÈˆÕ“I‚É 0, 3, 9 ‚ğ true ‚É‚µ‚Ü‚·B
+                // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ 0(Start), 3(Practice), 9(Exit) ãªã©ã‚’æœ‰åŠ¹ã«ã™ã‚‹è¨­å®š
+                // ã“ã“ã§ã¯ç°¡æ˜“çš„ã« 0, 3, 9 ã‚’ true ã«ã—ã¾ã™ã€‚
                 menuSelectable[i] = (i == 0 || i == 3 || i == menuTexts.Length - 1);
             }
         }
 
-        // —ûKƒ‚[ƒh’†‚È‚çA‰‰Kƒƒjƒ…[‚Ö’¼s‚·‚é
+        // ç·´ç¿’ãƒ¢ãƒ¼ãƒ‰ä¸­ãªã‚‰ã€æ¼”ç¿’ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã¸ç›´è¡Œã™ã‚‹
         if (BossPracticeManager.IsPracticeMode)
         {
             OpenPracticeMenu();
@@ -58,7 +58,7 @@ public class TitleMenuManager : MonoBehaviour
     {
         for (int i = 0; i < menuTexts.Length; i++)
         {
-            // ’Ç‰ÁFƒeƒLƒXƒg©‘Ì‚ªƒAƒTƒCƒ“‚³‚ê‚Ä‚¢‚È‚¢ê‡‚ÍƒXƒLƒbƒv
+            // è¿½åŠ ï¼šãƒ†ã‚­ã‚¹ãƒˆè‡ªä½“ãŒã‚¢ã‚µã‚¤ãƒ³ã•ã‚Œã¦ã„ãªã„å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—
             if (menuTexts[i] == null) continue;
 
             if (!menuSelectable[i])
@@ -80,7 +80,7 @@ public class TitleMenuManager : MonoBehaviour
     }
     void OnEnable()
     {
-        // ƒƒjƒ…[‚ªÄ‚Ñ—LŒø‚É‚È‚Á‚½‚Æ‚«‚ÉŒ©‚½–Ú‚ğƒŠƒtƒŒƒbƒVƒ…‚·‚é
+        // ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãŒå†ã³æœ‰åŠ¹ã«ãªã£ãŸã¨ãã«è¦‹ãŸç›®ã‚’ãƒªãƒ•ãƒ¬ãƒƒã‚·ãƒ¥ã™ã‚‹
         UpdateMenuVisuals();
     }
     void HandleMenuNavigation()
@@ -146,23 +146,50 @@ public class TitleMenuManager : MonoBehaviour
             case 3: // Vs Network
                 OpenCharSelect(GameSelectionData.GameMode.VsNetwork);
                 break;
-            case 4: // Practice (ƒXƒNƒŠ[ƒ“ƒVƒ‡ƒbƒg‚Ì‡”Ô‚É‡‚í‚¹‚é‚È‚ç4)
+            case 4: // Practice (ã‚¹ã‚¯ãƒªãƒ¼ãƒ³ã‚·ãƒ§ãƒƒãƒˆã®é †ç•ªã«åˆã‚ã›ã‚‹ãªã‚‰4)
                 OpenPracticeMenu();
                 break;
             case 9: // Exit
-                // ...I—¹ˆ—...
+                // ...çµ‚äº†å‡¦ç†...
                 break;
         }
     }
     void OpenCharSelect(GameSelectionData.GameMode mode)
     {
         GameSelectionData.CurrentMode = mode;
-        this.enabled = false; // ƒ^ƒCƒgƒ‹ƒƒjƒ…[‚Ì“ü—Í‚ğ~‚ß‚é
-        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true);
+
+        // =========================================================================
+        // ğŸ¯ã€ã”è¦æœ›â‘ ã€‘ï¼šé¸æŠå†…å®¹ã«å¿œã˜ã¦ GameModeManager ã®çŠ¶æ…‹ã‚’è‡ªå‹•åŒæœŸ
+        // =========================================================================
+        if (mode == GameSelectionData.GameMode.Story)
+        {
+            GameModeManager.CurrentMode = GameModeManager.Mode.Story; // 1ç•ªç›® â” Story
+        }
+        else if (mode == GameSelectionData.GameMode.VsCom ||
+                 mode == GameSelectionData.GameMode.VsPlayer ||
+                 mode == GameSelectionData.GameMode.VsNetwork)
+        {
+            GameModeManager.CurrentMode = GameModeManager.Mode.Versus; // 2, 3, 4ç•ªç›® â” Versus
+        }
+
+        // =========================================================================
+        // ğŸ¯ã€ã”è¦æœ›â‘¡ã€‘ï¼šé¸æŠå†…å®¹ã«å¿œã˜ã¦ CPU(2P)ã®è‡ªå‹•ã‚ˆã‘AIã®ON/OFFãƒ•ãƒ©ã‚°ã‚’ã‚»ãƒƒãƒˆ
+        // =========================================================================
+        if (mode == GameSelectionData.GameMode.VsCom)
+        {
+            GameSelectionData.UseAutoEvadeAI = true;  // 2ç•ªç›®(VsCom) â” AIã‚’ONã«ã—ã¦CPUæˆ¦ã¸
+        }
+        else if (mode == GameSelectionData.GameMode.VsPlayer)
+        {
+            GameSelectionData.UseAutoEvadeAI = false; // 3ç•ªç›®(VsPlayer) â” AIã‚’OFFã«ã—ã¦å¯¾äººæˆ¦ã¸
+        }
+
+        this.enabled = false; // ã‚¿ã‚¤ãƒˆãƒ«ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã®å…¥åŠ›ã‚’æ­¢ã‚ã‚‹
+        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true); //
     }
     void OpenPracticeMenu()
     {
-        // ƒƒCƒ“ƒƒjƒ…[‚Ì“ü—Í‚ğ~‚ß‚ÄA—ûK—pƒTƒuƒƒjƒ…[‚ğ•\¦‚·‚é
+        // ãƒ¡ã‚¤ãƒ³ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã®å…¥åŠ›ã‚’æ­¢ã‚ã¦ã€ç·´ç¿’ç”¨ã‚µãƒ–ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’è¡¨ç¤ºã™ã‚‹
         this.enabled = false;
         if (practiceSubMenu != null) practiceSubMenu.SetActive(true);
     }

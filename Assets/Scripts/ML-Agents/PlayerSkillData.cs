@@ -86,7 +86,8 @@ public class PlayerSkillData : ScriptableObject
     [Header("Character Info")]
     public string characterName = "キャラクター名";
     public Color imageColor = Color.white;
-
+    [Tooltip("キャラクター選択画面で表示する立ち絵Sprite")]
+    public Sprite characterSprite;
     [Header("🌟 Character Specific VJT Settings")]
     [Tooltip("このキャラクター独自の聖少女領域（VJT）の技名を記入してください")]
     public string spellCardName = "〇符「〇〇〇〇」";

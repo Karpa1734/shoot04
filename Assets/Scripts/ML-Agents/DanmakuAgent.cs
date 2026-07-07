@@ -56,18 +56,34 @@ public class DanmakuAgent : Agent
 
     public override void Initialize()
     {
-        playerMove = GetComponent<PlayerMove>();
-        hitHandler = GetComponentInChildren<PlayerHitHandler>();
-        skillManager = GetComponent<SkillManager>();
-        statusManager = GetComponent<PlayerStatusManager>();
-        _initialPosition = transform.position;
+        playerMove = GetComponent<PlayerMove>(); //
+        hitHandler = GetComponentInChildren<PlayerHitHandler>(); //
+        skillManager = GetComponent<SkillManager>(); //
+        statusManager = GetComponent<PlayerStatusManager>(); //
+        _initialPosition = transform.position; //
 
-        moveAction.Enable();
-        skillZAction.Enable();
-        skillXAction.Enable();
-        skillCAction.Enable();
-        skillVAction.Enable();
-        slowAction.Enable();
+        // =========================================================================
+        // ⭕【新規追加】：タイトル画面での選択結果を、エージェントのAI起動スイッチに直結
+        // 💡 2P側（playerID == 2）として生成されたオブジェクトのみ、VsComならAIオン、VsPlayerならAIオフに上書き
+        // =========================================================================
+        if (playerID == 2)
+        {
+            _useAutoEvadeAI = GameSelectionData.UseAutoEvadeAI;
+            Debug.Log($"<color=magenta>🤖【AI同期】2Pエージェント生成。自動回避AI状態: {_useAutoEvadeAI}</color>");
+        }
+        else
+        {
+            // 1P側はプレイヤーが操作するため、基本的には自動回避は常にOFFにしておきます
+            if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer ||
+                GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom)
+            {
+                _useAutoEvadeAI = false;
+            }
+        }
+
+        // 既存の初期化処理
+        _aiCurrentChargingSkillSlot = 0; //
+        _aiChargeFrameTimer = 0; //
     }
 
     void FixedUpdate()

@@ -1,8 +1,9 @@
-﻿// --- CharacterSelectManager.cs キャラの選択・左右名表示・GameStartロック・ランダム決定後ネーム同期版 ---
+﻿// --- CharacterSelectManager.cs キャラの選択・左右名表示・左右立ち絵リアルタイム反映・GameStartロック・ランダム決定後ネーム＆グラフィック同期版 ---
 using KanKikuchi.AudioManager;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI; // 🌟 Imageコンポーネント制御のために追加
 using UnityEngine.SceneManagement;
 
 public class CharacterSelectManager : MonoBehaviour
@@ -20,6 +21,17 @@ public class CharacterSelectManager : MonoBehaviour
     public TextMeshProUGUI p2SelectedNameText;
     [Tooltip("2P選択完了時に表示する「GameStart」テキストUI")]
     public TextMeshProUGUI gameStartText;
+    [Tooltip("コントローラー未接続時や準備未完了時に警告を表示するテキストUI")]
+    public TextMeshProUGUI warningText;
+
+    [Header("🖼️ プレイヤー立ち絵表示枠（新設）")]
+    [Tooltip("画面左側に配置する、1Pの立ち絵表示用Imageコンポーネント")]
+    public Image p1SelectedCharacterImage;
+    [Tooltip("画面右側に配置する、2Pの立ち絵表示用Imageコンポーネント")]
+    public Image p2SelectedCharacterImage;
+
+    [Tooltip("ランダムカーソルホバー時や、未選択時に表示させるデフォルト/シルエット用Sprite（任意）")]
+    public Sprite randomOrDefaultSprite;
 
     [Header("📦 キャラクターデータマスター")]
     [Tooltip("ゲームに登場させる全キャラクターの PlayerSkillData をインスペクターでここに登録してください")]
@@ -34,12 +46,9 @@ public class CharacterSelectManager : MonoBehaviour
     private bool _isP2SelectingPhase = false;
     private bool _isGameStartReadyPhase = false; // GameStart待ち状態フラグ
 
-    // 1P/2Pが最終決定した「カーソル位置」のインデックス保存用（RandomならRandomのインデックスを保持）
     private int _finalP1CharacterId = -1;
     private int _finalP2CharacterId = -1;
-    // 🌟【新設】：フェーズ切り替え時やシーン遷移直後の決定キー暴発（突き抜け）を防ぐ入力冷却タイマー
     private float _inputCooldownTimer = 0f;
-    // 🕒 長押し（ホールド）スクロール管理用タイマー
     private float _keyHoldTimer = 0f;
     private bool _isFirstScrollDone = false;
 
@@ -50,11 +59,7 @@ public class CharacterSelectManager : MonoBehaviour
 
     void OnEnable()
     {
-        // 🎯【核心連動】：選択画面が起動したため、ゲームシーン側の直接デバッグ上書きを永久ロック（禁止）します
         PlayerStatusManager.FromCharacterSelect = true;
-        // =========================================================================
-        // 💾【セーブシステム統合】：独自Bitセーブインフラからクリアフラグをデコード
-        // =========================================================================
         bool isCleared = false;
         try
         {
@@ -65,7 +70,6 @@ public class CharacterSelectManager : MonoBehaviour
             Debug.LogWarning($"[SaveManager] GameClearedの読み込みに失敗、または未定義です。デフォルト(false)を適用します: {e.Message}");
         }
 
-        // 基本はデータ全件。ただし未クリアなら最大7件に絞るなどの調整
         int actualDataCount = availableCharacters.Count;
         if (!isCleared && actualDataCount > 7)
         {
@@ -84,8 +88,8 @@ public class CharacterSelectManager : MonoBehaviour
         _finalP2CharacterId = -1;
 
         if (gameStartText != null) gameStartText.gameObject.SetActive(false);
+        if (warningText != null) warningText.gameObject.SetActive(false);
 
-        // 🎯 画面が開いた直後の0.2秒間は入力を受け付けない（暴発ガード）
         _inputCooldownTimer = 0.2f;
         InitializeCharacterSelectUI();
         UpdateSelectionVisuals();
@@ -116,31 +120,107 @@ public class CharacterSelectManager : MonoBehaviour
     {
         int prevCursor = _currentCursor;
         int maxIndex = _selectableCharacterCount;
-        // 🎯 毎フレーム、入力冷却タイマーを安全に減算カウントダウン
+
         if (_inputCooldownTimer > 0f)
         {
             _inputCooldownTimer -= Time.deltaTime;
         }
-        // GameStart準備完了フェーズ（カーソルロック状態）
+
+        int connectedControllers = GetConnectedJoystickCount();
+
+        if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer && connectedControllers < 2)
+        {
+            if (warningText != null)
+            {
+                warningText.text = "⚠️ コントローラーが2つ接続されていません！\n(1P・2P双方のコントローラーが必要です)";
+                warningText.gameObject.SetActive(true);
+            }
+
+            bool isLockCancel = false;
+            //if (MenuInputManager.Instance != null)
+            //{
+             //   isLockCancel = MenuInputManager.Instance.cancelP1.action.triggered;
+            //}
+            //else
+            //{
+                isLockCancel = Input.GetKeyDown(KeyCode.X);
+            //}
+
+            if (isLockCancel)
+            {
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
+                HandleCancel();
+            }
+            return;
+        }
+        else
+        {
+            if (warningText != null && warningText.text.Contains("接続されていません"))
+                warningText.gameObject.SetActive(false);
+        }
+
+        bool isUpPressed = false;
+        bool isDownPressed = false;
+        bool isDecidePressed = false;
+        bool isCancelPressed = false;
+
+        /*if (MenuInputManager.Instance != null)
+        {
+            if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer)
+            {
+                if (!_isP2SelectingPhase && !_isGameStartReadyPhase)
+                {
+                    Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+                    isUpPressed = nav.y > 0.5f;
+                    isDownPressed = nav.y < -0.5f;
+                    isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered;
+                    isCancelPressed = MenuInputManager.Instance.cancelP1.action.triggered;
+                }
+                else if (_isP2SelectingPhase && !_isGameStartReadyPhase)
+                {
+                    Vector2 nav = MenuInputManager.Instance.navigateP2.action.ReadValue<Vector2>();
+                    isUpPressed = nav.y > 0.5f;
+                    isDownPressed = nav.y < -0.5f;
+                    isDecidePressed = MenuInputManager.Instance.submitP2.action.triggered;
+                    isCancelPressed = MenuInputManager.Instance.cancelP2.action.triggered;
+                }
+                else if (_isGameStartReadyPhase)
+                {
+                    isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered || MenuInputManager.Instance.submitP2.action.triggered;
+                    isCancelPressed = MenuInputManager.Instance.cancelP1.action.triggered || MenuInputManager.Instance.cancelP2.action.triggered;
+                }
+            }
+            else
+            {
+                Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+                isUpPressed = nav.y > 0.5f;
+                isDownPressed = nav.y < -0.5f;
+                isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered;
+                isCancelPressed = MenuInputManager.Instance.cancelP1.action.triggered;
+            }
+        }
+        else
+        {*/
+            isUpPressed = Input.GetKey(KeyCode.UpArrow);
+            isDownPressed = Input.GetKey(KeyCode.DownArrow);
+            isDecidePressed = Input.GetKeyDown(KeyCode.Z);
+            isCancelPressed = Input.GetKeyDown(KeyCode.X);
+        //}
+
         if (_isGameStartReadyPhase)
         {
-            if (Input.GetKeyDown(KeyCode.Z))
+            if (isDecidePressed && _inputCooldownTimer <= 0f)
             {
                 if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
                 LoadGameplayScene();
             }
-
-            if (Input.GetKeyDown(KeyCode.X))
+            if (isCancelPressed)
             {
                 if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
                 RollbackToP2Selection();
             }
             return;
         }
-
-        // 上下入力処理
-        bool isUpPressed = Input.GetKey(KeyCode.UpArrow);
-        bool isDownPressed = Input.GetKey(KeyCode.DownArrow);
 
         if (isUpPressed || isDownPressed)
         {
@@ -176,17 +256,28 @@ public class CharacterSelectManager : MonoBehaviour
             UpdateSelectionVisuals();
         }
 
-        if (Input.GetKeyDown(KeyCode.Z) && _inputCooldownTimer <= 0f)
+        if (isDecidePressed && _inputCooldownTimer <= 0f)
         {
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
             ConfirmSelection();
         }
 
-        if (Input.GetKeyDown(KeyCode.X))
+        if (isCancelPressed)
         {
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
             HandleCancel();
         }
+    }
+
+    private int GetConnectedJoystickCount()
+    {
+        string[] joysticks = Input.GetJoystickNames();
+        int count = 0;
+        foreach (string joy in joysticks)
+        {
+            if (!string.IsNullOrEmpty(joy) && !string.IsNullOrEmpty(joy.Trim())) count++;
+        }
+        return count;
     }
 
     private void UpdateSelectionVisuals()
@@ -202,74 +293,114 @@ public class CharacterSelectManager : MonoBehaviour
             randomText.color = (_currentCursor == _selectableCharacterCount && !_isGameStartReadyPhase) ? selectedColor : unselectedColor;
         }
 
-        // 左右の表示名テキスト用バッファを取得（選択移動中の仮表示名）
         string hoveringName = "Random";
+        Sprite hoveringSprite = randomOrDefaultSprite;
+
         if (_currentCursor < _selectableCharacterCount && _currentCursor < availableCharacters.Count && availableCharacters[_currentCursor] != null)
         {
             hoveringName = availableCharacters[_currentCursor].characterName;
+
+            // 💡【アセット連動】：PlayerSkillData または CharacterData 内に定義されている立ち絵（Sprite）を安全に抽出
+            // ※ もし変数名が別（例：characterSprite, normalSprite）なら、以下をその変数名に書き換えてください。
+            hoveringSprite = availableCharacters[_currentCursor].characterSprite;
         }
 
-        // 💡 1P側のテキスト表示更新
+        // 💡 1P側のテキスト＆グラフィックリアルタイム更新
         if (p1SelectedNameText != null)
         {
             if (_isGameStartReadyPhase)
             {
-                // 🔥【修正点】最終決定状態(GameStart表示中)なら、抽選で決定済みの実際のキャラ名を表示
                 int p1RealId = GameSelectionData.SelectedCharacterP1;
                 if (p1RealId >= 0 && p1RealId < availableCharacters.Count && availableCharacters[p1RealId] != null)
                 {
-                    string randomPrefix = (_finalP1CharacterId == _selectableCharacterCount) ? "" : "";
-                    p1SelectedNameText.text = "1P: " + randomPrefix + availableCharacters[p1RealId].characterName;
+                    p1SelectedNameText.text = "1P: " + availableCharacters[p1RealId].characterName;
+                    SetCharacterImage(p1SelectedCharacterImage, availableCharacters[p1RealId].characterSprite);
                 }
             }
             else if (_isP2SelectingPhase && _finalP1CharacterId >= 0)
             {
-                // 2P選択中（1P決定済み、かつGameStart前）は、元がRandomなら「Random」のままにする
-                string p1Name = (_finalP1CharacterId == _selectableCharacterCount) ? "Random" : availableCharacters[_finalP1CharacterId].characterName;
-                p1SelectedNameText.text = "1P: " + p1Name;
+                // 2P選択中、1Pは確定立ち絵でホールド
+                if (_finalP1CharacterId == _selectableCharacterCount)
+                {
+                    p1SelectedNameText.text = "1P: Random";
+                    SetCharacterImage(p1SelectedCharacterImage, randomOrDefaultSprite);
+                }
+                else
+                {
+                    p1SelectedNameText.text = "1P: " + availableCharacters[_finalP1CharacterId].characterName;
+                    SetCharacterImage(p1SelectedCharacterImage, availableCharacters[_finalP1CharacterId].characterSprite);
+                }
             }
             else
             {
-                // 1P選択中
+                // 1Pカーソル移動中：現在ホバーしているキャラの立ち絵をリアルタイム表示
                 p1SelectedNameText.text = "1P: " + hoveringName;
+                SetCharacterImage(p1SelectedCharacterImage, hoveringSprite);
             }
         }
 
-        // 💡 2P側のテキスト表示更新
+        // 💡 2P側のテキスト＆グラフィックリアルタイム更新
         if (p2SelectedNameText != null)
         {
             if (_isGameStartReadyPhase)
             {
-                // 🔥【修正点】最終決定状態(GameStart表示中)なら、抽選で決定済みの実際のキャラ名を表示
                 int p2RealId = GameSelectionData.SelectedCharacterP2;
                 if (p2RealId >= 0 && p2RealId < availableCharacters.Count && availableCharacters[p2RealId] != null)
                 {
-                    string randomPrefix = (_finalP2CharacterId == _selectableCharacterCount) ? "" : "";
-                    p2SelectedNameText.text = "2P: " + randomPrefix + availableCharacters[p2RealId].characterName;
+                    p2SelectedNameText.text = "2P: " + availableCharacters[p2RealId].characterName;
+                    SetCharacterImage(p2SelectedCharacterImage, availableCharacters[p2RealId].characterSprite);
                 }
             }
             else if (_isP2SelectingPhase)
             {
-                // 2P選択中
+                // 2Pカーソル移動中：現在ホバーしているキャラの立ち絵をリアルタイム表示
                 p2SelectedNameText.text = "2P: " + hoveringName;
+                SetCharacterImage(p2SelectedCharacterImage, hoveringSprite);
             }
             else
             {
-                // 1P選択中
+                // 1P選択中：2Pはまだ「Selecting...」およびデフォルト表示
                 p2SelectedNameText.text = "2P: Selecting...";
+                SetCharacterImage(p2SelectedCharacterImage, randomOrDefaultSprite);
             }
         }
 
         if (guideText != null)
         {
-            if (_isGameStartReadyPhase) guideText.text = "PRESS Z TO START";
-            else guideText.text = _isP2SelectingPhase ? "2P SELECT" : "1P SELECT";
+            if (_isGameStartReadyPhase) guideText.text = "PRESS START BUTTON TO BATTLE";
+            else guideText.text = _isP2SelectingPhase ? "2P SELECT (PLAYER 2 INPUT ONLY)" : "1P SELECT";
+        }
+    }
+
+    /// <summary>
+    /// 🖼️ Imageコンポーネントに対して安全にSpriteを流し込むための補助メソッド
+    /// </summary>
+    private void SetCharacterImage(Image targetImage, Sprite sprite)
+    {
+        if (targetImage == null) return;
+
+        if (sprite != null)
+        {
+            targetImage.gameObject.SetActive(true);
+            targetImage.sprite = sprite;
+        }
+        else
+        {
+            // Spriteが登録されていない、またはRandomホバー時は非表示にするか、デフォルトにするガード
+            if (randomOrDefaultSprite != null)
+            {
+                targetImage.gameObject.SetActive(true);
+                targetImage.sprite = randomOrDefaultSprite;
+            }
+            else
+            {
+                targetImage.gameObject.SetActive(false);
+            }
         }
     }
 
     private void ConfirmSelection()
     {
-        // 1P選択フェーズ
         if (!_isP2SelectingPhase)
         {
             _finalP1CharacterId = _currentCursor;
@@ -279,8 +410,6 @@ public class CharacterSelectManager : MonoBehaviour
             {
                 _isP2SelectingPhase = true;
                 _currentCursor = 0;
-
-                // 🎯【最核心】：1P決定の瞬間に 0.2秒 の冷却時間をチャージし、2Pの即時自動決定を100%阻止！
                 _inputCooldownTimer = 0.2f;
 
                 UpdateSelectionVisuals();
@@ -292,11 +421,10 @@ public class CharacterSelectManager : MonoBehaviour
                 EnterGameStartReady();
             }
         }
-        // 2P選択フェーズ
         else
         {
             _finalP2CharacterId = _currentCursor;
-            _inputCooldownTimer = 0.2f; // 2P決定時からGameStart画面への移行時も安全にガード
+            _inputCooldownTimer = 0.2f;
             EnterGameStartReady();
         }
     }
@@ -305,7 +433,6 @@ public class CharacterSelectManager : MonoBehaviour
     {
         _isGameStartReadyPhase = true;
 
-        // 🎲 1Pランダム抽選実行
         if (_finalP1CharacterId == _selectableCharacterCount)
         {
             GameSelectionData.SelectedCharacterP1 = Random.Range(0, _selectableCharacterCount);
@@ -315,7 +442,6 @@ public class CharacterSelectManager : MonoBehaviour
             GameSelectionData.SelectedCharacterP1 = _finalP1CharacterId;
         }
 
-        // 🎲 2Pランダム抽選実行
         if (_finalP2CharacterId == _selectableCharacterCount)
         {
             GameSelectionData.SelectedCharacterP2 = Random.Range(0, _selectableCharacterCount);
@@ -338,7 +464,6 @@ public class CharacterSelectManager : MonoBehaviour
             gameStartText.color = selectedColor;
         }
 
-        // 確定した実際のキャラクター名を左右UIに強制反映させる
         UpdateSelectionVisuals();
     }
 
