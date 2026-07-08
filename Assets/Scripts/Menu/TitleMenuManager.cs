@@ -17,39 +17,40 @@ public class TitleMenuManager : MonoBehaviour
     public Color unselectedColor = new Color(0.5f, 0.5f, 0.5f, 1f);
 
     [Header("Scene Settings")]
-    public string gameSceneName = "Shoot"; // ゲーム本編のシーン名
+    public string gameSceneName = "Shoot";
     [Header("Practice Menu")]
-    public GameObject practiceSubMenu; // 練習用メニューのUI
+    public GameObject practiceSubMenu;
     private int selectedIndex = 0;
     [Header("Character Select UI")]
-    public GameObject characterSelectSubMenu; // インスペクターでキャラ選択パネルを登録
-    // --- TitleMenuManager.cs の修正 ---
+    public GameObject characterSelectSubMenu;
+
+    // ⏳ 長押しスクロール（暴走ガード）用の管理タイマー
+    private float _menuKeyHoldTimer = 0f;
+    private bool _isMenuFirstScrollDone = false;
+    private const float MENU_FIRST_SCROLL_DELAY = 0.4f;
+    private const float MENU_REPEAT_SCROLL_SPEED = 0.12f;
 
     void Start()
     {
-        // 初期状態で練習用メニューを非表示にする
+        // 💡【原因の根治】：ポーズ画面などからタイトルへ戻った際、演習モードフラグが残っていると
+        // タイトル表示と同時に裏で練習メニューへの強制移行が走り、操作が完全ロックされてしまいます。
+        // そのため、タイトル画面のStart時にこのフラグを確実にクリアします。
+        BossPracticeManager.IsPracticeMode = false;
+
         if (practiceSubMenu != null) practiceSubMenu.SetActive(false);
 
         if (menuTexts == null || menuTexts.Length == 0) return;
 
-        // menuSelectable の初期化ロジックを修正
         if (menuSelectable == null || menuSelectable.Length != menuTexts.Length)
         {
             System.Array.Resize(ref menuSelectable, menuTexts.Length);
             for (int i = 0; i < menuSelectable.Length; i++)
             {
-                // インデックス 0(Start), 3(Practice), 9(Exit) などを有効にする設定
-                // ここでは簡易的に 0, 3, 9 を true にします。
-                menuSelectable[i] = (i == 0 || i == 3 || i == menuTexts.Length - 1);
+                menuSelectable[i] = (i == 0 || i == 1 || i == 2 || i == 3 || i == 4 || i == menuTexts.Length - 1);
             }
         }
 
-        // 練習モード中なら、演習メニューへ直行する
-        if (BossPracticeManager.IsPracticeMode)
-        {
-            OpenPracticeMenu();
-        }
-
+        // 💡 以下の自動移行チェックはStart時ではなく、フラグがピュアな状態で行うか、上記のリセットにより不要になります
         selectedIndex = FindNextSelectableIndex(-1, 1);
         UpdateMenuVisuals();
     }
@@ -58,7 +59,6 @@ public class TitleMenuManager : MonoBehaviour
     {
         for (int i = 0; i < menuTexts.Length; i++)
         {
-            // 追加：テキスト自体がアサインされていない場合はスキップ
             if (menuTexts[i] == null) continue;
 
             if (!menuSelectable[i])
@@ -78,35 +78,86 @@ public class TitleMenuManager : MonoBehaviour
     {
         HandleMenuNavigation();
     }
+
     void OnEnable()
     {
-        // メニューが再び有効になったときに見た目をリフレッシュする
+        // 💡【UIバグ・操作遅延の併せて防止】：キャラセレクトなどのサブメニューから戻ってきた際、
+        // 前回の長押しスクロールのタイマーや変なカーソル位置が残るのを防ぐため、有効化のタイミングで初期化します。
+        selectedIndex = FindNextSelectableIndex(-1, 1);
+        _menuKeyHoldTimer = 0f;
+        _isMenuFirstScrollDone = false;
+
         UpdateMenuVisuals();
     }
+
     void HandleMenuNavigation()
     {
         int prevIndex = selectedIndex;
 
-        if (Input.GetKeyDown(KeyCode.UpArrow))
+        bool isUpHeld = false;
+        bool isDownHeld = false;
+        bool isDecidePressed = false;
+
+        if (MenuInputManager.Instance != null)
+        {
+            Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+            isUpHeld = nav.y > 0.5f;
+            isDownHeld = nav.y < -0.5f;
+            isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered;
+        }
+        else
+        {
+            isUpHeld = Input.GetKey(KeyCode.UpArrow);
+            isDownHeld = Input.GetKey(KeyCode.DownArrow);
+            isDecidePressed = Input.GetKeyDown(KeyCode.Z);
+        }
+
+        bool executeScroll = false;
+
+        if (isUpHeld || isDownHeld)
+        {
+            if (_menuKeyHoldTimer == 0f && !_isMenuFirstScrollDone)
+            {
+                executeScroll = true;
+                _isMenuFirstScrollDone = true;
+                _menuKeyHoldTimer = MENU_FIRST_SCROLL_DELAY;
+            }
+            else
+            {
+                _menuKeyHoldTimer -= Time.deltaTime;
+                if (_menuKeyHoldTimer <= 0f)
+                {
+                    executeScroll = true;
+                    _menuKeyHoldTimer = MENU_REPEAT_SCROLL_SPEED;
+                }
+            }
+        }
+        else
+        {
+            _menuKeyHoldTimer = 0f;
+            _isMenuFirstScrollDone = false;
+        }
+
+        if (executeScroll && isUpHeld)
         {
             selectedIndex = FindNextSelectableIndex(selectedIndex, -1);
             if (prevIndex != selectedIndex)
             {
                 UpdateMenuVisuals();
-                SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f);
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f);
             }
         }
-        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        else if (executeScroll && isDownHeld)
         {
             selectedIndex = FindNextSelectableIndex(selectedIndex, 1);
             if (prevIndex != selectedIndex)
             {
                 UpdateMenuVisuals();
-                SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f);
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f);
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (isDecidePressed)
         {
             if (menuSelectable[selectedIndex])
             {
@@ -127,69 +178,66 @@ public class TitleMenuManager : MonoBehaviour
         return (current == -1) ? 0 : current;
     }
 
-
     void ExecuteSelection()
     {
-        SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
+        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
 
         switch (selectedIndex)
         {
-            case 0: // Story Mode
+            case 0:
                 OpenCharSelect(GameSelectionData.GameMode.Story);
                 break;
-            case 1: // Vs Com
+            case 1:
                 OpenCharSelect(GameSelectionData.GameMode.VsCom);
                 break;
-            case 2: // Vs Player
+            case 2:
                 OpenCharSelect(GameSelectionData.GameMode.VsPlayer);
                 break;
-            case 3: // Vs Network
+            case 3:
                 OpenCharSelect(GameSelectionData.GameMode.VsNetwork);
                 break;
-            case 4: // Practice (スクリーンショットの順番に合わせるなら4)
+            case 4:
                 OpenPracticeMenu();
                 break;
-            case 9: // Exit
-                // ...終了処理...
+            case 9:
+                Application.Quit();
                 break;
         }
     }
+
     void OpenCharSelect(GameSelectionData.GameMode mode)
     {
         GameSelectionData.CurrentMode = mode;
 
-        // =========================================================================
-        // 🎯【ご要望①】：選択内容に応じて GameModeManager の状態を自動同期
-        // =========================================================================
         if (mode == GameSelectionData.GameMode.Story)
         {
-            GameModeManager.CurrentMode = GameModeManager.Mode.Story; // 1番目 ➔ Story
+            GameModeManager.CurrentMode = GameModeManager.Mode.Story;
         }
         else if (mode == GameSelectionData.GameMode.VsCom ||
                  mode == GameSelectionData.GameMode.VsPlayer ||
                  mode == GameSelectionData.GameMode.VsNetwork)
         {
-            GameModeManager.CurrentMode = GameModeManager.Mode.Versus; // 2, 3, 4番目 ➔ Versus
+            GameModeManager.CurrentMode = GameModeManager.Mode.Versus;
         }
 
-        // =========================================================================
-        // 🎯【ご要望②】：選択内容に応じて CPU(2P)の自動よけAIのON/OFFフラグをセット
-        // =========================================================================
         if (mode == GameSelectionData.GameMode.VsCom)
         {
-            GameSelectionData.UseAutoEvadeAI = true;  // 2番目(VsCom) ➔ AIをONにしてCPU戦へ
+            GameSelectionData.UseAutoEvadeAI = true;
         }
         else if (mode == GameSelectionData.GameMode.VsPlayer)
         {
-            GameSelectionData.UseAutoEvadeAI = false; // 3番目(VsPlayer) ➔ AIをOFFにして対人戦へ
+            GameSelectionData.UseAutoEvadeAI = false;
         }
 
-        this.enabled = false; // タイトルメニューの入力を止める
-        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true); //
+        this.enabled = false;
+        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true);
+        // 💡【追加】：メニュー用の入力をクリアし、バトル側へ引き渡す準備をする
+        _menuKeyHoldTimer = 0f;
+        _isMenuFirstScrollDone = false;
     }
+
     void OpenPracticeMenu()
     {
-        // メインメニューの入力を止めて、練習用サブメニューを表示する
         this.enabled = false;
         if (practiceSubMenu != null) practiceSubMenu.SetActive(true);
     }

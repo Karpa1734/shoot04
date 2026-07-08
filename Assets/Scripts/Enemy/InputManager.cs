@@ -23,6 +23,7 @@ public class InputManager : MonoBehaviour
         public InputActionReference skillVJT; // 聖少女領域（VJT）用のリファレンス枠
         public InputActionReference slow;
         public InputActionReference barrier;
+        public InputActionReference pause;
     }
 
     [Header("Players Input Sets")]
@@ -31,16 +32,26 @@ public class InputManager : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+            // もしこのマネージャー自体を永続化させたい場合はここで設定
+            // DontDestroyOnLoad(gameObject); 
+        }
+        else
+        {
+            // 💡【核心の修正】：古いインスタンス（Instance）がすでに存在していた場合、
+            // その古い方のゲームオブジェクトを物理的に破壊し、今回の新しい方を最優先で登録し直します。
+            Debug.Log($"<color=yellow>⚠️ 古い {gameObject.name} の残存を検知したため、古い方を破棄して現在のシーンの新しい方に差し替えます。</color>");
 
-        // 🌟 元コードの動作通り、アセット全体の入力を有効化します
+            Destroy(Instance.gameObject);
+            Instance = this;
+        }
+
+        // 🌟 アセット全体の有効化とデバイスの初期化を実行
         _actionAsset.Enable();
-
-        // 🌟『ゲームの作り方』様の設計思想に基づき、アセットのデバイスバインドをランタイムで分離します
         InitializeDeviceAssignments();
     }
-
     /// <summary>
     /// 接続されているコントローラーの数に応じて、1P（Pad1+矢印）と2P（Pad2+WASD）の入力をアセットレベルで完全に切り分ける
     /// </summary>

@@ -19,7 +19,7 @@ MonoBehaviour:
   bulletScale: 1
   radius: 0.06
   colliderOffset: {x: 0, y: 0}
-  damage: 15
+  damage: 20
   bulletSprite: {fileID: 897171414, guid: 93d2e9ba5be95e34eb6e971f99038895, type: 3}
   animationSprites: []
   animationFPS: 10

@@ -186,6 +186,9 @@ public class PlayerStatusManager : MonoBehaviour
     // =========================================================================
     void Awake()
     {
+
+
+
         _playerMove = GetComponent<PlayerMove>();
 
         // ⭕ 修正の核心：キャラクター選択画面（セレクト）から正規に遷移してきた場合【のみ】データベースからロード。

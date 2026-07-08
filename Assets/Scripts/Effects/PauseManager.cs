@@ -31,7 +31,13 @@ public class PauseManager : MonoBehaviour
     private enum PauseState { Main, ConfirmExit, ConfirmRestart }
     private PauseState currentState = PauseState.Main;
     private int confirmIndex = 1; // 0: Yes, 1: No (初期位置をNoに)
-    private bool isPracticeResultMode = false; // ★追加：演習リザルト中かどうかのフラグ
+    private bool isPracticeResultMode = false; // ★追加：演習リザルト中かどうかのフラグ]]
+
+    // 💡【追加】長押しスクロール制御用のタイマー変数
+    private float _keyHoldTimer = 0f;
+    private bool _isFirstScrollDone = false;
+    private const float FIRST_SCROLL_DELAY = 0.4f;
+    private const float REPEAT_SCROLL_SPEED = 0.08f;
     void Start()
     {
         if (pauseCanvas != null) pauseCanvas.SetActive(false);
@@ -46,7 +52,7 @@ public class PauseManager : MonoBehaviour
 
     void Update()
     {
-        // ★追加：練習モード中かつUnityエディタ上のみ、Escキーで即座にリトライ
+        // ★練習モード中かつUnityエディタ上のみ、Backspaceキーで即座にリトライ（デバッグ用）
 #if UNITY_EDITOR
         if (BossPracticeManager.IsPracticeMode && !isPaused && Input.GetKeyDown(KeyCode.Backspace))
         {
@@ -57,28 +63,49 @@ public class PauseManager : MonoBehaviour
         }
 #endif
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        // 🎮【New Input System完全統合】ポーズボタンの入力検知
+        bool isPauseTriggered = false;
+
+        if (InputManager.Instance != null)
+        {
+            // 💡 1Pまたは2Pのどちらかが「ポーズボタン（スタートボタン等）」を押した瞬間をフック
+            bool p1Pause = InputManager.Instance.player1.pause != null && InputManager.Instance.player1.pause.action.triggered;
+            bool p2Pause = InputManager.Instance.player2.pause != null && InputManager.Instance.player2.pause.action.triggered;
+
+            isPauseTriggered = p1Pause || p2Pause;
+        }
+        else
+        {
+            // フォールバック用の従来キー（万が一InputManagerがない時用）
+            isPauseTriggered = Input.GetKeyDown(KeyCode.Escape);
+        }
+
+        // 🕒 ポーズ開閉の執行ジャッジ
+        if (isPauseTriggered)
         {
             if (isPaused)
             {
+                // 演習リザルト画面、またはゲームオーバー画面の時はポーズ強制解除を無効化（誤操作防止）
                 if (isPracticeResultMode || isGameOverMode) return;
 
+                // 確認ダイアログ（本当にタイトルに戻る？等）を開いている時は、1個前のメインポーズメニューに戻る
                 if (currentState != PauseState.Main) CancelConfirmation();
-                else ResumeGame();
+                else ResumeGame(); // 通常ポーズ中ならゲーム再開
             }
             else
             {
-                // ★修正：カウントダウン中（PlayerMove.CanInput が false）はポーズを開かない
+                // 🚨 カウントダウン中など（自機の移動・入力が許可されていないタイミング）はポーズを開かない
                 if (!PlayerMove.CanInput) return;
 
-                PauseGame();
+                PauseGame(); // ポーズ画面を開く
             }
         }
 
+        // 🔔 ポーズ中のメニュー操作ナビゲーション
         if (isPaused)
         {
             if (currentState == PauseState.Main) HandleMenuNavigation();
-            else HandleConfirmNavigation();
+            else HandleConfirmNavigation(); // 確認画面用
         }
     }
 
@@ -99,6 +126,11 @@ public class PauseManager : MonoBehaviour
         isPaused = false;
         pauseCanvas.SetActive(false);
         confirmPanel.SetActive(false);
+
+        // 💡【追加】長押しスクロール用のタイマーと判定を完全にリセットしてゲームに戻る
+        _keyHoldTimer = 0f;
+        _isFirstScrollDone = false;
+
         Time.timeScale = 1f;
         SEManager.Instance.Play(SEPath.MENUCANCEL, 0.5f);
     }
@@ -106,18 +138,78 @@ public class PauseManager : MonoBehaviour
     void HandleMenuNavigation()
     {
         int prevIndex = selectedIndex;
-        if (Input.GetKeyDown(KeyCode.UpArrow))
+
+        // 🎮【新インプットシステム排他分離レイヤー】の適用
+        bool isUpPressed = false;
+        bool isDownPressed = false;
+        bool isDecidePressed = false;
+
+        if (MenuInputManager.Instance != null)
         {
-            selectedIndex = FindNextSelectableIndex(selectedIndex, -1);
-            if (prevIndex != selectedIndex) { UpdateMenuVisuals(); SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f); }
+            // 通常ポーズ時は1Pのみ、ゲームオーバー時は1P・2Pどちらからでも操作可能にするガード
+            Vector2 nav = Vector2.zero;
+            if (isGameOverMode)
+            {
+                Vector2 navP1 = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+                Vector2 navP2 = MenuInputManager.Instance.navigateP2.action.ReadValue<Vector2>();
+                nav = navP1.sqrMagnitude > navP2.sqrMagnitude ? navP1 : navP2;
+
+                isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered ||
+                                  MenuInputManager.Instance.submitP2.action.triggered;
+            }
+            else
+            {
+                nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+                isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered;
+            }
+
+            isUpPressed = nav.y > 0.5f;
+            isDownPressed = nav.y < -0.5f;
         }
-        else if (Input.GetKeyDown(KeyCode.DownArrow))
+        else
         {
-            selectedIndex = FindNextSelectableIndex(selectedIndex, 1);
-            if (prevIndex != selectedIndex) { UpdateMenuVisuals(); SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f); }
+            // 旧システムフォールバック
+            isUpPressed = Input.GetKey(KeyCode.UpArrow);
+            isDownPressed = Input.GetKey(KeyCode.DownArrow);
+            isDecidePressed = Input.GetKeyDown(KeyCode.Z);
         }
 
-        if (Input.GetKeyDown(KeyCode.Z))
+        // キャラ選択画面と完全に同一の滑らかな長押しスクロールアルゴリズム
+        if (isUpPressed || isDownPressed)
+        {
+            if (_keyHoldTimer == 0f && !_isFirstScrollDone)
+            {
+                if (isUpPressed) selectedIndex = FindNextSelectableIndex(selectedIndex, -1);
+                if (isDownPressed) selectedIndex = FindNextSelectableIndex(selectedIndex, 1);
+
+                _isFirstScrollDone = true;
+                _keyHoldTimer = FIRST_SCROLL_DELAY;
+            }
+            else
+            {
+                _keyHoldTimer -= Time.unscaledDeltaTime; // 💡 ポーズ中はTime.timeScaleが0なため、unscaledを使用
+                if (_keyHoldTimer <= 0f)
+                {
+                    if (isUpPressed) selectedIndex = FindNextSelectableIndex(selectedIndex, -1);
+                    if (isDownPressed) selectedIndex = FindNextSelectableIndex(selectedIndex, 1);
+
+                    _keyHoldTimer = REPEAT_SCROLL_SPEED;
+                }
+            }
+        }
+        else
+        {
+            _keyHoldTimer = 0f;
+            _isFirstScrollDone = false;
+        }
+
+        if (prevIndex != selectedIndex)
+        {
+            UpdateMenuVisuals();
+            SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f);
+        }
+
+        if (isDecidePressed)
         {
             if (menuSelectable[selectedIndex]) ExecuteSelection();
         }
@@ -127,20 +219,60 @@ public class PauseManager : MonoBehaviour
     void HandleConfirmNavigation()
     {
         int prev = confirmIndex;
-        if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow) ||
-            Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
+        bool isLeftRightPressed = false;
+        bool isDecidePressed = false;
+        bool isCancelPressed = false;
+
+        if (MenuInputManager.Instance != null)
+        {
+            Vector2 nav = isGameOverMode ?
+                MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>() + MenuInputManager.Instance.navigateP2.action.ReadValue<Vector2>() :
+                MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+
+            // スティックが左右上下どちらに倒れてもトグルが切り替わるように判定
+            if (_keyHoldTimer <= 0f)
+            {
+                if (Mathf.Abs(nav.x) > 0.5f || Mathf.Abs(nav.y) > 0.5f)
+                {
+                    isLeftRightPressed = true;
+                    _keyHoldTimer = FIRST_SCROLL_DELAY; // 連続トグル防止ウェイト
+                }
+            }
+            else
+            {
+                _keyHoldTimer -= Time.unscaledDeltaTime;
+                if (Mathf.Abs(nav.x) < 0.1f && Mathf.Abs(nav.y) < 0.1f) _keyHoldTimer = 0f; // 指を離したら即座にリセット
+            }
+
+            isDecidePressed = isGameOverMode ?
+                (MenuInputManager.Instance.submitP1.action.triggered || MenuInputManager.Instance.submitP2.action.triggered) :
+                MenuInputManager.Instance.submitP1.action.triggered;
+
+            isCancelPressed = isGameOverMode ?
+                (MenuInputManager.Instance.cancelP1.action.triggered || MenuInputManager.Instance.cancelP2.action.triggered) :
+                MenuInputManager.Instance.cancelP1.action.triggered;
+        }
+        else
+        {
+            isLeftRightPressed = Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow) ||
+                                 Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow);
+            isDecidePressed = Input.GetKeyDown(KeyCode.Z);
+            isCancelPressed = Input.GetKeyDown(KeyCode.X);
+        }
+
+        if (isLeftRightPressed)
         {
             confirmIndex = (confirmIndex == 0) ? 1 : 0;
             if (prev != confirmIndex) { UpdateConfirmVisuals(); SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f); }
         }
 
-        if (Input.GetKeyDown(KeyCode.Z))
+        if (isDecidePressed)
         {
             if (confirmIndex == 0) ExecuteConfirmedAction(); // Yes
             else CancelConfirmation(); // No
         }
 
-        if (Input.GetKeyDown(KeyCode.X)) CancelConfirmation();
+        if (isCancelPressed) CancelConfirmation();
     }
 
     void ExecuteSelection()

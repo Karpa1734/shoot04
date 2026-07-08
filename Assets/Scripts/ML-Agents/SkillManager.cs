@@ -205,6 +205,10 @@ public class SkillManager : MonoBehaviour
 
         UpdateTimers();
         UpdateAllCooldownUI();
+
+        // 💡【対策の核心】：画面外でのフリーズを防ぐため、ここで一度数値を最新状態に更新しておく
+        UpdateCostNumericText();
+
         if (!PlayerMove.CanShoot) return;
         if (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) return;
 

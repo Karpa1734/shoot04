@@ -20,6 +20,9 @@ public class EnemySpawner : MonoBehaviour
 
     void Start()
     {
+        Time.timeScale = 1f;
+        PlayerMove.CanInput = true;
+        PlayerMove.CanShoot = true;
         Invoke("SpawnBoss", 1f);
     }
 
