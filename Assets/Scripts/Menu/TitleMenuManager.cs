@@ -1,7 +1,10 @@
-﻿using UnityEngine;
-using TMPro;
-using UnityEngine.SceneManagement;
+﻿// --- TitleMenuManager.cs 独立型コンフィグパネル・アタッチメント架け橋適合版 ---
 using KanKikuchi.AudioManager;
+using System.Collections;
+using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 public class TitleMenuManager : MonoBehaviour
 {
@@ -18,11 +21,20 @@ public class TitleMenuManager : MonoBehaviour
 
     [Header("Scene Settings")]
     public string gameSceneName = "Shoot";
+
     [Header("Practice Menu")]
     public GameObject practiceSubMenu;
     private int selectedIndex = 0;
+
     [Header("Character Select UI")]
     public GameObject characterSelectSubMenu;
+
+    // =========================================================================
+    // 🔧【新設】：独立コンフィグパネル（GameObject）のアタッチ枠
+    // =========================================================================
+    [Header("🔧 Config SubMenu Panel")]
+    [Tooltip("新設した ConfigMenuManager スクリプトが付いているコンフィグパネルを登録してください")]
+    public GameObject configSubMenu;
 
     // ⏳ 長押しスクロール（暴走ガード）用の管理タイマー
     private float _menuKeyHoldTimer = 0f;
@@ -32,25 +44,23 @@ public class TitleMenuManager : MonoBehaviour
 
     void Start()
     {
-        // 💡【原因の根治】：ポーズ画面などからタイトルへ戻った際、演習モードフラグが残っていると
-        // タイトル表示と同時に裏で練習メニューへの強制移行が走り、操作が完全ロックされてしまいます。
-        // そのため、タイトル画面のStart時にこのフラグを確実にクリアします。
         BossPracticeManager.IsPracticeMode = false;
 
         if (practiceSubMenu != null) practiceSubMenu.SetActive(false);
+        if (configSubMenu != null) configSubMenu.SetActive(false); // 👈 初期は隠す
 
         if (menuTexts == null || menuTexts.Length == 0) return;
 
+        // 配列要素 0, 1, 2, 3, 4, 8(Config), 9(Exit) を動的リサイズ対応
         if (menuSelectable == null || menuSelectable.Length != menuTexts.Length)
         {
             System.Array.Resize(ref menuSelectable, menuTexts.Length);
             for (int i = 0; i < menuSelectable.Length; i++)
             {
-                menuSelectable[i] = (i == 0 || i == 1 || i == 2 || i == 3 || i == 4 || i == menuTexts.Length - 1);
+                menuSelectable[i] = (i == 0 || i == 1 || i == 2 || i == 3 || i == 4 || i == 8 || i == menuTexts.Length - 1);
             }
         }
 
-        // 💡 以下の自動移行チェックはStart時ではなく、フラグがピュアな状態で行うか、上記のリセットにより不要になります
         selectedIndex = FindNextSelectableIndex(-1, 1);
         UpdateMenuVisuals();
     }
@@ -81,8 +91,6 @@ public class TitleMenuManager : MonoBehaviour
 
     void OnEnable()
     {
-        // 💡【UIバグ・操作遅延の併せて防止】：キャラセレクトなどのサブメニューから戻ってきた際、
-        // 前回の長押しスクロールのタイマーや変なカーソル位置が残るのを防ぐため、有効化のタイミングで初期化します。
         selectedIndex = FindNextSelectableIndex(-1, 1);
         _menuKeyHoldTimer = 0f;
         _isMenuFirstScrollDone = false;
@@ -184,54 +192,56 @@ public class TitleMenuManager : MonoBehaviour
 
         switch (selectedIndex)
         {
-            case 0:
-                OpenCharSelect(GameSelectionData.GameMode.Story);
-                break;
-            case 1:
-                OpenCharSelect(GameSelectionData.GameMode.VsCom);
-                break;
-            case 2:
-                OpenCharSelect(GameSelectionData.GameMode.VsPlayer);
-                break;
-            case 3:
-                OpenCharSelect(GameSelectionData.GameMode.VsNetwork);
-                break;
-            case 4:
-                OpenPracticeMenu();
-                break;
-            case 9:
-                Application.Quit();
-                break;
+            case 0: OpenCharSelect(GameSelectionData.GameMode.Story); break;
+            case 1: OpenCharSelect(GameSelectionData.GameMode.VsCom); break;
+            case 2: OpenCharSelect(GameSelectionData.GameMode.VsPlayer); break;
+            case 3: OpenCharSelect(GameSelectionData.GameMode.VsNetwork); break;
+            case 4: OpenPracticeMenu(); break;
+            case 8: OpenConfigMenu(); break; // 🎯 慶多さんの指定：要素8番から新コンフィグパネルを開く
+            case 9: StartEndGameSequence(); break;
         }
+    }
+
+    // =========================================================================
+    // 🔧【リファクタリング】：独立パネルアタッチメント型へのトランスファー窓口
+    // =========================================================================
+    void OpenConfigMenu()
+    {
+        this.enabled = false; // 1Pのタイトル知性をOFF
+        if (configSubMenu != null) configSubMenu.SetActive(true); // パネルを起動してバトンを渡す
+
+        _menuKeyHoldTimer = 0f;
+        _isMenuFirstScrollDone = false;
+    }
+
+    void StartEndGameSequence()
+    {
+        this.enabled = false;
+        Invoke(nameof(End), 1.0f);
+    }
+
+    void End()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 
     void OpenCharSelect(GameSelectionData.GameMode mode)
     {
         GameSelectionData.CurrentMode = mode;
 
-        if (mode == GameSelectionData.GameMode.Story)
-        {
-            GameModeManager.CurrentMode = GameModeManager.Mode.Story;
-        }
-        else if (mode == GameSelectionData.GameMode.VsCom ||
-                 mode == GameSelectionData.GameMode.VsPlayer ||
-                 mode == GameSelectionData.GameMode.VsNetwork)
-        {
-            GameModeManager.CurrentMode = GameModeManager.Mode.Versus;
-        }
+        if (mode == GameSelectionData.GameMode.Story) GameModeManager.CurrentMode = GameModeManager.Mode.Story;
+        else if (mode == GameSelectionData.GameMode.VsCom || mode == GameSelectionData.GameMode.VsPlayer || mode == GameSelectionData.GameMode.VsNetwork) GameModeManager.CurrentMode = GameModeManager.Mode.Versus;
 
-        if (mode == GameSelectionData.GameMode.VsCom)
-        {
-            GameSelectionData.UseAutoEvadeAI = true;
-        }
-        else if (mode == GameSelectionData.GameMode.VsPlayer)
-        {
-            GameSelectionData.UseAutoEvadeAI = false;
-        }
+        if (mode == GameSelectionData.GameMode.VsCom) GameSelectionData.UseAutoEvadeAI = true;
+        else if (mode == GameSelectionData.GameMode.VsPlayer) GameSelectionData.UseAutoEvadeAI = false;
 
         this.enabled = false;
         if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true);
-        // 💡【追加】：メニュー用の入力をクリアし、バトル側へ引き渡す準備をする
+
         _menuKeyHoldTimer = 0f;
         _isMenuFirstScrollDone = false;
     }

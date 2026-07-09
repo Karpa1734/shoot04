@@ -1367,10 +1367,27 @@ public class PlayerStatusManager : MonoBehaviour
                 PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
                 if (oppStatus != null)
                 {
+                    // =========================================================================
+                    // ⚔️【デバッグ機能】：エンドレスモード（Eキーデバッグ）の割り込み
+                    // 💡 理由：IsEndlessMode が true の時は、勝ち星を一切増やさず、
+                    //          即座に false を返して次のラウンド（バトル継続）へ強制移行させます！
+                    // =========================================================================
+                    if (GameDifficultyManager.IsEndlessMode)
+                    {
+                        Debug.Log("<color=orange>🔄【Endless Mode】エンドレスモード稼働中。勝ち星を加算せず、次のラウンドへ進みます。</color>");
+
+                        // 画面上のUIの更新だけは念のため通す
+                        oppStatus.UpdateUI();
+                        UpdateUI();
+
+                        return false; // ゲームセットさせず、100%次のラウンドへ継続 (false)
+                    }
+
+                    // ➔ 通常モード時（エンドレスOFF）は従来通りの2本先取ルールを適用
                     // 🌟 相手の現在の星（life）が既に 1 だった場合、今回の勝利で 2 に到達するため【マッチ終了】
                     if (oppStatus.life >= 1)
                     {
-                        
+                        oppStatus.life = 2;
                         oppStatus.life = 2;
                         oppStatus.UpdateUI();
                         UpdateUI();
@@ -1386,7 +1403,6 @@ public class PlayerStatusManager : MonoBehaviour
                     }
                 }
             }
-
             UpdateUI();
             return false;
         }

@@ -1,9 +1,33 @@
-﻿// --- DanmakuAgent.cs Hard/Lunatic超精密型流体回避・しの字包囲網学習適合版 ---
+﻿// --- DanmakuAgent.cs 難易度動変調インフラ・Easy領域暴発・領域返しNormal選別・再装填難易度可変・コンパイルエラー完全根治版 ---
+using System;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using UnityEngine;
 using UnityEngine.InputSystem;
+
+// =========================================================================
+// 🌐【重要】：ゲーム内難易度を管理する列挙型と静的クラスインフラ
+// =========================================================================
+public enum GameDifficulty
+{
+    Easy,
+    Normal,
+    Hard,
+    Lunatic
+}
+
+public static class GameDifficultyManager
+{
+    // 🎯 デフォルトは制限を完全に撤廃した「Lunatic」モードで駆動
+    public static GameDifficulty CurrentDifficulty = GameDifficulty.Lunatic;
+
+    // 🎯【1P自動操縦フラグ】：Cキーで制御される自機AI化フラグ
+    public static bool IsP1AutoAiDebugMode = false;
+
+    // 🎯【新規追加：エンドレスモードフラグ】：Eキーで制御される勝ち星カウントストップフラグ
+    public static bool IsEndlessMode = false;
+}
 
 public class DanmakuAgent : Agent
 {
@@ -47,8 +71,12 @@ public class DanmakuAgent : Agent
     [SerializeField] private bool _disableEXAndVJTForDemo = false;
 
     // =========================================================================
-    // 📐 【新設：AI専用マルチ通常スキルチャージインフラマネージャー】
+    // ⏳【新規追加】：AI専用の「リキャストとは別の使用間（手加減タイマー）」
     // =========================================================================
+    private float _aiSkillIntervalTimer = 0f;
+    private int skipFrameTimer = 0; // フレーム間引き用のカウントダウンタイマー
+
+    // 📐 【新設：AI専用マルチ通常スキルチャージインフラマネージャー】
     // 💡 0: チャージなし, 1: Zスキルチャージ中
     private int _aiCurrentChargingSkillSlot = 0;
     private int _aiChargeFrameTimer = 0;
@@ -56,16 +84,12 @@ public class DanmakuAgent : Agent
 
     public override void Initialize()
     {
-        playerMove = GetComponent<PlayerMove>(); //
-        hitHandler = GetComponentInChildren<PlayerHitHandler>(); //
-        skillManager = GetComponent<SkillManager>(); //
-        statusManager = GetComponent<PlayerStatusManager>(); //
-        _initialPosition = transform.position; //
+        playerMove = GetComponent<PlayerMove>();
+        hitHandler = GetComponentInChildren<PlayerHitHandler>();
+        skillManager = GetComponent<SkillManager>();
+        statusManager = GetComponent<PlayerStatusManager>();
+        _initialPosition = transform.position;
 
-        // =========================================================================
-        // ⭕【新規追加】：タイトル画面での選択結果を、エージェントのAI起動スイッチに直結
-        // 💡 2P側（playerID == 2）として生成されたオブジェクトのみ、VsComならAIオン、VsPlayerならAIオフに上書き
-        // =========================================================================
         if (playerID == 2)
         {
             _useAutoEvadeAI = GameSelectionData.UseAutoEvadeAI;
@@ -73,28 +97,60 @@ public class DanmakuAgent : Agent
         }
         else
         {
-            // 1P側はプレイヤーが操作するため、基本的には自動回避は常にOFFにしておきます
-            if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer ||
-                GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom)
+            // =========================================================================
+            // 🎯【ピンポイントバグ修正】：1P自機のEキーデバッグ自動操縦のバトルシーン完全同期
+            // 💡 理由：キャラ選択画面で蓄積した「IsP1AutoAiDebugMode」が真なら、
+            //          手動入力を強制遮断して、自機自身の知性をAI自動回避モードへ最優先で上書きします！
+            // =========================================================================
+            if (GameDifficultyManager.IsP1AutoAiDebugMode)
+            {
+                _useAutoEvadeAI = true;
+                Debug.Log("<color=lime>🛠️【Debug自動操縦】1P自機のAI自動操縦（Eキー）がバトルシーンに100%完全同期されました！</color>");
+            }
+            else if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer ||
+                     GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom)
             {
                 _useAutoEvadeAI = false;
             }
         }
 
-        // 既存の初期化処理
-        _aiCurrentChargingSkillSlot = 0; //
-        _aiChargeFrameTimer = 0; //
+        _aiCurrentChargingSkillSlot = 0;
+        _aiChargeFrameTimer = 0;
+        _aiSkillIntervalTimer = 0f;
+        skipFrameTimer = 0;
     }
 
     void FixedUpdate()
     {
+        // =========================================================================
+        // 📊【難易度マトリクス・危険デテクション領域（探索半径）の動的変調】
+        // =========================================================================
+        switch (GameDifficultyManager.CurrentDifficulty)
+        {
+            case GameDifficulty.Easy: _detectionRadius = 1.5f; break;
+            case GameDifficulty.Normal: _detectionRadius = 2.5f; break;
+            case GameDifficulty.Hard: _detectionRadius = 3.5f; break;
+            case GameDifficulty.Lunatic: _detectionRadius = 5.0f; break;
+        }
+
+        // 手加減用タイマーの進行
+        if (_aiSkillIntervalTimer > 0f)
+        {
+            _aiSkillIntervalTimer -= Time.fixedDeltaTime;
+        }
+
+        // 間引きタイマーの減算
+        if (skipFrameTimer > 0)
+        {
+            skipFrameTimer--;
+        }
+
         // 🚨 試合終了時やカウントダウン中、被弾中など、動けない時は入力をクリア
         if (!PlayerMove.CanShoot)
         {
             _timeSinceMatchEnd += Time.fixedDeltaTime;
             if (playerMove != null) playerMove.currentFrameInput = new PlayerMove.ReplayFrame();
 
-            // 🤖 ルールベースAI（自動よけ）が真にONの時だけ、終了後の自動徘徊を許可
             if (_useAutoEvadeAI)
             {
                 if (_timeSinceMatchEnd < 1.5f) transform.position += GetPerlinWanderVector(Time.time, 0.015f);
@@ -109,50 +165,44 @@ public class DanmakuAgent : Agent
         }
         _timeSinceMatchEnd = 0f;
 
-        // 💡 ML-Agentsの意思決定サイクルを回すため、通常時は毎フレーム行動を要求します
         RequestAction();
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        sensor.AddObservation(transform.localPosition); // (既存)
-        if (opponent != null) // (既存)
+        sensor.AddObservation(transform.localPosition);
+        if (opponent != null)
         {
-            sensor.AddObservation(opponent.localPosition); // (既存)
-            Rigidbody2D oppRb = opponent.GetComponent<Rigidbody2D>(); // (既存)
-            sensor.AddObservation(oppRb != null ? oppRb.linearVelocity : Vector2.zero); // (既存)
+            sensor.AddObservation(opponent.localPosition);
+            Rigidbody2D oppRb = opponent.GetComponent<Rigidbody2D>();
+            sensor.AddObservation(oppRb != null ? oppRb.linearVelocity : Vector2.zero);
         }
         else
         {
-            sensor.AddObservation(Vector3.zero); // (既存)
-            sensor.AddObservation(Vector2.zero); // (既存)
+            sensor.AddObservation(Vector3.zero);
+            sensor.AddObservation(Vector2.zero);
         }
 
-        if (playerMove != null) // (既存)
+        if (playerMove != null)
         {
-            sensor.AddObservation(playerMove.currentEnergy / playerMove.maxEnergy); // (既存)
-            sensor.AddObservation(playerMove.ultimateEnergy); // (既存)
+            sensor.AddObservation(playerMove.currentEnergy / playerMove.maxEnergy);
+            sensor.AddObservation(playerMove.ultimateEnergy);
         }
         else
         {
-            sensor.AddObservation(0f); // (既存)
-            sensor.AddObservation(0f); // (既存)
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
         }
 
-        // =========================================================================
-        // 🔮【強化学習用・新規拡張】：しの字の包囲重心 ＆ 画面端のプレッシャー観測
-        // =========================================================================
-        // ① 壁際のプレッシャー度合い（四隅のどこにどれだけ追いつめられているか）
-        float wallX = 4.0f; // DanmakuControllerの境界値
+        float wallX = 4.0f;
         float wallY = 4.5f;
         float cornerX = Mathf.Clamp01((Mathf.Abs(transform.localPosition.x) - 2.5f) / (wallX - 2.5f));
         float cornerY = Mathf.Clamp01((Mathf.Abs(transform.localPosition.y) - 3.0f) / (wallY - 3.0f));
-        sensor.AddObservation(cornerX); // 左右の壁への肉薄度 (0〜1)
-        sensor.AddObservation(cornerY); // 上下の壁への肉薄度 (0〜1)
+        sensor.AddObservation(cornerX);
+        sensor.AddObservation(cornerY);
 
-        // ② 周囲の敵弾の「重心ベクトル」と「平均速度ベクトル」
-        string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet"; // (既存)
-        Collider2D[] hitColliders = Physics2D.OverlapCircleAll(transform.position, _detectionRadius); // (既存)
+        string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet";
+        Collider2D[] hitColliders = Physics2D.OverlapCircleAll(transform.position, _detectionRadius);
 
         int bulletCount = 0;
         Vector2 bulletCenterGroup = Vector2.zero;
@@ -161,15 +211,15 @@ public class DanmakuAgent : Agent
         foreach (var col in hitColliders)
         {
             if (col == null) continue;
-            if (col.CompareTag(targetBulletTag) || col.CompareTag("Laser")) // (既存)
+            if (col.CompareTag(targetBulletTag) || col.CompareTag("Laser"))
             {
                 Vector2 relativePos = col.transform.position - transform.position;
                 bulletCenterGroup += relativePos;
                 bulletCount++;
 
-                if (col.attachedRigidbody != null) // (既存)
+                if (col.attachedRigidbody != null)
                 {
-                    bulletAverageVelocity += col.attachedRigidbody.linearVelocity; // (既存)
+                    bulletAverageVelocity += col.attachedRigidbody.linearVelocity;
                 }
             }
         }
@@ -178,8 +228,8 @@ public class DanmakuAgent : Agent
         {
             bulletCenterGroup /= bulletCount;
             bulletAverageVelocity /= bulletCount;
-            sensor.AddObservation(bulletCenterGroup);     // 迫りくる「しの字の丸まった頂点」の相対位置 (Vector2)
-            sensor.AddObservation(bulletAverageVelocity); // 弾幕が移動している方向ベクトル (Vector2)
+            sensor.AddObservation(bulletCenterGroup);
+            sensor.AddObservation(bulletAverageVelocity);
         }
         else
         {
@@ -187,21 +237,13 @@ public class DanmakuAgent : Agent
             sensor.AddObservation(Vector2.zero);
         }
 
-        if (PlayerMove.CanShoot) // (既存)
+        if (PlayerMove.CanShoot)
         {
-            AddReward(0.0005f); // (既存)
-
-            // 💡【重要】：観測のタイミング（毎フレーム）で、包囲網と切り返しの報酬評価を実行します
+            AddReward(0.0005f);
             EvaluateDeadEndSurroundingPenalty();
         }
     }
 
-    /// <summary>
-    /// 自機の周囲の弾の包囲網を4象限で計算し、袋小路（つの字の内部）にいる場合にペナルティを課す
-    /// </summary>
-    /// <summary>
-    /// 🧠 強化学習用：画面端でしの字に包囲された状態を減点し、中央・上空への「切り返し移動」を肯定調教する
-    /// </summary>
     private void EvaluateDeadEndSurroundingPenalty()
     {
         string targetBulletTag = (playerID == 1) ? "EnemyBullet" : "PlayerBullet";
@@ -222,36 +264,24 @@ public class DanmakuAgent : Agent
             }
         }
 
-        // 💡 壁際（四隅のいずれかのコーナー）に追い詰められているかの判定
         float wallX = 4.0f; float wallY = 4.5f;
-        bool isCornered = (Mathf.Abs(transform.localPosition.x) > wallX - 1.5f) &&
-                          (Mathf.Abs(transform.localPosition.y) > wallY - 1.5f);
+        bool isCornered = (Math.Abs(transform.localPosition.x) > wallX - 1.5f) &&
+                          (Math.Abs(transform.localPosition.y) > wallY - 1.5f);
 
-        // 🚨 1. 【袋小路ペナルティ】：画面隅にハメられ、かつ目の前に弾の壁（4発以上）がある場合
         if (isCornered && (leftCount + rightCount + upCount + downCount) >= 4)
         {
-            // 被弾する前のこの「詰み空間」にスタックしていること自体に持続的な減点を与える
             AddReward(_deadEndFramePenalty);
         }
 
-        // 🌟 2. 【切り返しの肯定】：左下や右下のピンチから、上方向や中央方向へダッシュして脱出しようとする入力を選んだら褒める
         if (isCornered && playerMove != null)
         {
-            // 左下 (x < 0, y < 0) にいる時、上(v > 0) や 右(h > 0) の脱出アクションを起こしていればインセンティブを支給
             if (transform.localPosition.x < 0 && transform.localPosition.y < 0)
             {
-                if (playerMove.currentFrameInput.v > 0 || playerMove.currentFrameInput.h > 0)
-                {
-                    AddReward(0.005f); // 切り返し誘導ボーナス
-                }
+                if (playerMove.currentFrameInput.v > 0 || playerMove.currentFrameInput.h > 0) AddReward(0.005f);
             }
-            // 右下 (x > 0, y < 0) にいる時、上(v > 0) や 左(h < 0) の脱出アクションを起こしていればボーナス
             else if (transform.localPosition.x > 0 && transform.localPosition.y < 0)
             {
-                if (playerMove.currentFrameInput.v > 0 || playerMove.currentFrameInput.h < 0)
-                {
-                    AddReward(0.005f);
-                }
+                if (playerMove.currentFrameInput.v > 0 || playerMove.currentFrameInput.h < 0) AddReward(0.005f);
             }
         }
     }
@@ -262,7 +292,6 @@ public class DanmakuAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // 🛑 動けない状態、またはスタン中の場合は入力を空にして即リターン
         if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
         {
             if (playerMove != null) playerMove.currentFrameInput = new PlayerMove.ReplayFrame();
@@ -277,10 +306,7 @@ public class DanmakuAgent : Agent
 
         int attackAction = discrete[2];
 
-
-        // =========================================================================
         // 🧠【強化学習専用ハッキング＆温存レール】
-        // =========================================================================
         if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
             float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
@@ -288,22 +314,19 @@ public class DanmakuAgent : Agent
 
             if (!isMyVjtActive && currentUltGauge >= 200f && !statusManager.isOverheated)
             {
-                if (attackAction >= 1 && attackAction <= 5)
-                {
-                    attackAction = 6; // 2本以上あるなら問答無用で領域展開にハック
-                }
+                if (attackAction >= 1 && attackAction <= 5) attackAction = 6;
             }
             else if (attackAction == 5)
             {
                 if (isMyVjtActive)
                 {
-                    if (!IsVjtCancelAllowed()) attackAction = 0; // 領域破壊の暴発ロック
+                    if (!IsVjtCancelAllowed()) attackAction = 0;
                 }
                 else
                 {
                     if (currentUltGauge >= 100f && currentUltGauge < 200f)
                     {
-                        AddReward(-0.02f); // 必殺暴発へのお叱りペナルティ
+                        AddReward(-0.02f);
                         attackAction = 0;
                     }
                 }
@@ -312,7 +335,23 @@ public class DanmakuAgent : Agent
 
         bool autoSlowToggle = (discrete[3] == 1);
 
-        // 🌟 決定された移動・低速ステートを一時バッファして生成
+        if (skipFrameTimer > 0 && _useAutoEvadeAI)
+        {
+            if (playerMove != null)
+            {
+                PlayerMove.ReplayFrame keptInput = playerMove.currentFrameInput;
+                UpdateAttackFrameAction(attackAction, autoSlowToggle, ref keptInput);
+                playerMove.currentFrameInput = keptInput;
+            }
+            return;
+        }
+        else
+        {
+            if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy) skipFrameTimer = 15;
+            else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) skipFrameTimer = 6;
+            else skipFrameTimer = 0;
+        }
+
         PlayerMove.ReplayFrame frameInput = new PlayerMove.ReplayFrame
         {
             h = h,
@@ -320,64 +359,38 @@ public class DanmakuAgent : Agent
             slow = autoSlowToggle
         };
 
-        // =========================================================================
-        // 🔮 【一元化マルチ通常スキルチャージAIインフラの割り込み（AI完全思考解放版）】
-        // =========================================================================
-        // 🛑 A. すでにチャージ中の場合
         if (_aiCurrentChargingSkillSlot > 0)
         {
             _aiChargeFrameTimer++;
-
-            // 💡 核心：AIが今このフレームでも「1:Z」を選び続けている、かつ最大チャージ（62F）未満ならホールドを継続！
             if (attackAction == 1 && _aiChargeFrameTimer < AI_GENERIC_CHARGE_TARGET_FRAMES)
             {
                 if (_aiCurrentChargingSkillSlot == 1) frameInput.shotZ = true;
             }
             else
             {
-                // 🎯【AIの意思で解放】：AIが「1:Z」以外を選んだ（ボタンを離した）、または最大タメに達した瞬間！
                 if (_aiCurrentChargingSkillSlot == 1) frameInput.shotZ = false;
-
-                if (_aiChargeFrameTimer >= AI_GENERIC_CHARGE_TARGET_FRAMES)
-                {
-                    Debug.Log($"<color=lime>🎯 [AI CHARGE RELEASE] 最大チャージ満了による自動リリース！</color>");
-                }
-                else
-                {
-                    Debug.Log($"<color=cyan>⚡ [AI TACTICAL RELEASE] AIが敵の動きを読み、{_aiChargeFrameTimer}Fで戦略的に途中リリースしました！</color>");
-                }
-
                 _aiCurrentChargingSkillSlot = 0;
                 _aiChargeFrameTimer = 0;
             }
         }
-        // 🛑 B. 新規発動の監査
         else
         {
-            frameInput.shotZ = (attackAction == 1);
-            frameInput.shotX = (attackAction == 2);
-            frameInput.shotC = (attackAction == 3);
-            frameInput.shotV = (attackAction == 4);
-            frameInput.ultimate = (attackAction == 5);
+            UpdateAttackFrameAction(attackAction, autoSlowToggle, ref frameInput);
 
-            // Zスキル（1）が選ばれ、かつアセットがチャージ技である場合はチャージロックを起動
             if (attackAction == 1 && statusManager != null && statusManager.characterData != null)
             {
                 if (statusManager.characterData.skillZ.isChargeSkill)
                 {
                     _aiCurrentChargingSkillSlot = 1;
                     _aiChargeFrameTimer = 1;
-                    frameInput.shotZ = true; // 1フレーム目の点火ホールド
-                    Debug.Log($"<color=orange>ToT [AI CHARGE START] AIの意思でZスキルのチャージを開始しました。</color>");
+                    frameInput.shotZ = true;
                 }
             }
         }
 
-        // 完成したパーフェクトなフレーム入力を自機の実体に直撃同期！
         playerMove.currentFrameInput = frameInput;
 
-        // 💡 領域展開（VJT）の発動執行
-        if (attackAction == 6 && statusManager != null && !statusManager.isSpellCardActive)
+        if (attackAction == 6 && PlayerMove.CanShoot && statusManager != null && !statusManager.isSpellCardActive)
         {
             if (playerMove != null && playerMove.ultimateEnergy >= 200f && !statusManager.isOverheated)
             {
@@ -387,7 +400,15 @@ public class DanmakuAgent : Agent
         }
     }
 
-
+    private void UpdateAttackFrameAction(int attackAction, bool autoSlow, ref PlayerMove.ReplayFrame frame)
+    {
+        frame.shotZ = (attackAction == 1);
+        frame.shotX = (attackAction == 2);
+        frame.shotC = (attackAction == 3);
+        frame.shotV = (attackAction == 4);
+        frame.ultimate = (attackAction == 5);
+        frame.slow = autoSlow;
+    }
 
     public override void Heuristic(in ActionBuffers actionsOut)
     {
@@ -605,7 +626,7 @@ public class DanmakuAgent : Agent
                 if (isNearRightWall && laserRepulsion.x > 0) { laserRepulsion.y += (laserRepulsion.y >= 0 ? 1f : -1f) * laserRepulsion.x; laserRepulsion.x = 0; }
                 else if (isNearLeftWall && laserRepulsion.x < 0) { laserRepulsion.y += (laserRepulsion.y >= 0 ? 1f : -1f) * Mathf.Abs(laserRepulsion.x); laserRepulsion.x = 0; }
                 if (isNearTopWall && laserRepulsion.y > 0) { laserRepulsion.x += (laserRepulsion.x >= 0 ? 1f : -1f) * laserRepulsion.y; laserRepulsion.y = 0; }
-                else if (isNearBottomWall && laserRepulsion.y < 0) { laserRepulsion.x += (laserRepulsion.x >= 0 ? 1f : -1f) * Mathf.Abs(laserRepulsion.y); laserRepulsion.y = 0; }
+                else if (isNearBottomWall && laserRepulsion.y < 0) { laserRepulsion.x += (escapeVector.y >= 0 ? 1f : -1f) * Mathf.Abs(laserRepulsion.y); laserRepulsion.y = 0; }
 
                 totalRepulsion += laserRepulsion;
             }
@@ -617,52 +638,20 @@ public class DanmakuAgent : Agent
             totalRepulsion += Vector2.up * pushUpForce;
         }
 
-        // 💡【エラー根治】：既存の壁際判定フラグから、四隅（コーナー）に追い詰められているかを動的に算出
-        //                   上下のどちらかの壁、かつ左右のどちらかの壁に同時に触れている場合は危険度を1.0（最大）にします。
         float wallDangerFactor = ((isNearLeftWall || isNearRightWall) && (isNearBottomWall || isNearTopWall)) ? 1.0f : 0.0f;
 
-        // =========================================================================
-        // 💫【最核心進化】：画面端・四隅に追い詰められた際の「切り返し（脱出）」ベクトルの結合
-        // =========================================================================
-        // 💡 理由：背後が壁、かつ前方が弾幕（4発以上）の際、ただ弾から離れようとすると壁に激突して静止します。
-        //          この絶対絶命のピンチを検知した瞬間、AIに「弾幕の隙間（高度の高い上方向、または中央）」へ
-        //          一気に滑り込んで位置を入れ替える（切り返す）ための強烈な推進力を与えます。
         if (wallDangerFactor > 0.4f && singleBullets.Count + (clusterPoints.Count * 4) >= 4)
         {
             Vector2 escapeSwitchVector = Vector2.zero;
 
-            // 1. 左下の四隅に追い詰められている場合（カリンのしの字に捕まったスクショの状況）
-            if (isNearLeftWall && isNearBottomWall)
-            {
-                // 💡 左下からは「真上（コルーチン側で弾が薄くなる高度）」か「右（中央）」へ一気に切り返す！
-                escapeSwitchVector = (Vector2.up * 2.5f + Vector2.right * 1.0f).normalized;
-                Debug.Log("<color=orange>⚡【AI緊急切り返し】左下デッドロックを検知。上空の隙間へ高速カットイン！</color>");
-            }
-            // 2. 右下の四隅に追い詰められている場合
-            else if (isNearRightWall && isNearBottomWall)
-            {
-                escapeSwitchVector = (Vector2.up * 2.5f + Vector2.left * 1.0f).normalized;
-                Debug.Log("<color=orange>⚡【AI緊急切り返し】右下デッドロックを検知。上空の隙間へ高速カットイン！</color>");
-            }
-            // 3. 左側の壁際に張り付かされている場合
-            else if (isNearLeftWall)
-            {
-                escapeSwitchVector = Vector2.right * 2.0f; // 中央へ大きく切り返し
-            }
-            // 4. 右側の壁際に張り付かされている場合
-            else if (isNearRightWall)
-            {
-                escapeSwitchVector = Vector2.left * 2.0f;  // 中央へ大きく切り返し
-            }
+            if (isNearLeftWall && isNearBottomWall) escapeSwitchVector = (Vector2.up * 2.5f + Vector2.right * 1.0f).normalized;
+            else if (isNearRightWall && isNearBottomWall) escapeSwitchVector = (Vector2.up * 2.5f + Vector2.left * 1.0f).normalized;
+            else if (isNearLeftWall) escapeSwitchVector = Vector2.right * 2.0f;
+            else if (isNearRightWall) escapeSwitchVector = Vector2.left * 2.0f;
 
-            // 💡【流体オーバーライド】：これまでのフリーズしていた斥力を完全にねじ伏せ、
-            //                          この切り返しベクトルを最大出力で運動エネルギーに直撃結合します！
-            if (escapeSwitchVector != Vector2.zero)
+            if (escapeSwitchVector != Vector2.zero && GameDifficultyManager.CurrentDifficulty != GameDifficulty.Easy)
             {
                 totalRepulsion = (totalRepulsion * 0.3f) + escapeSwitchVector * 2.2f;
-
-                // 🧠 ML-Agents 学習用報酬調教：切り返しに成功して生き残る選択肢を脳に強く肯定させるため、
-                //                            画面端のピンチから脱出方向へ動き出した瞬間に微小なボーナスを支給
                 AddReward(0.002f);
             }
         }
@@ -699,117 +688,178 @@ public class DanmakuAgent : Agent
 
         int nearbyBulletCount = CountNearbyBullets();
         float distanceToEnemy = (opponent != null) ? Vector3.Distance(transform.position, opponent.position) : 10f;
-
         bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
 
+        // =========================================================================
+        // 🔮【知性逆転の完全修正】：領域展開（VJT）の発動ジャッジロジック
+        // =========================================================================
         if (!_disableEXAndVJTForDemo)
         {
-            if (PlayerStatusManager.isAnyVJTActive && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated && currentUltGauge >= 200f)
+            if (statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated)
             {
-                if (playerMove.Opponent != null)
+                // 🛑 A. 【領域返し（カウンター）のジャッジ】
+                if (PlayerStatusManager.isAnyVJTActive)
                 {
-                    PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
-                    if (oppStatus != null && oppStatus.isSpellCardActive)
+                    if (playerMove.Opponent != null)
                     {
-                        float myProgress = Mathf.InverseLerp(200f, 300f, currentUltGauge);
-                        float myExpectedDuration = Mathf.Lerp(statusManager.minSpellDuration, statusManager.maxSpellDuration, myProgress);
-                        float oppRemainingTime = oppStatus.spellTimer;
-
-                        if (myExpectedDuration - oppRemainingTime > 10f)
+                        PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
+                        if (oppStatus != null && oppStatus.isSpellCardActive && currentUltGauge >= 200f)
                         {
-                            Debug.Log($"<color=red>【AI領域返し執行】敵の結界の隙を看破！ 割り込み領域返しをトリガーします！</color>");
+                            float myProgress = Mathf.InverseLerp(200f, 300f, currentUltGauge);
+                            float myExpectedDuration = Mathf.Lerp(statusManager.minSpellDuration, statusManager.maxSpellDuration, myProgress);
+                            float oppRemainingTime = oppStatus.spellTimer;
+
+                            // 🎯 Easyの時は「領域返し（カウンター技術）」を完全封印して知性を手加減
+                            if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy)
+                            {
+                            }
+                            else
+                            {
+                                // Normal以上は確率で執行（Normal: 30%, Hard: 70%, Lunatic: 100%）
+                                float reactionChance = 1f;
+                                if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) reactionChance = 0.3f;
+                                else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Hard) reactionChance = 0.7f;
+
+                                if (myExpectedDuration - oppRemainingTime > 10f && UnityEngine.Random.value <= reactionChance)
+                                {
+                                    Debug.Log($"<color=red>💥【AI領域返し執行】難易度：{GameDifficultyManager.CurrentDifficulty}。上書きカウンター！</color>");
+                                    return 6;
+                                }
+                            }
+                        }
+                    }
+                }
+                // 🟢 B. 【通常の領域展開（先制・主導権掌握）のジャッジ】
+                else
+                {
+                    // Easy➔ ゲージが200%溜まった瞬間、間合いに関係なく（画面端にいても）おバカに即暴発・無駄撃ち
+                    // Normal➔ ゲージが300%MAXまでしっかりと溜まっており、かつ敵が射程圏内（6.5f以内）の時のみ賢く使う
+                    // Hard/Lunatic➔ ゲージが200%以上あり、かつ敵が射程圏内（6.5f以内）の時に最速で最適に使う
+
+                    if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy)
+                    {
+                        if (currentUltGauge >= 200f)
+                        {
+                            Debug.Log("<color=orange>⚠️【Easy領域暴発】間合いを一切測らず、200%で即無駄撃ちを執行します！</color>");
+                            return 6;
+                        }
+                    }
+                    else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal)
+                    {
+                        if (currentUltGauge >= 300f && distanceToEnemy <= 6.5f)
+                        {
+                            Debug.Log("<color=yellow>💡【Normal戦術領域】300%MAXかつ適切な間合い（6.5f以内）で知的展開！</color>");
+                            return 6;
+                        }
+                    }
+                    else // Hard or Lunatic
+                    {
+                        if (currentUltGauge >= 200f && distanceToEnemy <= 6.5f)
+                        {
+                            Debug.Log($"<color=cyan>⚡【{GameDifficultyManager.CurrentDifficulty}最速領域】200%以上のジャストタイミングで展開！</color>");
                             return 6;
                         }
                     }
                 }
             }
-            if (!PlayerStatusManager.isAnyVJTActive && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated && currentUltGauge >= 200f)
-            {
-                if (distanceToEnemy <= 6.5f)
-                {
-                    Debug.Log($"<color=cyan>🤖【AI通常領域展開】必殺リソース2本以上蓄積。主導権掌握のためVJTを展開します！</color>");
-                    return 6;
-                }
-            }
         }
 
-        if (isVReady && (isMyVjtActive ? (currentMP >= 20f) : (nearbyBulletCount >= 5 && currentMP >= 20f))) return 4;
+        // 🎯 通常スキル使用間のタイマーがまだ残っているなら、通常スキルの発動をここで遮断
+        if (_aiSkillIntervalTimer > 0f) return 0;
 
-        float vjtMpReadyThreshold = 35f;
-        float vjtMpSaveThreshold = 15f;
+        // =========================================================================
+        // 🔋【最核心進化】：再装填（ヒステリシス管理）閾値の難易度動的変調マトリクス
+        // =========================================================================
+        // 💡 理由：難易度が高いほどマナを極限まで引きつけてフルバーストさせ、 Easyはおバカに即撃ちさせます。
+        float actualReadyThreshold = _mpReadyThreshold; // デフォルト (Lunatic: 95%近く)
+        float actualSaveThreshold = _mpSaveThreshold;  // デフォルト
 
         if (isMyVjtActive)
         {
-            if (_currentShootingState == ShootingState.Bursting)
+            actualReadyThreshold = 35f;
+            actualSaveThreshold = 15f;
+        }
+        else
+        {
+            switch (GameDifficultyManager.CurrentDifficulty)
             {
-                if (currentMP <= vjtMpSaveThreshold) _currentShootingState = ShootingState.Charging;
+                case GameDifficulty.Easy:
+                    // ❌ Easy: 溜め撃ちの概念を完全破砕（下限も上限も0）➔ コストが溜まった瞬間におバカに単発即撃ち
+                    actualReadyThreshold = 0f;
+                    actualSaveThreshold = 0f;
+                    break;
+                case GameDifficulty.Normal:
+                    // 🟢 Normal: 標準的な再装填（50%まで溜まったら連射解禁、20%で温存モードへ）
+                    actualReadyThreshold = 50f;
+                    actualSaveThreshold = 20f;
+                    break;
+                case GameDifficulty.Hard:
+                    // 👑 Hard: 賢いバースト（75%までしっかりチャージしてから撃つ）
+                    actualReadyThreshold = 75f;
+                    actualSaveThreshold = 25f;
+                    break;
+                case GameDifficulty.Lunatic:
+                    // 😈 Lunatic: 狂気のフルバースト（95%近くまで極限にエネルギーを装填して一気にハメ殺す）
+                    actualReadyThreshold = 95f;
+                    actualSaveThreshold = 30f;
+                    break;
             }
-            else
+        }
+
+        if (_currentShootingState == ShootingState.Bursting)
+        {
+            if (currentMP <= actualSaveThreshold)
             {
-                if (currentMP >= vjtMpReadyThreshold) _currentShootingState = ShootingState.Bursting;
-                else return 0;
+                _currentShootingState = ShootingState.Charging;
             }
         }
         else
         {
-            if (_currentShootingState == ShootingState.Bursting)
+            if (currentMP >= actualReadyThreshold)
             {
-                if (currentMP <= _mpSaveThreshold) _currentShootingState = ShootingState.Charging;
+                _currentShootingState = ShootingState.Bursting;
             }
             else
             {
-                if (currentMP >= _mpReadyThreshold) _currentShootingState = ShootingState.Bursting;
-                else return 0;
+                return 0; // 絶賛チャージ中のため通常スキルは一律封印
             }
         }
 
-        if (isXReady && (isMyVjtActive ? (currentMP >= 25f) : (currentMP >= 25f && distanceToEnemy >= 2.0f && distanceToEnemy <= 8.5f))) return 2;
-        if (isCReady && (isMyVjtActive ? (currentMP >= 30f) : (distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f))) return 3;
-        if (isZReady && currentMP >= 10f) return 1;
+        // =========================================================================
+        // ⚔️ 通常スキルの発動判定と「使用間（手加減）」の動的注入
+        // =========================================================================
+        int selectedSkill = 0;
 
-        // --- 必殺技（EX/ULT）のAI発動ジャッジ ---
-        if (isUltReady && !_disableEXAndVJTForDemo)
+        if (isVReady && (isMyVjtActive ? (currentMP >= 20f) : (nearbyBulletCount >= 5 && currentMP >= 20f))) selectedSkill = 4;
+        else if (isXReady && (isMyVjtActive ? (currentMP >= 25f) : (currentMP >= 25f && distanceToEnemy >= 2.0f && distanceToEnemy <= 8.5f))) selectedSkill = 2;
+        else if (isCReady && (isMyVjtActive ? (currentMP >= 30f) : (distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f))) selectedSkill = 3;
+        else if (isZReady && currentMP >= 10f) selectedSkill = 1;
+
+        if (selectedSkill == 0 && isUltReady && !_disableEXAndVJTForDemo)
         {
-            // =========================================================================
-            // 👑【超重要：領域維持＆終了間際パージアタック戦略】
-            // =========================================================================
-            if (isMyVjtActive)
+            if (isMyVjtActive && IsVjtCancelAllowed()) selectedSkill = 5;
+            else if (!isMyVjtActive)
             {
-                // 💡【破壊温存ロジック】：
-                // 領域中に必殺を撃つと領域が壊れるため、基本は「絶対温存」。
-                // ただし、IsVjtCancelAllowed() が true（残り時間わずか、または領域HPが瀕死）を
-                // 返してきた時だけ、消滅直前の最後の悪あがき（最大効率のパージアタック）として必殺技のトリガーを許可します！
-                if (IsVjtCancelAllowed())
+                if (currentUltGauge >= 150f && currentUltGauge < 200f) { }
+                else
                 {
-                    Debug.Log("<color=magenta>⚡【AI領域パージアタック】結界の限界を検知。消滅直前に必殺技を叩き込みます！</color>");
-                    return 5;
+                    if (currentUltGauge >= 300f) selectedSkill = 5;
+                    else if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) selectedSkill = 5;
+                    else if (currentUltGauge >= 100f && distanceToEnemy < 4.0f && nearbyBulletCount <= 2) selectedSkill = 5;
                 }
-
-                // まだ領域が元気な間は、マナ超回復を活かして通常スキルを連射させるため、必殺技は絶対に撃たせない
-                //（ここでリターンせず、下の溜め込み・温存ロジックにも進ませないようにガード）
-                return 0;
-            }
-
-            // =========================================================================
-            // 🔷 通常時（領域が張られていない時）の立ち回りロジック
-            // =========================================================================
-            // 💡【戦略的温存ロジック】：
-            // ゲージが150〜199の間など「あと少しで強力な領域展開（200）ができる」という超重要フェーズでは、
-            // 目先の必殺技でゲージを100消費してドブに捨てるのを防ぐため、あえて発動を「封印（温存）」させます。
-            if (currentUltGauge >= 150f && currentUltGauge < 200f)
-            {
-                // 領域展開のために我慢させる（何もしない）
-            }
-            else
-            {
-                if (currentUltGauge >= 300f) return 5;
-                if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) return 5;
-                // 1ストック(100)の時は、本当に敵が目の前にいて確実に仕留められる時だけ許可
-                if (currentUltGauge >= 100f && distanceToEnemy < 4.0f && nearbyBulletCount <= 2) return 5;
             }
         }
 
-        return 0;
+        if (selectedSkill > 0 && selectedSkill != 6)
+        {
+            float addedInterval = 0f;
+            if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy) addedInterval = 1.5f;
+            else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) addedInterval = 0.4f;
+
+            _aiSkillIntervalTimer = addedInterval;
+        }
+
+        return selectedSkill;
     }
 
     private Vector3 GetPerlinWanderVector(float timeValue, float speedMultiplier)
@@ -837,10 +887,12 @@ public class DanmakuAgent : Agent
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, _detectionRadius);
     }
+
     public override void OnEpisodeBegin()
     {
-        // 既存の初期化処理はそのまま維持
         _aiCurrentChargingSkillSlot = 0;
         _aiChargeFrameTimer = 0;
+        _aiSkillIntervalTimer = 0f;
+        skipFrameTimer = 0;
     }
 }

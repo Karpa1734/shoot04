@@ -11081,7 +11081,7 @@ MonoBehaviour:
   opponent: {fileID: 1872656873}
   playerID: 1
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move
@@ -30045,7 +30045,7 @@ MonoBehaviour:
   opponent: {fileID: 695556676}
   playerID: 2
   _detectionRadius: 3.5
-  _useAutoEvadeAI: 0
+  _useAutoEvadeAI: 1
   _deadEndFramePenalty: -0.015
   moveAction:
     m_Name: Move

@@ -1,4 +1,4 @@
-﻿// --- CharacterSelectManager.cs キャラの選択・左右名表示・左右立ち絵リアルタイム反映・GameStartロック・ランダム決定後ネーム＆グラフィック同期版 ---
+﻿// --- CharacterSelectManager.cs 1P自動操作(Cキー) ✕ エンドレスモード(Eキー) デバッグ拡張版 ---
 using KanKikuchi.AudioManager;
 using System.Collections.Generic;
 using TMPro;
@@ -54,12 +54,21 @@ public class CharacterSelectManager : MonoBehaviour
 
     private const float FIRST_SCROLL_DELAY = 0.4f;
     private const float REPEAT_SCROLL_SPEED = 0.08f;
-    private int _lastConnectedControllersCount = -1; // 💡【追加】前フレームの接続数を保持する変数
+    private int _lastConnectedControllersCount = -1;
     public GameObject titleMenuCanvas;
+
+    // =========================================================================
+    // 🔧【デモ専用新設】：ワーク用デバッグステート
+    // =========================================================================
+    private bool _p1DebugAutoAiToggle = false; // 1P自機のCPU自動操縦
+    private bool _endlessModeToggle = false;     // エンドレスモードフラグ
 
     void OnEnable()
     {
         PlayerStatusManager.FromCharacterSelect = true;
+        _p1DebugAutoAiToggle = false; // パネルを開くたびにデバッグフラグを初期化
+        _endlessModeToggle = false;
+
         bool isCleared = false;
         try
         {
@@ -91,7 +100,6 @@ public class CharacterSelectManager : MonoBehaviour
         if (warningText != null) warningText.gameObject.SetActive(false);
 
         _inputCooldownTimer = 0.2f;
-        // 💡【追加】初回起動時の接続数を記録しておく
         _lastConnectedControllersCount = GetConnectedJoystickCount();
         InitializeCharacterSelectUI();
         UpdateSelectionVisuals();
@@ -128,25 +136,45 @@ public class CharacterSelectManager : MonoBehaviour
             _inputCooldownTimer -= Time.deltaTime;
         }
 
+        // =========================================================================
+        // ⌨️【デバッグ機能】：VSCOM時専用・Eキー＆Cキーの割り当て変調インフラ
+        // =========================================================================
+        if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom)
+        {
+            // 🎯 1. 【Cキー】：1P自機のAI自動操縦化トグル
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                _p1DebugAutoAiToggle = !_p1DebugAutoAiToggle;
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUSELECT, 0.6f);
+                Debug.Log($"<color=lime>🛠️【Debugトグル】1P自機のAI自動操縦状態を変更 ➔ ACTIVE: {_p1DebugAutoAiToggle}</color>");
+                UpdateSelectionVisuals();
+            }
+
+            // 🎯 2. 【Eキー】：勝ち星が増えないエンドレスモードトグル
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                _endlessModeToggle = !_endlessModeToggle;
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 0.6f); // エンドレス用に少し重い音を拝借
+                Debug.Log($"<color=orange>⚔️【Debugトグル】エンドレスモード（勝ち星カウント停止）状態を変更 ➔ ACTIVE: {_endlessModeToggle}</color>");
+                UpdateSelectionVisuals();
+            }
+        }
+
         int connectedControllers = GetConnectedJoystickCount();
-        // 💡【追加】コントローラーの抜き差し（接続数の変化）を検知した瞬間にUIを即座に更新
         if (connectedControllers != _lastConnectedControllersCount)
         {
             _lastConnectedControllersCount = connectedControllers;
             UpdateSelectionVisuals();
         }
-        // 👑【VsPlayer専用の鉄壁接続チェックガード】
+
         if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer && connectedControllers < 2)
         {
             if (warningText != null)
             {
-                // 🚨 2つのコントローラーが確認できない場合はメッセージを表示
                 warningText.text = "PleaseConnect2Controller";
                 warningText.gameObject.SetActive(true);
             }
-            // 💡【追加】ロック中もガイドテキストの表記を「接続要求」に同期させる
             UpdateSelectionVisuals();
-            // ロック中も、1Pのキャンセル操作（戻る）だけは受け付ける
             bool isLockCancel = false;
             if (MenuInputManager.Instance != null)
             {
@@ -162,21 +190,16 @@ public class CharacterSelectManager : MonoBehaviour
                 if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
                 HandleCancel();
             }
-
-            // ⚠️ コントローラーが足りない場合はここで処理を強制終了！
-            // これにより、これ以降に記述されているキーボード操作や決定処理が一切実行されなくなります。
             return;
         }
         else
         {
-            // コントローラーが2つ以上繋がっていれば警告を消して先に進める
             if (warningText != null && warningText.text == "PleaseConnect2Controller")
             {
                 warningText.gameObject.SetActive(false);
             }
         }
 
-        // 🎮【新インプットシステム排他分離レイヤー】（※ここから先はコントローラーが2つある時だけ走る）
         bool isUpPressed = false;
         bool isDownPressed = false;
         bool isDecidePressed = false;
@@ -188,7 +211,6 @@ public class CharacterSelectManager : MonoBehaviour
             {
                 if (!_isP2SelectingPhase && !_isGameStartReadyPhase)
                 {
-                    // 1P選択中：2Pデバイス入力を完全シャットアウト
                     Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
                     isUpPressed = nav.y > 0.5f;
                     isDownPressed = nav.y < -0.5f;
@@ -197,7 +219,6 @@ public class CharacterSelectManager : MonoBehaviour
                 }
                 else if (_isP2SelectingPhase && !_isGameStartReadyPhase)
                 {
-                    // 2P選択中：1Pデバイス入力を完全シャットアウト
                     Vector2 nav = MenuInputManager.Instance.navigateP2.action.ReadValue<Vector2>();
                     isUpPressed = nav.y > 0.5f;
                     isDownPressed = nav.y < -0.5f;
@@ -206,14 +227,12 @@ public class CharacterSelectManager : MonoBehaviour
                 }
                 else if (_isGameStartReadyPhase)
                 {
-                    // 準備完了：どちらのデバイスからでもOK
                     isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered || MenuInputManager.Instance.submitP2.action.triggered;
                     isCancelPressed = MenuInputManager.Instance.cancelP1.action.triggered || MenuInputManager.Instance.cancelP2.action.triggered;
                 }
             }
             else
             {
-                // 通常モード（VsComやStory）➔ 1Pの入力デバイスですべて操作
                 Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
                 isUpPressed = nav.y > 0.5f;
                 isDownPressed = nav.y < -0.5f;
@@ -223,14 +242,12 @@ public class CharacterSelectManager : MonoBehaviour
         }
         else
         {
-            // 旧システムフォールバック
             isUpPressed = Input.GetKey(KeyCode.UpArrow);
             isDownPressed = Input.GetKey(KeyCode.DownArrow);
             isDecidePressed = Input.GetKeyDown(KeyCode.Z);
             isCancelPressed = Input.GetKeyDown(KeyCode.X);
         }
 
-        // --- 以下、既存のスクロール・決定・キャンセル処理 ---
         if (_isGameStartReadyPhase)
         {
             if (isDecidePressed && _inputCooldownTimer <= 0f)
@@ -326,15 +343,17 @@ public class CharacterSelectManager : MonoBehaviour
             hoveringSprite = availableCharacters[_currentCursor].characterSprite;
         }
 
-        // 💡 1P側のテキスト＆グラフィックリアルタイム更新
         if (p1SelectedNameText != null)
         {
+            // 💡 CキーデバッグONの時は、テキストのプレフィックスを「1P(COM)」に変調
+            string p1Label = _p1DebugAutoAiToggle ? "1P(COM): " : "1P: "; 
+
             if (_isGameStartReadyPhase)
             {
                 int p1RealId = GameSelectionData.SelectedCharacterP1;
                 if (p1RealId >= 0 && p1RealId < availableCharacters.Count && availableCharacters[p1RealId] != null)
                 {
-                    p1SelectedNameText.text = "1P: " + availableCharacters[p1RealId].characterName;
+                    p1SelectedNameText.text = p1Label + availableCharacters[p1RealId].characterName; 
                     SetCharacterImage(p1SelectedCharacterImage, availableCharacters[p1RealId].characterSprite);
                 }
             }
@@ -342,26 +361,24 @@ public class CharacterSelectManager : MonoBehaviour
             {
                 if (_finalP1CharacterId == _selectableCharacterCount)
                 {
-                    p1SelectedNameText.text = "1P: Random";
+                    p1SelectedNameText.text = p1Label + "Random"; 
                     SetCharacterImage(p1SelectedCharacterImage, randomOrDefaultSprite);
                 }
                 else
                 {
-                    p1SelectedNameText.text = "1P: " + availableCharacters[_finalP1CharacterId].characterName;
+                    p1SelectedNameText.text = p1Label + availableCharacters[_finalP1CharacterId].characterName; 
                     SetCharacterImage(p1SelectedCharacterImage, availableCharacters[_finalP1CharacterId].characterSprite);
                 }
             }
             else
             {
-                p1SelectedNameText.text = "1P: " + hoveringName;
+                p1SelectedNameText.text = p1Label + hoveringName; 
                 SetCharacterImage(p1SelectedCharacterImage, hoveringSprite);
             }
         }
 
-        // 💡 2P / COM側のテキスト＆グラフィックリアルタイム更新
         if (p2SelectedNameText != null)
         {
-            // モードに応じてプレフィックスを「2P」か「COM」に切り替える
             string sideLabel = (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom) ? "COM" : "2P";
 
             if (_isGameStartReadyPhase)
@@ -385,7 +402,6 @@ public class CharacterSelectManager : MonoBehaviour
             }
         }
 
-        // 💡 画面中央下のガイドテキスト更新
         if (guideText != null)
         {
             if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer && GetConnectedJoystickCount() < 2)
@@ -395,15 +411,27 @@ public class CharacterSelectManager : MonoBehaviour
             }
             else if (_isGameStartReadyPhase)
             {
-                guideText.text = "PRESS START BUTTON TO BATTLE";
-                guideText.color = unselectedColor;
+                // 💡 確定画面（START待機）の時、エンドレスモードがONならテキストにデバッグ状態を上書き
+                if (_endlessModeToggle)
+                {
+                    guideText.text = "PRESS START BUTTON [DEBUG: ENDLESS MODE ON]";
+                    guideText.color = Color.cyan;
+                }
+                else
+                {
+                    guideText.text = "PRESS START BUTTON TO BATTLE";
+                }
             }
             else
             {
-                if (_isP2SelectingPhase)
+                // 💡 選択中のインジケーターテキスト組み立て
+                string debugSuffix = "";
+                if (_p1DebugAutoAiToggle) debugSuffix += "[1P:AI] ";
+                if (_endlessModeToggle) debugSuffix += "[ENDLESS] ";
+
+                if (!string.IsNullOrEmpty(debugSuffix))
                 {
-                    // VsCom の時は「COM SELECT」、VsPlayer の時は「2P SELECT」
-                    guideText.text = (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom) ? "COM SELECT" : "2P SELECT";
+                    guideText.text = $"1P SELECT <color=yellow>{debugSuffix}</color>";
                 }
                 else
                 {
@@ -501,6 +529,12 @@ public class CharacterSelectManager : MonoBehaviour
             gameStartText.gameObject.SetActive(true);
             gameStartText.color = selectedColor;
         }
+
+        // =========================================================================
+        // 🌟【最核心：デバッグパラメーターの一括確定インジェクション】
+        // =========================================================================
+        GameDifficultyManager.IsP1AutoAiDebugMode = _p1DebugAutoAiToggle; // Cキーの状態を1Pに同期
+        GameDifficultyManager.IsEndlessMode = _endlessModeToggle;    // Eキーの状態をエンドレスフラグに同期
 
         UpdateSelectionVisuals();
     }

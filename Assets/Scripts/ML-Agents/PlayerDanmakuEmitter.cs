@@ -449,11 +449,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // =========================================================================
     // 🎯【ファクトリ最高拡張版】：角速度 (angularVelocity) と最大回転角 (maxRotationLimit) をドッキング
     // =========================================================================
+    // 🎯【根本バグ修正版】：オーラ消失・レイヤーねじれを完全破砕する超先行初期化ファクトリ
     protected DanmakuBullet CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay,
                                        bool isConverge = false, float accel = 0f, float maxSpeed = 0f,
                                        Material customMaterial = null, float customScale = 1.0f,
                                        bool isIndestructible = false,
-                                       float angularVelocity = 0f, float maxRotationLimit = 0f) // 👈 引数を新規追加！
+                                       float angularVelocity = 0f, float maxRotationLimit = 0f)
     {
         if (data == null || data.bulletPrefab == null) return null;
 
@@ -486,6 +487,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             ? Quaternion.Euler(90f, 0f, angle - 90f)
             : Quaternion.Euler(0f, 0f, angle - 90f);
 
+        // =========================================================================
+        // 🌟 1. プレハブの実体化（ここが世界の起点）
+        // =========================================================================
         GameObject obj = null;
         if (BulletPool.Instance != null)
         {
@@ -496,6 +500,39 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             obj = Instantiate(data.bulletPrefab, pos, initialRotation);
         }
 
+        if (obj == null) return null;
+
+        // =========================================================================
+        // 🎯【最核心の修正】：何よりも先に、生成直後の「最初の1行」で Initialize を叩き込む！
+        // =========================================================================
+        // 💡 理由：タグやレイヤーのループ処理、マテリアル変更を先に行うと、
+        //    その重い処理の間に子オブジェクトのオーラ描画システムが一瞬だけ「データ未注入」の状態で
+        //    フレームを跨いでしまい、描画がパージ（消失）されてしまいます。
+        //    生成直後に脳直でデータを直撃同期させることで、オーラ消失を根本から100%防ぎます。
+        DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
+        if (bullet != null)
+        {
+            float finalMaxSpeed = (maxSpeed == 0f) ? speed : maxSpeed;
+
+            bullet.Initialize(
+                shooter: _rootOwner,
+                target: targetTag,
+                speed: speed,
+                angle: angle,
+                accel: accel,
+                maxSpeed: finalMaxSpeed,
+                angVel: angularVelocity,
+                delay: delay,
+                data: runtimeData,
+                converge: isConverge
+            );
+
+            bullet.isIndestructible = isIndestructible;
+        }
+
+        // =========================================================================
+        // 🔒 2. 同期完了後に、タグ・レイヤーなどの空間パラメーターを安全に上書き
+        // =========================================================================
         string assignedTag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
         obj.tag = assignedTag;
 
@@ -512,37 +549,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             if (mainSR != null) mainSR.material = customMaterial;
         }
 
-        DanmakuBullet bullet = obj.GetComponent<DanmakuBullet>();
-        if (bullet != null)
-        {
-            float finalMaxSpeed = (maxSpeed == 0f) ? speed : maxSpeed;
-
-            // 💡 既存の Initialize を呼び出します（※内部変数の割り当てや、後述するクランプコルーチンと同期）
-            bullet.Initialize(
-                shooter: _rootOwner,
-                target: targetTag,
-                speed: speed,
-                angle: angle,
-                accel: accel,
-                maxSpeed: finalMaxSpeed,
-                angVel: angularVelocity, // 👈 渡された角速度をそのまま注入！
-                delay: delay,
-                data: runtimeData,
-                converge: isConverge
-            );
-
-            bullet.isIndestructible = isIndestructible;
-
-            // 💡 もし最大回転制限が指定されている場合は、弾自体に監視コルーチンを持たせるか、
-            //    今回は ExplosionField 側で一括クランプ制御する従来の軽量構造を維持するため、
-            //    リフレクションを使わずにアクセスできるように、必要であれば DanmakuBullet 側に変数を設けることも可能です。
-            //    今回はフィールド側での一括管理をリフレクションフリーにするために使用します。
-        }
-
-        if (obj != null)
-        {
-            obj.transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
-        }
+        obj.transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
 
         return bullet;
     }

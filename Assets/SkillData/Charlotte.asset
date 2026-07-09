@@ -68,7 +68,7 @@ MonoBehaviour:
     angleOffset: 0
     wideAngle: 60
     moveSpeedMultiplier: 0
-    delay: 1
+    delay: 5
     cost: 30
     ultimateGain: 8
   skillC:

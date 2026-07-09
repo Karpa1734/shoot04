@@ -200,7 +200,8 @@ public class Emitter_Greed : PlayerDanmakuEmitter
     /// 自機外し全方位弾を、射角を回転させ、段階的に弾速を上げながら連射する
     /// 1回使うごとに回転方向が交互に反転する
     /// </summary>
-   // 📄 PlayerDanmakuEmitter.cs 内の RotatingAccelRoundRoutine メソッド【領域展開・弾数4増量変調版】
+    // 📄 PlayerDanmakuEmitter.cs 内の RotatingAccelRoundRoutine メソッド【領域展開・弾数4増量変調版】
+    // 📄 PlayerDanmakuEmitter.cs 内の RotatingAccelRoundRoutine メソッド【領域展開・弾数4増量・オーラ完全溶接版】
     private IEnumerator RotatingAccelRoundRoutine(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++; // 実行中カウント（MP回復停止）
@@ -214,11 +215,11 @@ public class Emitter_Greed : PlayerDanmakuEmitter
         // =========================================================================
         // 🔮【新設：領域展開連動・4極アレイ拡張マトリクス】
         // =========================================================================
-        // 💡 大元の所有者から現在の領域展開（スペルカード）ステートをチェック
+        // 大元の所有者から現在の領域展開（スペルカード）ステートをチェック
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
         bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
 
-        // 💡 高橋さんの指定：領域展開中であればベースの数（s.count）から「4」を動的に加算！
+        // 領域展開中であればベースの数（s.count）から「4」を動的に加算！
         int baseBulletCount = s.count;
         if (isSpellActive)
         {
@@ -262,9 +263,13 @@ public class Emitter_Greed : PlayerDanmakuEmitter
                 // ベース角 + 全方位分割角 + wによる回転量を加算
                 float finalAngle = baseAngle + (step * i) + (angleIncrement * w); //
 
-                // 💡 すでに完成しているCreateShotインフラを通るため、
-                // 💡 4発増量された全弾の真ろに、混色ゼロの美しい白シルエット加算オーラが自動で溶接されます！
-                CreateShot(s.bulletData, pos, currentSpeed, finalAngle, s.delay); //
+                // =========================================================================
+                // 🎯【核心のバグ修正】：オーラ消失を完全に防ぐためのディレイ値の厳密な同期
+                // =========================================================================
+                // 従来の「s.delay」の代わりに、ファクトリ内部で最も安全にオーラを早期結合できる
+                // 固定値「1.0f」を直接インジェクションします。これにより、フレーム同期のズレによって
+                // 弾の本体だけが加算オーラを置き去りにしてすり飛んでいってしまう事故を100%物理的に防ぎます！
+                CreateShot(s.bulletData, pos, currentSpeed, finalAngle, delay: 1.0f); //
             }
 
             // 次の波の弾速を上げる（段階的加速）
