@@ -44,7 +44,7 @@ MonoBehaviour:
     bulletData: {fileID: 11400000, guid: 5476c1af008d36944a73b7585b4e9a15, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 1.5
-    isChargeSkill: 1
+    isChargeSkill: 0
     sePath: Laser2
     count: 20
     speed: 7

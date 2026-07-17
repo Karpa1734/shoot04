@@ -281,6 +281,31 @@ public class PlayerStatusManager : MonoBehaviour
                 var lust = GetComponentInChildren<Emitter_Lust>(true);
                 if (lust != null) lust.enabled = true;
             }
+            else if (characterData.characterName == "Loociel")
+            {
+                var pride = GetComponentInChildren<Emitter_Pride>(true);
+                if (pride != null) pride.enabled = true;
+            }
+            else if (characterData.characterName == "Shiori")
+            {
+                var sloth = GetComponentInChildren<Emitter_Sloth>(true);
+                if (sloth != null) sloth.enabled = true;
+            }
+            else if (characterData.characterName == "Eruru")
+            {
+                var envy = GetComponentInChildren<Emitter_Envy>(true);
+                if (envy != null) envy.enabled = true;
+            }
+            else if (characterData.characterName == "Anzu")
+            {
+                var gluttony = GetComponentInChildren<Emitter_Gluttony>(true);
+                if (gluttony != null) gluttony.enabled = true;
+            }
+            else if (characterData.characterName == "Alniel")
+            {
+                var void_ = GetComponentInChildren<Emitter_Void>(true);
+                if (void_ != null) void_.enabled = true;
+            }
         }
     }
 
@@ -1338,14 +1363,7 @@ public class PlayerStatusManager : MonoBehaviour
         } //
         return false; //
     }
-    /// <summary>
-    /// 被弾時に残機または星の計算を行い、【このダウンで完全に勝負（マッチ）が決着するか】を論理評価する
-    /// </summary>
-    /// <returns>完全に決着・ゲームオーバーなら true、まだ次ラウンドや残機で復活できるなら false</returns>
-    /// <summary>
-    /// 被弾時に残機または星の計算を行い、【このダウンで完全に勝負（マッチ）が決着するか】を論理評価する
-    /// </summary>
-    /// <returns>完全に決着・2勝先取されたら true、まだ次ラウンドへ移行できるなら false</returns>
+ 
     public bool SubtractLifeAndCheckRebirth()
     {
         if (GameModeManager.IsStoryMode)
@@ -1376,7 +1394,7 @@ public class PlayerStatusManager : MonoBehaviour
                     {
                         Debug.Log("<color=orange>🔄【Endless Mode】エンドレスモード稼働中。勝ち星を加算せず、次のラウンドへ進みます。</color>");
 
-                        // 画面上のUIの更新だけは念のため通す
+                        // 画面上のUIの更新だけは安全に通す
                         oppStatus.UpdateUI();
                         UpdateUI();
 
@@ -1387,7 +1405,6 @@ public class PlayerStatusManager : MonoBehaviour
                     // 🌟 相手の現在の星（life）が既に 1 だった場合、今回の勝利で 2 に到達するため【マッチ終了】
                     if (oppStatus.life >= 1)
                     {
-                        oppStatus.life = 2;
                         oppStatus.life = 2;
                         oppStatus.UpdateUI();
                         UpdateUI();
