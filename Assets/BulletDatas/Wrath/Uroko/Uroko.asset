@@ -21,7 +21,11 @@ MonoBehaviour:
   colliderOffset: {x: 0, y: 0}
   damage: 20
   bulletSprite: {fileID: 1861114278, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
-  animationSprites: []
+  animationSprites:
+  - {fileID: 2031582566, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
+  - {fileID: 1126515848, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
+  - {fileID: -15313330, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
+  - {fileID: 911921475, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}
   animationFPS: 10
   delaySprite: {fileID: 1494407525467865721, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
   breakColor: {r: 1, g: 0, b: 0, a: 1}
