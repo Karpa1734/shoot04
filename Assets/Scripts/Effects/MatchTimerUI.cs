@@ -80,6 +80,12 @@ public class MatchTimerUI : MonoBehaviour
     // ★ 修正：外部からタイマーを止めるためのメソッド（タイムアップ時は横棒を完全ガード）
     public void StopTimer()
     {
+        // 🌟【最重要修正】：ストーリーモードのときは、スペルカード（領域）中であってもメインタイマーを絶対に止めない！
+        if (GameModeManager.IsStoryMode)
+        {
+            return;
+        }
+
         // 🚨【タイムアップ最優先ガード】：試合時間が既に 0 以下、またはタイムアップ処理が完了している場合は、
         // 🚨 VJT中の Update からの上書き呼び出しを完全にシャットアウト（無視）して、通常数字を死守します！
         if (currentMatchTime <= 0f || isTimeUpHandled) return;
@@ -179,6 +185,13 @@ public class MatchTimerUI : MonoBehaviour
     // =========================================================================
     private void StartVJTVisualTimer(PlayerStatusManager activeVJTPlayer)
     {
+        // 🌟【最重要修正】：ストーリーモードのときは、領域用（VJT）ツインタイマーを使用しないため即座にシャットアウト！
+        if (GameModeManager.IsStoryMode)
+        {
+            if (vjtTimerText != null) vjtTimerText.gameObject.SetActive(false);
+            return;
+        }
+
         if (vjtTimerCoroutine != null) StopCoroutine(vjtTimerCoroutine);
         vjtTimerCoroutine = StartCoroutine(VJTSpeelTimerRoutine(activeVJTPlayer));
     }
@@ -204,7 +217,8 @@ public class MatchTimerUI : MonoBehaviour
     // =========================================================================
     private IEnumerator VJTSpeelTimerRoutine(PlayerStatusManager activeVJTPlayer)
     {
-        if (vjtTimerText == null) yield break;
+        // 🌟【念のための二重ガード】：ストーリーモードであればコルーチンを即座に安全脱出
+        if (GameModeManager.IsStoryMode || vjtTimerText == null) yield break;
 
         vjtTimerText.color = vjtDefaultColor;
         vjtTimerText.gameObject.SetActive(true);

@@ -3,6 +3,9 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// 敵のスペルカード発動時のUI演出およびリザルト表示を管理するクラス
+/// </summary>
 public class EnemySpellCardUI : MonoBehaviour
 {
     public static EnemySpellCardUI Instance;
@@ -14,7 +17,6 @@ public class EnemySpellCardUI : MonoBehaviour
     public TextMeshProUGUI bonusText;
     public TextMeshProUGUI historyText;
 
-    // 🌟【名前修正】：インスペクター上で分かりやすいように spellNameBG に変更
     [Header("--- VJT Mirror Visual Settings ---")]
     [Tooltip("Textの背景にある『SpellNameBG』の RectTransform をここにアタッチしてください")]
     public RectTransform spellNameBG;
@@ -45,6 +47,8 @@ public class EnemySpellCardUI : MonoBehaviour
     {
         Instance = this;
         if (canvasGroup != null) canvasGroup.alpha = 0f;
+        // 💡 最初から非表示にしておいても、外部から DisplaySpell が呼ばれた時に自動で有効化されます
+        gameObject.SetActive(false);
     }
 
     /// <summary>
@@ -52,45 +56,51 @@ public class EnemySpellCardUI : MonoBehaviour
     /// </summary>
     public void DisplaySpell(string spellName, int getCount, int challengeCount, float initialBonus, bool isFailed, int playerId)
     {
+        // 1. まず確実にオブジェクトを有効化
         gameObject.SetActive(true);
         isExiting = false;
         currentActivePlayerId = playerId;
 
-        // 🌟【1P (左側プレイヤー) 発動時の処理】
+        // 2. 1P/2Pに応じた位置・反転・アライメントの計算
         if (currentActivePlayerId == 1)
         {
-            // 1. 座標を画面左側へミラー反転
             actualStartPos = new Vector2(-Mathf.Abs(startPos.x), startPos.y);
             actualTargetPos = new Vector2(-Mathf.Abs(targetPos.x), targetPos.y);
 
-            // 2. テキスト表示を「左詰め（Left）」にカチッと統一
             spellNameText.alignment = TextAlignmentOptions.Left;
             bonusText.alignment = TextAlignmentOptions.Left;
             historyText.alignment = TextAlignmentOptions.Left;
 
-            // 3. 🌟【反転処理】：背景（SpellNameBG）のXスケールを「-1」にして左側用に反転！
             if (spellNameBG != null)
             {
                 spellNameBG.localScale = new Vector3(-3.5f, 3.5f, 1f);
             }
         }
-        // 🌟【2P (右側プレイヤー / ストーリーボス) 発動時の通常処理】
         else
         {
-            // 1. 座標を従来通り画面右側へ配置
             actualStartPos = new Vector2(Mathf.Abs(startPos.x), startPos.y);
             actualTargetPos = new Vector2(Mathf.Abs(targetPos.x), targetPos.y);
 
-            // 2. テキスト表示を従来通り「右詰め（Right）」に統一
             spellNameText.alignment = TextAlignmentOptions.Right;
             bonusText.alignment = TextAlignmentOptions.Right;
             historyText.alignment = TextAlignmentOptions.Right;
 
-            // 3. 🌟【通常復帰】：背景（SpellNameBG）のスケールを通常の「1」に戻す
             if (spellNameBG != null)
             {
                 spellNameBG.localScale = new Vector3(3.5f, 3.5f, 1f);
             }
+        }
+
+        // 🎯【最重要修正】：アニメーション開始前に、位置とスケール・透明度を「初期状態」に強制ワープさせる！
+        // これにより、非表示から有効化した際の前回位置からの「変な移動（Lerp）」が100%発生しなくなります。
+        if (rectTransform != null)
+        {
+            rectTransform.anchoredPosition = actualStartPos;
+            rectTransform.localScale = Vector3.one * 1.5f;
+        }
+        if (canvasGroup != null)
+        {
+            canvasGroup.alpha = 0f;
         }
 
         if (currentAnimation != null) StopCoroutine(currentAnimation);
@@ -126,7 +136,6 @@ public class EnemySpellCardUI : MonoBehaviour
         {
             string scoreStr = currentBonus.ToString().PadLeft(6, ' ');
 
-            // 1P(左詰め)の時、mspaceの右側に寄ってしまうガタつきを防ぐ調整
             if (currentActivePlayerId == 1)
             {
                 string scoreStrLeft = currentBonus.ToString();
@@ -148,6 +157,7 @@ public class EnemySpellCardUI : MonoBehaviour
         bonusText.gameObject.SetActive(false);
         historyText.gameObject.SetActive(false);
 
+        // すでに DisplaySpell 内で actualStartPos にワープ済みですが念のためここでも固定
         rectTransform.anchoredPosition = actualStartPos;
         rectTransform.localScale = Vector3.one * 1.5f;
         canvasGroup.alpha = 0f;
@@ -173,8 +183,6 @@ public class EnemySpellCardUI : MonoBehaviour
             rectTransform.anchoredPosition = Vector2.Lerp(actualStartPos, actualTargetPos, easedT);
             yield return null;
         }
-        //bonusText.gameObject.SetActive(true);
-        //historyText.gameObject.SetActive(true);
     }
 
     IEnumerator SpellOutRoutine()

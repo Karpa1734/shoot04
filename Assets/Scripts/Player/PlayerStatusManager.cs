@@ -1303,6 +1303,10 @@ public class PlayerStatusManager : MonoBehaviour
             _passiveAtkBoostTimer = 8.0f; // 8秒間持続バフ点灯！
             Debug.Log($"<color=orange>⚔️【パッシブ発動】被弾をトリガーに8秒間、攻撃力1.3倍バフが起動しました！</color>");
         }
+
+        // 🔮 スペルカード（バリア）展開中の処理
+        // 🔮 スペルカード（バリア）展開中の処理
+        // 🔮 スペルカード（バリア）展開中の処理
         if (isSpellCardActive)
         {
             spellHP -= amount;
@@ -1311,12 +1315,24 @@ public class PlayerStatusManager : MonoBehaviour
             if (spellHP <= 0)
             {
                 spellHP = 0;
+
+                // 🌟【最重要】：ストーリーモードかつボス(Player 2)の場合、
+                // バリアを削り切った（＝剥がれた）時点で即座にスペルカード撃破（true）とする！
+                bool isStoryBossSpell = GameModeManager.IsStoryMode && playerId == 2;
+
                 DeactivateSpellCard(true);
+
+                if (isStoryBossSpell)
+                {
+                    return true; // 🎯 これによりバリア剥離 ＝ スペル撃破（次段階への即時移行）が確定します
+                }
+
                 return false;
             }
             return false;
         }
 
+        // 通常時のHPダメージ処理
         currentHP -= amount;
         UpdateUI();
 
@@ -1485,16 +1501,22 @@ public class PlayerStatusManager : MonoBehaviour
         {
             if (spellHpBar != null)
             {
-                spellHpBar.gameObject.SetActive(true);
-                spellHpBar.maxValue = spellMaxHP;
-                spellHpBar.value = animatedSpellHP;
+                // 🌟【新規追加】：ストーリーモードの時は、領域用（バリア用）のサブバータイマー等を非表示にする場合はここで制御
+                // ※もしスペルバリアのHPバー自体は残しつつ、専用の秒数タイマーだけを消したい場合は専用のテキスト枠を非アクティブにします。
+                spellHpBar.gameObject.SetActive(!GameModeManager.IsStoryMode); // 例: ストーリーでは領域バーを隠す、または常時表示させるなど
+            }
+
+            // 🎯【ご要望への対応】：ストーリーモード中は領域のタイマーUIなどを非表示にする
+            if (GameModeManager.IsStoryMode)
+            {
+                // 例として、もし専用の領域タイマー表示用UIやテキストがあればここで gameObject.SetActive(false) にできます
             }
 
             if (hpBar != null)
             {
                 hpBar.gameObject.SetActive(true);
                 hpBar.maxValue = maxHP;
-                hpBar.value = preSpellHP; // 🌟通常HPを満タン100の位置でフリーズ固定ロック！
+                hpBar.value = preSpellHP;
                 SetSliderAlpha(hpBar, 0.3f);
             }
         }

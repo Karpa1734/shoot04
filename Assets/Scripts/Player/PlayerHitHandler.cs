@@ -22,7 +22,8 @@ public class PlayerHitHandler : MonoBehaviour
     public int maxHitsPerFrame = 2;
     private int currentHitsInThisFrame = 0;
     private int lastProcessedFrame = -1;
-
+    // 🌟 処理の二重実行を防ぐためのロック用フラグ
+    private bool _isHandlingExplosion = false;
     [Header("References")]
     public GameObject explosionEffectPrefab;
     public PlayerAnimation playerAnim;
@@ -116,13 +117,25 @@ public class PlayerHitHandler : MonoBehaviour
                 agent.GiveHitPenalty();
             }
 
-            // ダメージの実際の適用
+            // 🌟【最重要】：バリア展開中であったかを事前に記録
+            bool wasSpellActive = myStatusManager.isSpellCardActive;
+
+            // ダメージの実際の適用（バリアが削り切られたらここで true が返ります）
             isDown = myStatusManager.ApplyDamage(damage);
+
+            // 🌟 ストーリーボスのスペルバリアが剥がれた（削り切られた）瞬間である場合、
+            // 通常HPの残りに関わらず、即座にダウン（フェーズ進行）を確定させる！
+            if (wasSpellActive && !myStatusManager.isSpellCardActive)
+            {
+                if (GameModeManager.IsStoryMode && myStatusManager.playerId == 2)
+                {
+                    isDown = true;
+                }
+            }
 
             // 🌟【新規追加】：ダメージポップアッププレハブを動的生成
             if (damagePopupPrefab != null)
             {
-                // 少しだけプレイヤーの頭上寄りの座標に生成 (Y座標を +0.5f など)
                 Vector3 spawnPos = hitPos + new Vector3(0f, 0.5f, 0f);
                 GameObject popupGo = Instantiate(damagePopupPrefab, spawnPos, Quaternion.identity);
 
@@ -313,8 +326,11 @@ public class PlayerHitHandler : MonoBehaviour
 
         if (myStatusManager != null)
         {
-            // 通常の被弾撃墜時のみHPを0にします。タイムアップ時は現在の残量を維持して星の計算へ進む
-            if (!isTriggeredByTimeUp)
+            // 🎯【修正】：ストーリーモードのボス（Player 2）撃破時は、次段階への移行のために
+            // 強制的にcurrentHPを0にする処理をバイパス（または除外）する！
+            bool isStoryBossDefeat = GameModeManager.IsStoryMode && myStatusManager.playerId == 2;
+
+            if (!isTriggeredByTimeUp && !isStoryBossDefeat)
             {
                 myStatusManager.currentHP = 0;
             }
@@ -358,7 +374,7 @@ public class PlayerHitHandler : MonoBehaviour
 
         yield return null;
 
-        if (GameModeManager.IsStoryMode && !isMatchGameOver)
+        if (GameModeManager.IsStoryMode)
         {
             currentState = PlayerState.Hit;
             if (playerMove != null) playerMove.enabled = false;
@@ -395,36 +411,67 @@ public class PlayerHitHandler : MonoBehaviour
             else
             {
                 // =========================================================================
-                // 🔶 2. 敵機（ボス/2P）を撃破した時：自機HP維持 ➔ カウントダウンなしで即時次フェーズへ！
+                // 🔶 2. ストーリーボスの被弾・バリア破壊時の演出
+                // (※フェーズ進行やクリア判定は StoryBossPhaseManager 側に完全に一元化しています)
                 // =========================================================================
-                yield return new WaitForSecondsRealtime(1.2f);
-                Time.timeScale = 1.0f; // スローモーション解除
+                Time.timeScale = 1.0f;
 
-                // 画面上の全弾クリア
+                // 画面上の弾を綺麗にクリア
                 ClearAllBullets(true);
 
-                // ボス側のステート復元
-                SetPlayerActiveState(true);
-                currentState = PlayerState.Normal;
-
-                // 🎯【仕様順守】：自機のHPは回復させずそのまま維持！
-                // 🎯【仕様順守】：カウントダウンも行わず、即座に次フェーズ（StoryBossPhaseManager）へ移行
                 StoryBossPhaseManager phaseMgr = GetComponentInParent<StoryBossPhaseManager>();
                 if (phaseMgr == null) phaseMgr = GetComponent<StoryBossPhaseManager>();
 
-                if (phaseMgr != null)
-                {
-                    // 次のフェーズをキック（※スペルカードフェーズなら、その内部でスペルHPが全快セットされる）
-                    phaseMgr.AdvanceToNextPhase();
-                }
+                bool hasMorePhases = (phaseMgr != null && phaseMgr.HasRemainingPhases());
 
-                PlayerMove.CanInput = true;
-                PlayerMove.CanShoot = true;
-                isTriggeredByTimeUp = false;
+                if (hasMorePhases)
+                {
+                    // 🔮 中間フェーズ・スペル切替時：爆発エフェクトを再生して即座に通常状態へ復帰
+                    if (explosionEffectPrefab != null)
+                    {
+                        Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
+                    }
+
+                    _isHandlingExplosion = false;
+                    currentState = PlayerState.Normal;
+                    isTriggeredByTimeUp = false;
+
+                    // 🌟【最重要修正】：中間フェーズ切替時は、ボスの移動・入力・射撃を完全に再有効化する！
+                    if (playerMove != null)
+                    {
+                        playerMove.enabled = true;
+                    }
+                    PlayerMove.CanInput = true;
+                    PlayerMove.CanShoot = true;
+                    SetPlayerActiveState(true);
+
+                    yield break;
+                }
+                else
+                {
+                    // 💥 最終段階（真の最終撃破）時：VSモード同様に爆発して姿を消す
+                    PlayerMove.CanShoot = false;
+                    PlayerMove.CanInput = false;
+
+                    if (explosionEffectPrefab != null)
+                    {
+                        Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
+                    }
+
+                    SetPlayerActiveState(false);
+
+                    yield return new WaitForSecondsRealtime(0.8f);
+
+                    _isHandlingExplosion = false;
+                    currentState = PlayerState.Normal;
+                    isTriggeredByTimeUp = false;
+                    yield break;
+                }
             }
         }
         else
         {
+            // 🛑 ここは「完全なVSモード（対戦モード）」の時だけ通るようにする
             if (isMatchGameOver)
             {
                 SetPlayerActiveState(false);
@@ -437,6 +484,7 @@ public class PlayerHitHandler : MonoBehaviour
             yield return StartCoroutine(PerformKORoundEndRoutine(isMatchGameOver));
         }
     }
+    
 
     public IEnumerator TriggerDrawSequence()
     {
