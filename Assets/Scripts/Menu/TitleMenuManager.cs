@@ -1,4 +1,4 @@
-﻿// --- TitleMenuManager.cs 独立型コンフィグパネル・アタッチメント架け橋適合版 ---
+﻿// --- TitleMenuManager.cs 独立型コンフィグパネル・Story/Versusモードフラグ完全適合版 ---
 using KanKikuchi.AudioManager;
 using System.Collections;
 using TMPro;
@@ -47,7 +47,7 @@ public class TitleMenuManager : MonoBehaviour
         BossPracticeManager.IsPracticeMode = false;
 
         if (practiceSubMenu != null) practiceSubMenu.SetActive(false);
-        if (configSubMenu != null) configSubMenu.SetActive(false); // 👈 初期は隠す
+        if (configSubMenu != null) configSubMenu.SetActive(false);
 
         if (menuTexts == null || menuTexts.Length == 0) return;
 
@@ -192,23 +192,20 @@ public class TitleMenuManager : MonoBehaviour
 
         switch (selectedIndex)
         {
-            case 0: OpenCharSelect(GameSelectionData.GameMode.Story); break;
+            case 0: OpenCharSelect(GameSelectionData.GameMode.Story); break; // 🎯 1番目(Index 0)でもキャラセレクトを開く
             case 1: OpenCharSelect(GameSelectionData.GameMode.VsCom); break;
             case 2: OpenCharSelect(GameSelectionData.GameMode.VsPlayer); break;
             case 3: OpenCharSelect(GameSelectionData.GameMode.VsNetwork); break;
             case 4: OpenPracticeMenu(); break;
-            case 8: OpenConfigMenu(); break; // 🎯 慶多さんの指定：要素8番から新コンフィグパネルを開く
+            case 8: OpenConfigMenu(); break;
             case 9: StartEndGameSequence(); break;
         }
     }
 
-    // =========================================================================
-    // 🔧【リファクタリング】：独立パネルアタッチメント型へのトランスファー窓口
-    // =========================================================================
     void OpenConfigMenu()
     {
-        this.enabled = false; // 1Pのタイトル知性をOFF
-        if (configSubMenu != null) configSubMenu.SetActive(true); // パネルを起動してバトンを渡す
+        this.enabled = false;
+        if (configSubMenu != null) configSubMenu.SetActive(true);
 
         _menuKeyHoldTimer = 0f;
         _isMenuFirstScrollDone = false;
@@ -229,26 +226,42 @@ public class TitleMenuManager : MonoBehaviour
 #endif
     }
 
+    // =========================================================================
+    // 📖【モード分岐＆キャラセレクト遷移レイヤー】
+    // =========================================================================
     void OpenCharSelect(GameSelectionData.GameMode mode)
     {
-        GameSelectionData.CurrentMode = mode;
+        // 1. 選択データを共有バッファにセット
+        GameSelectionData.CurrentMode = mode; 
 
-        if (mode == GameSelectionData.GameMode.Story) GameModeManager.CurrentMode = GameModeManager.Mode.Story;
-        else if (mode == GameSelectionData.GameMode.VsCom || mode == GameSelectionData.GameMode.VsPlayer || mode == GameSelectionData.GameMode.VsNetwork) GameModeManager.CurrentMode = GameModeManager.Mode.Versus;
+        // 2. 🌟 StoryモードかVersusモードかのフラグを厳密に立てる
+        if (mode == GameSelectionData.GameMode.Story)
+        {
+            GameModeManager.CurrentMode = GameModeManager.Mode.Story; 
+            GameSelectionData.UseAutoEvadeAI = true; // ストーリー時も相手(2P)はCPU自動回避
+            Debug.Log("<color=cyan>📖【Mode Setup】Story Mode フラグ(GameModeManager.IsStoryMode = true)を確立しました。</color>");
+        }
+        else if (mode == GameSelectionData.GameMode.VsCom ||
+                 mode == GameSelectionData.GameMode.VsPlayer ||
+                 mode == GameSelectionData.GameMode.VsNetwork)
+        {
+            GameModeManager.CurrentMode = GameModeManager.Mode.Versus; 
+            
+            if (mode == GameSelectionData.GameMode.VsCom) GameSelectionData.UseAutoEvadeAI = true; 
+            else if (mode == GameSelectionData.GameMode.VsPlayer) GameSelectionData.UseAutoEvadeAI = false; 
+        }
 
-        if (mode == GameSelectionData.GameMode.VsCom) GameSelectionData.UseAutoEvadeAI = true;
-        else if (mode == GameSelectionData.GameMode.VsPlayer) GameSelectionData.UseAutoEvadeAI = false;
+        // 3. 自身のスクリプトをOFFにし、キャラ選択画面のCanvasを表示してトランスファー
+        this.enabled = false; 
+        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true); 
 
-        this.enabled = false;
-        if (characterSelectSubMenu != null) characterSelectSubMenu.SetActive(true);
-
-        _menuKeyHoldTimer = 0f;
-        _isMenuFirstScrollDone = false;
+        _menuKeyHoldTimer = 0f; 
+        _isMenuFirstScrollDone = false; 
     }
 
     void OpenPracticeMenu()
     {
-        this.enabled = false;
-        if (practiceSubMenu != null) practiceSubMenu.SetActive(true);
+        this.enabled = false; 
+        if (practiceSubMenu != null) practiceSubMenu.SetActive(true); 
     }
 }

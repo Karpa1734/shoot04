@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68d7e4029f6d267499843e1994bffb0d, type: 3}
+  m_Name: Karin
+  m_EditorClassIdentifier: 
+  playerCharacterName: Karin
+  stages:
+  - stageNumber: 1
+    bossCharacterId: 1
+    bossPhases:
+    - phaseType: 0
+      normalPhaseHP: 115
+      normalPatternPrefab: {fileID: 0}
+      spellName: 
+      spellHP: 0
+      timeLimit: 0
+      spellPatternPrefab: {fileID: 0}
+    - phaseType: 2
+      normalPhaseHP: 0
+      normalPatternPrefab: {fileID: 0}
+      spellName: "\u767D\u7B26\u300C\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u300D"
+      spellHP: 6000
+      timeLimit: 99
+      spellPatternPrefab: {fileID: 6511734711024519698, guid: 238c22b2267671d49aaf857f60461da9, type: 3}

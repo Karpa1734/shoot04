@@ -274,8 +274,9 @@ public class SkillManager : MonoBehaviour
             }
         }
 
-        // 🔮 領域展開の発動執行
-        if (vjtPressed)
+
+        // 🔮 領域展開の発動執行（※ ストーリーモード中は自機の領域展開を禁止）
+        if (vjtPressed && !GameModeManager.IsStoryMode)
         {
             Debug.Log($"<color=orange>🔮 [VJT INPUT SUCCESS] Player {playerMove.playerId} の領域入力が完全成立！</color>");
             statusManager.ActivateSpellCard();

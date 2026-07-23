@@ -367,6 +367,9 @@ public class PlayerHitHandler : MonoBehaviour
 
             if (isHumanPlayer)
             {
+                // =========================================================================
+                // 🔷 1. 自機（1P）がやられた時：自機のみ全快 ➔ カウントダウン後再開（ボスHPそのまま）
+                // =========================================================================
                 yield return new WaitForSecondsRealtime(2.0f);
                 Time.timeScale = 1.0f;
                 yield return new WaitForSeconds(1.0f);
@@ -381,7 +384,7 @@ public class PlayerHitHandler : MonoBehaviour
                 PlayerMove.CanShoot = false;
                 if (GameStartCountdown.Instance != null)
                 {
-                    GameStartCountdown.Instance.StartCountdown();
+                    GameStartCountdown.Instance.StartCountdown(); // 🎯 カウントダウンあり！
                 }
                 else
                 {
@@ -391,10 +394,33 @@ public class PlayerHitHandler : MonoBehaviour
             }
             else
             {
-                yield return new WaitForSecondsRealtime(2.0f);
-                Time.timeScale = 1.0f;
-                yield return new WaitForSecondsRealtime(1.0f);
-                yield return StartCoroutine(RoundResetSequence());
+                // =========================================================================
+                // 🔶 2. 敵機（ボス/2P）を撃破した時：自機HP維持 ➔ カウントダウンなしで即時次フェーズへ！
+                // =========================================================================
+                yield return new WaitForSecondsRealtime(1.2f);
+                Time.timeScale = 1.0f; // スローモーション解除
+
+                // 画面上の全弾クリア
+                ClearAllBullets(true);
+
+                // ボス側のステート復元
+                SetPlayerActiveState(true);
+                currentState = PlayerState.Normal;
+
+                // 🎯【仕様順守】：自機のHPは回復させずそのまま維持！
+                // 🎯【仕様順守】：カウントダウンも行わず、即座に次フェーズ（StoryBossPhaseManager）へ移行
+                StoryBossPhaseManager phaseMgr = GetComponentInParent<StoryBossPhaseManager>();
+                if (phaseMgr == null) phaseMgr = GetComponent<StoryBossPhaseManager>();
+
+                if (phaseMgr != null)
+                {
+                    // 次のフェーズをキック（※スペルカードフェーズなら、その内部でスペルHPが全快セットされる）
+                    phaseMgr.AdvanceToNextPhase();
+                }
+
+                PlayerMove.CanInput = true;
+                PlayerMove.CanShoot = true;
+                isTriggeredByTimeUp = false;
             }
         }
         else

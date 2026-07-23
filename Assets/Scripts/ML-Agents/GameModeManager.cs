@@ -2,32 +2,36 @@
 
 /// <summary>
 /// ゲーム全体のモード（ストーリー / VS）を管理するマネージャー
-/// インスペクターからリアルタイムに切り替え可能
 /// </summary>
 public class GameModeManager : MonoBehaviour
 {
     public enum Mode { Versus, Story }
 
-    // ★ 他のスクリプトからの静的参照（GameModeManager.CurrentMode）を維持するために static で残す
     public static Mode CurrentMode = Mode.Story;
     public static bool IsStoryMode => CurrentMode == Mode.Story;
 
     [Header("Game Mode Settings")]
-    [Tooltip("インスペクターからモードを切り替えます")]
+    [Tooltip("【デバッグ用】ゲームシーンを直接再生した時のみ適用されます")]
     [SerializeField] private Mode _editorMode = Mode.Story;
 
     private void Awake()
     {
-        // ゲーム開始時に、インスペクターで設定されたモードを静的データに同期
-        CurrentMode = _editorMode;
+        // 🌟【核心の修正】：
+        // キャラ選択画面を通過して遷移してきた（FromCharacterSelect == true）場合は、
+        // タイトルやキャラ選択で決定したモード（Story）を絶対保護し、インスペクター値での上書きをブロック！
+        if (!PlayerStatusManager.FromCharacterSelect)
+        {
+            CurrentMode = _editorMode;
+            Debug.Log($"<color=yellow>🔧 [DEBUG MODE] シーン直接起動のため、インスペクター設定（{_editorMode}）を適用しました。</color>");
+        }
     }
 
-    /// <summary>
-    /// Unityエディタ上でインスペクターの値を変更した瞬間に呼び出される特殊関数
-    /// </summary>
     private void OnValidate()
     {
-        // ゲームを実行していなくても、エディタ上でドロップダウンを切り替えた瞬間に即座に static へ反映
-        CurrentMode = _editorMode;
+        // エディタ上で手動変更した時のみ反映
+        if (!Application.isPlaying)
+        {
+            CurrentMode = _editorMode;
+        }
     }
 }

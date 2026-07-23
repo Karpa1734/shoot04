@@ -170,44 +170,34 @@ public class PlayerStatusManager : MonoBehaviour
         public StatusRank spellZone;
     }
     private CharacterRankBackup _originalBackup;
-    // =========================================================================
-    // 💡【新設】：キャラクター選択画面を通過したかを確実に記憶する静的フラグ
-    // =========================================================================
     public static bool FromCharacterSelect = false;
-
-    // =========================================================================
-    // 🧠【構造大手術】：Awake ✕ Start のデータバインド優先順位の完全正常化
-    // =========================================================================
-    // =========================================================================
-    // 🧠【構造大手術】：Awake の段階で選択データを完全確定させ、Startでの競合を根絶
-    // =========================================================================
-    // =========================================================================
-    // 🧠【構造大手術：Awake ✕ 選択画面フラグの厳密なる調停】
-    // =========================================================================
     void Awake()
     {
-
-
-
         _playerMove = GetComponent<PlayerMove>();
 
-        // ⭕ 修正の核心：キャラクター選択画面（セレクト）から正規に遷移してきた場合【のみ】データベースからロード。
-        //    直接ゲームシーンを再生したデバッグ時は、インスペクターに直付けされた characterData を100%最優先保護します！
-        if (FromCharacterSelect && allCharacterDataDatabase != null && allCharacterDataDatabase.Length > 0)
+        int targetSelectedId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
+        if (playerId == 2 && GameModeManager.IsStoryMode)
         {
-            int targetSelectedId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
-            if (targetSelectedId >= 0 && targetSelectedId < allCharacterDataDatabase.Length)
+            if (StoryModeManager.CurrentActiveRoute != null && StoryModeManager.CurrentActiveRoute.stages.Count > 0)
             {
-                characterData = Instantiate(allCharacterDataDatabase[targetSelectedId]);
+                int currentStageIdx = StoryModeManager.CurrentStageNumber - 1;
+                if (currentStageIdx >= 0 && currentStageIdx < StoryModeManager.CurrentActiveRoute.stages.Count)
+                {
+                    targetSelectedId = StoryModeManager.CurrentActiveRoute.stages[currentStageIdx].bossCharacterId;
+                    Debug.Log($"<color=magenta>🎯 [PlayerStatusManager] StoryMode優先介入！ 2PボスIDを [{targetSelectedId}] に確定更新しました。</color>");
+                }
             }
-            else if (characterData != null)
-            {
-                characterData = Instantiate(characterData);
-            }
+        }
+        bool shouldLoadFromDatabase = FromCharacterSelect || GameModeManager.IsStoryMode;
+
+        if (shouldLoadFromDatabase && allCharacterDataDatabase != null && targetSelectedId >= 0 && targetSelectedId < allCharacterDataDatabase.Length)
+        {
+            characterData = Instantiate(allCharacterDataDatabase[targetSelectedId]);
+            Debug.Log($"<color=lime>✅ [PlayerStatusManager] Player {playerId} ➔ データベースから ID [{targetSelectedId}] ({characterData.characterName}) を正常ロードしました。</color>");
         }
         else if (characterData != null)
         {
-            // 🔧 直接起動デバッグ時は、インスペクターのアタッチデータをそのままディープコピーして使用
+            // 上記以外の完全単体デバッグ時のみ、インスペクターにアタッチされたデータをコピー
             characterData = Instantiate(characterData);
         }
 
@@ -217,8 +207,12 @@ public class PlayerStatusManager : MonoBehaviour
         }
         else if (GameModeManager.IsStoryMode)
         {
-            life = 3;
-            stockLives = 3;
+            if (playerId == 1)
+            {
+                life = 3;       // 1P（自機）の残機
+                stockLives = 3;
+            }
+            // 2P（ボス）の life は StoryBossPhaseManager がフェーズ数から自動算出するため指定不要！
         }
         else
         {
@@ -386,8 +380,20 @@ public class PlayerStatusManager : MonoBehaviour
         {
             startupAnim.isInvincible = false;
         }
+        if (GameModeManager.IsStoryMode && playerId == 2)
+        {
+            // 1. ボス進行マネージャーの自動アタッチ
+            StoryBossPhaseManager bossManager = GetComponent<StoryBossPhaseManager>();
+            if (bossManager == null) bossManager = gameObject.AddComponent<StoryBossPhaseManager>();
+            bossManager.enabled = true;
 
+            // 2. 🔥【新設】：シンプル弾幕専用モジュールの自動アタッチ
+            BossDanmakuExecutor bossExecutor = GetComponent<BossDanmakuExecutor>();
+            if (bossExecutor == null) bossExecutor = gameObject.AddComponent<BossDanmakuExecutor>();
+            bossExecutor.enabled = true;
 
+            Debug.Log($"<color=magenta>👑【Story Mode】Player 2 ({characterData.characterName}) をステージボス＆弾幕モジュール化しました。</color>");
+        }
 
         StartCoroutine(SetupInitialUI());
         StartCoroutine(InitUIWithDelay());
@@ -1463,7 +1469,7 @@ public class PlayerStatusManager : MonoBehaviour
         screenFader.alpha = targetAlpha;
     }
 
-    private void UpdateUI()
+    public void UpdateUI()
     {
         if (winText != null && !winText.gameObject.activeSelf) winText.gameObject.SetActive(false);
         if (koText != null && !koText.gameObject.activeSelf) koText.gameObject.SetActive(false);

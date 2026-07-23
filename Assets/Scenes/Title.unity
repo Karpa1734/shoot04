@@ -2075,6 +2075,52 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &619994121
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 619994123}
+  - component: {fileID: 619994122}
+  m_Layer: 0
+  m_Name: StoryModeManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &619994122
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 619994121}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ed764027a808b043bf831d15bb57151, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  allPlayerRoutes:
+  - {fileID: 11400000, guid: 70d64251bc185fc4897ac3dc549c9169, type: 2}
+--- !u!4 &619994123
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 619994121}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &717206603
 GameObject:
   m_ObjectHideFlags: 0
@@ -5707,7 +5753,7 @@ MonoBehaviour:
   - {fileID: 761178874}
   - {fileID: 942091862}
   - {fileID: 1614038629}
-  menuSelectable: 00010100000000000101
+  menuSelectable: 01010100000000000101
   disabledAlpha: 0.3
   selectedColor: {r: 1, g: 1, b: 1, a: 1}
   unselectedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
@@ -9587,3 +9633,4 @@ SceneRoots:
   - {fileID: 879362425}
   - {fileID: 195604193}
   - {fileID: 225154831}
+  - {fileID: 619994123}

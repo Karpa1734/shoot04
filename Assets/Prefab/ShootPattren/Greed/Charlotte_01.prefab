@@ -9,9 +9,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5334330774997269582}
-  - component: {fileID: 7643667435608601635}
+  - component: {fileID: 6511734711024519698}
   m_Layer: 0
-  m_Name: PattarnAimed
+  m_Name: Charlotte_01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32,7 +32,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7643667435608601635
+--- !u!114 &6511734711024519698
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -41,19 +41,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1781038096083142761}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f21cec3665ab43d48b8b00e7dea5af0d, type: 3}
+  m_Script: {fileID: 11500000, guid: 190e95b3fe672d44e939298d038dbd64, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  laserStreamHeadPrefab: {fileID: 5758609282292670657, guid: 4b829daa26be2ee4f9e40f6553502fc9, type: 3}
-  bulletData: {fileID: 11400000, guid: 260a096df65da004bbad4ed3d9d4223b, type: 2}
-  bulletData2: {fileID: 11400000, guid: f273ab83a2a68f84ba3403421d5b9427, type: 2}
-  nWay: 5
-  spreadAngle: 30
-  bulletSpeed: 4
-  fireInterval: 1
-  moveMinX: 0.2
-  moveMaxX: 0.5
-  moveMinY: 0.2
-  moveMaxY: 0.5
-  moveWeight: 60
-  moveMaxSpeed: 2
+  mainBulletData: {fileID: 11400000, guid: a5fd71ae477afb7489d0992c800345dc, type: 2}
+  aimedBulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
+  targetTopPosition: {x: 2.8, y: 0, z: 0}
+  moveSpeed: 5
