@@ -24,8 +24,8 @@ MonoBehaviour:
       spellHP: 0
       timeLimit: 0
       spellPatternPrefab: {fileID: 0}
-    - phaseType: 2
-      normalPhaseHP: 0
+    - phaseType: 0
+      normalPhaseHP: 30
       normalPatternPrefab: {fileID: 0}
       spellName: "\u767D\u7B26\u300C\u30C6\u30F3\u30D7\u30EC\u30FC\u30C8\u300D"
       spellHP: 2000
