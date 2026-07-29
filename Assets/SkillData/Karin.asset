@@ -52,7 +52,7 @@ MonoBehaviour:
     wideAngle: 45
     moveSpeedMultiplier: 0.2
     delay: 5
-    cost: 33
+    cost: 40
     ultimateGain: 4
   skillX:
     skillName: "\u72C2\u6C17\u306E\u7344\u708E"

@@ -8438,14 +8438,14 @@ RectTransform:
   m_GameObject: {fileID: 499983173}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.6999999, y: 0.6999999, z: 0.6999999}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 0.55, y: 0.55, z: 0.55}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2054574647}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 500, y: -230}
+  m_AnchoredPosition: {x: 500, y: -120}
   m_SizeDelta: {x: 1707, y: 2048}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &499983175
@@ -8468,7 +8468,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: b9751a24af91ec347b8f8ddd4f921d4e, type: 3}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -8941,14 +8941,14 @@ RectTransform:
   m_GameObject: {fileID: 572010931}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.6999999, y: 0.6999999, z: 0.6999999}
+  m_LocalScale: {x: 0.55, y: 0.55, z: 0.55}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 2054574647}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -500, y: -230}
+  m_AnchoredPosition: {x: -500, y: -120}
   m_SizeDelta: {x: 1707, y: 2048}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &572010933
@@ -8971,7 +8971,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: e53a6aea23b9ce747a4b25df7c2b632b, type: 3}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -11456,7 +11456,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   playerId: 1
-  characterData: {fileID: 11400000, guid: e80563aaa7d32a644bac64eb29dfdf1a, type: 2}
+  characterData: {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
   allCharacterDataDatabase:
   - {fileID: 11400000, guid: 416b737e365932e4e8a5a1483877b869, type: 2}
   - {fileID: 11400000, guid: 4239fb27d70213849b8b403b77df2d2b, type: 2}
@@ -32241,10 +32241,10 @@ MonoBehaviour:
     colorLetter: Y
   - characterName: Linghua
     emotionSprites:
-    - {fileID: 21300000, guid: 558b2f4cf2e410745a2e699316ef214c, type: 3}
-    - {fileID: 21300000, guid: d6b13b72076762b4b9230f9f4f8e6465, type: 3}
-    normalSprite: {fileID: 0}
-    damagedSprite: {fileID: 0}
+    - {fileID: 21300000, guid: df1ca57471af444448584d0ea00cda40, type: 3}
+    - {fileID: 21300000, guid: bd1c41a0bfc52f742b1ab432ac99a4c7, type: 3}
+    normalSprite: {fileID: 21300000, guid: df1ca57471af444448584d0ea00cda40, type: 3}
+    damagedSprite: {fileID: 21300000, guid: bd1c41a0bfc52f742b1ab432ac99a4c7, type: 3}
     colorLetter: B
   csvDatabase:
   - matchCombinationName: Karin_vs_Charlotte

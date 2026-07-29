@@ -26,7 +26,6 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
     // 🎯【外部公開用プロパティ】：PlayerStatusManagerが無敵やタイマーストップを判定するために、この共用フラグを公開します
     public bool IsUltimateSkillActive => _isEXSkillActive;
-    public bool IsSyaruBitEXActive => _isEXSkillActive; // 他の通常スキルが参照している場合の互換性維持
 
     // 📊【新設】：サイズごとのソーティングオーダー分配・ループ管理カウンター
     private static int _smallOrderCounter = 5000;
@@ -135,7 +134,11 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         var myStatusMgr = GetComponentInParent<PlayerStatusManager>();
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
-        if (myMove != null && myStatusMgr != null && s.skillName != myStatusMgr.characterData.skillZ.skillName)
+
+        // 🌟【修正】：自身が現在領域展開中（isSpellCardActive）でない場合のみ、スキル使用時のULTゲージ増加を有効にする
+        bool isMyVjtActive = (myStatusMgr != null && myStatusMgr.isSpellCardActive);
+
+        if (myMove != null && myStatusMgr != null && !isMyVjtActive && s.skillName != myStatusMgr.characterData.skillZ.skillName)
         {
             float finalGain = s.ultimateGain;
             PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();

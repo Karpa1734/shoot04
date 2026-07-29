@@ -122,11 +122,16 @@ public class PlayerMove : MonoBehaviour
     /// <param name="amount">加算する量 (100 = 1ストック分)</param>
     public void AddUltimateEnergy(float amount)
     {
-        // ラウンド終了時や被弾中など、攻撃不能な状態では溜まらないようにガード
-        if (!CanShoot) return;
+        // 🌟【最重要ガード】：もし現在、自身が聖少女領域（VJT）を展開中である場合は、
+        // どんな外部要因やスキル使用・ヒットによるゲージ加算もすべて完全に無視（弾き返し）ます！
+        PlayerStatusManager status = GetComponent<PlayerStatusManager>();
+        if (status != null && status.isSpellCardActive)
+        {
+            return; // 領域中のULTゲージは外部干渉を一切受け付けません
+        }
 
-        // 現在のエネルギーに加算し、最大値(300)でクランプする
-        ultimateEnergy = Mathf.Min(ultimateEnergy + amount, MAX_ULTIMATE_ENERGY);
+        // --- 従来のゲージ加算処理 ---
+        ultimateEnergy = Mathf.Clamp(ultimateEnergy + amount, 0f, 300f);
     }
     private void UpdateReplayLogic()
     {

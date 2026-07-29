@@ -597,7 +597,7 @@ public class PlayerStatusManager : MonoBehaviour
         if (myEmitter == null) myEmitter = GetComponentInChildren<PlayerDanmakuEmitter>();
 
 
-        if (myEmitter != null && myEmitter.IsSyaruBitEXActive)
+        if (myEmitter != null && myEmitter.IsUltimateSkillActive)
         {
             invincibleTimer = 0.1f;
         }
@@ -650,8 +650,10 @@ public class PlayerStatusManager : MonoBehaviour
             if (!isRoundEnded)
             {
 
-                bool isULTActive = (myEmitter != null && myEmitter.IsSyaruBitEXActive);
+                bool isULTActive = (myEmitter != null && myEmitter.IsUltimateSkillActive);
 
+                // 🌟【修正】：もし現在EXスキル（超必殺技）の演出・攻撃が真っ最中である場合は、
+                // 領域の残り時間によるゲージの強制上書き計算を完全にストップさせます！
                 if (!isULTActive)
                 {
                     spellTimer -= Time.deltaTime;
@@ -1034,52 +1036,88 @@ public class PlayerStatusManager : MonoBehaviour
     public void DeactivateSpellCard(bool isDefeatedByDamage)
     {
         if (!isSpellCardActive) return; // 既に解除されている場合は処理をスキップ
+
+        // =========================================================================
+        // 🌟【最重要修正】：必殺技（EXスキル）の使用による解除か、それ以外の解除かを厳密に判定
+        // =========================================================================
+        bool isExSkillTriggered = false;
+        PlayerDanmakuEmitter[] emitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+        foreach (var em in emitters)
+        {
+            if (em != null)
+            {
+                System.Reflection.FieldInfo exField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (exField != null && (bool)exField.GetValue(em))
+                {
+                    isExSkillTriggered = true;
+                    break;
+                }
+            }
+        }
+
+        // 💡 1. 必殺技（EX）使用によって解除された場合：
+        // 領域終了時のULTゲージは完全に「0」で確定させ、例外なくリセットします。
+        if (isExSkillTriggered)
+        {
+            if (_playerMove != null)
+            {
+                _playerMove.ultimateEnergy = 0f;
+                Debug.Log("<color=orange>👑【ULTゲージ確定リセット】必殺技（EX）使用による領域解除のため、ULTゲージを完全に 0 に固定します。</color>");
+            }
+        }
+        // 💡 2. 必殺技以外（ラウンド終了、体力削り切り、時間切れなど）で解除された場合：
+        // その瞬間のULTゲージ残量の「半分」を計算して持ち越し準備！
+        else if (_playerMove != null)
+        {
+            float carryOverEnergy = _playerMove.ultimateEnergy * 0.5f;
+            Debug.Log($"<color=cyan>✨【ULTゲージ持ち越し準備】領域解除時の残量 {_playerMove.ultimateEnergy}% の半分である {carryOverEnergy}% をキープします。</color>");
+        }
+
+        // 一時退避用の持ち越し値（もし非EX解除なら半分を保持、EX解除なら0）
+        float finalCarryOver = (!isExSkillTriggered && _playerMove != null) ? (_playerMove.ultimateEnergy * 0.5f) : 0f;
+
         isSpellCardActive = false; // フラグを解除
+        isAnyVJTActive = false;    // 世界共有ロックをここで完全解放
 
-        // 🌟【大修正】：世界共有ロックをここで完全解放！ これでもう片方も発動できるようになります
-        isAnyVJTActive = false;
-
-        // 🌟 破砕（被弾による終了）時のみ1.0秒間の無敵保護を発動、時間切れやULT時はスキップしてクールダウンへ
+        // 🌟 破砕（被弾による終了）時のみ1.0秒間の無敵保護を発動
         if (isDefeatedByDamage)
         {
-            SetInvincible(1.0f); // 1秒間無敵
+            SetInvincible(1.0f);
         }
 
         if (spellBarrier != null)
         {
-            spellBarrier.SetBarrierActive(false); // バリアエフェクトを非アクティブ化
+            spellBarrier.SetBarrierActive(false);
         }
 
-        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.5f); // 解除SEを再生
+        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.5f);
 
         if (SpellCardManager.Instance != null)
         {
-            SpellCardManager.Instance.ReleaseVJT(this); // マネージャー側のロックを解放
+            SpellCardManager.Instance.ReleaseVJT(this);
         }
 
         if (playerCollider != null)
         {
-            playerCollider.transform.localScale = originalColliderScale; // 通常サイズに復元
+            playerCollider.transform.localScale = originalColliderScale;
 
-            // 🎯【新規追加】：領域終了に伴い、コライダーの半径をパッシブを考慮した適正値へリセット
             if (playerCollider is CircleCollider2D circle)
             {
                 float targetRadius = originalColliderRadius;
                 if (HasPassiveSkill(PassiveSkillType.LustSmall))
                 {
-                    targetRadius *= 0.8f; // パッシブ持ちなら0.8倍、無いなら等倍
+                    targetRadius *= 0.8f;
                 }
                 circle.radius = targetRadius;
             }
         }
 
-        // 🎯【修正】：対戦相手のコライダー半径、スプライト色、および「子オブジェクトの当たり判定演出」を通常状態へ解放リセット
+        // 対戦相手のコライダーやスプライトの復元処理（既存のまま）
         if (_playerMove != null && _playerMove.Opponent != null)
         {
             PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
             if (oppStatus != null)
             {
-                // 1. 相手の判定コライダーの半径を元に戻す
                 if (oppStatus.playerCollider is CircleCollider2D oppCircle)
                 {
                     float oppTargetRadius = oppStatus.originalColliderRadius;
@@ -1087,110 +1125,76 @@ public class PlayerStatusManager : MonoBehaviour
                     oppCircle.radius = oppTargetRadius;
                 }
 
-                // 2. 相手本体の色調を標準（白）に戻す（本体のスケールは一切触らない）
                 SpriteRenderer oppMainSR = _playerMove.Opponent.GetComponentInChildren<SpriteRenderer>();
-                if (oppMainSR != null)
-                {
-                    //oppMainSR.color = Color.white;
-                }
-
-                // 3. ✨【大修正】：子オブジェクトにある「当たり判定スプライト2種」のスケールを等倍に完全復元！
-                // 相手オブジェクトの配下（ComponentsInChildren）から、全てのSpriteRendererを走査
                 SpriteRenderer[] allOppSRs = _playerMove.Opponent.GetComponentsInChildren<SpriteRenderer>(true);
                 foreach (var sr in allOppSRs)
                 {
-                    // 💡 相手本体（親またはメイングラフィック）のスプライトはスキップする
                     if (sr == oppMainSR) continue;
-
-                    // 💡 オプション：もし当たり判定オブジェクトの名前が決まっている場合（例: "Hitbox" や "Atari"）は
-                    // if (sr.gameObject.name.Contains("Hitbox")) の条件を挟むとより安全です。
-                    // ここでは「子オブジェクトにあるスプライト＝当たり判定表示用」としてスケールを等倍(Vector3.one)に戻します。
                     if (sr.transform != _playerMove.Opponent.transform)
                     {
                         sr.transform.localScale = Vector3.one;
-                        // もし「パッシブ：SmallHitbox」の時に当たり判定スプライトの見た目も小さくしていた場合は、
-                        // ここを「oppStatus.HasPassiveSkill(PassiveSkillType.SmallHitbox) ? Vector3.one * 0.8f : Vector3.one;」にすると完全に一致します。
                     }
                 }
             }
         }
 
-        // =========================================================================
-        // 🌟【ライフ還元アルゴリズム修正】：領域バーの残量％まで体力を最低保証引き上げ
-        // =========================================================================
+        // ライフ還元処理（既存のまま）
         if (isDefeatedByDamage)
         {
-            // 🔷 被弾破砕によってバリアが割れた時：
-            // 元々の通常ライフを無傷のままそのまま復元（ preSpellHP からの再開）
             currentHP = preSpellHP;
         }
         else
         {
-            // 🔶 時間切れ（自然消滅）によって領域が終了した時：
-            // 1. 残った領域バーの割合（0.0 〜 1.0）を算出
             float spellHpRatio = 0f;
             if (spellMaxHP > 0f)
             {
                 spellHpRatio = Mathf.Clamp01(spellHP / spellMaxHP);
             }
-
-            // 2. 領域バーの残り％を、通常HP（100満点）の目標体力値（0 〜 100）にダイレクト変換
             float targetHP = maxHP * spellHpRatio;
-
-            // 3. 🌟【条件適合】：発動時の体力が目標値（79%など）以上なら元の体力をキープ、以下なら目標値まで引き上げて回復！
             currentHP = Mathf.Max(preSpellHP, targetHP);
-
-            // 念のため最大HP（100）を絶対に突破しないようにクランプ保護
             currentHP = Mathf.Min(currentHP, maxHP);
-
-            Debug.Log($"<color=lime>💖【VJT領域％クランプ還元】領域バー残量: {spellHpRatio * 100f:F1}% -> 目標HP: {targetHP:F1} / 通常HP: {preSpellHP} -> 最終HP: {currentHP}</color>");
         }
 
-        // 領域内の動的資源パラメータを安全に完全クリア化
+        // 領域内の動的資源パラメータをクリア
         spellHP = 0f;
         spellMaxHP = 0f;
         spellTimer = 0f;
         totalSpellDuration = 0f;
         initialUltimateEnergy = 0f;
 
-        isOverheated = true; // 術式焼き切れ（冷却期間デバフ）へ移行
+        // 🎯【重要】：領域解除ルーチンの最後に、非EX解除であれば「保持していた半分（finalCarryOver）」をULTゲージへ正確に再設定！
+        if (_playerMove != null)
+        {
+            _playerMove.ultimateEnergy = finalCarryOver;
+            if (!isExSkillTriggered && finalCarryOver > 0f)
+            {
+                Debug.Log($"<color=lime>🔋【ULTキャリーオーバー適用】非EX解除のため、次へ持ち越すゲージ {finalCarryOver}% を正しく適用しました。</color>");
+            }
+        }
 
-        // 🌟【修正】：キャラクターデータアセット（Data）から固有の時間を引き抜いて適用！未設定なら20秒でフォールバック。
+        isOverheated = true;
         overheatTimer = (characterData != null) ? characterData.characterOverheatDuration : 20f;
 
         if (MatchTimerUI.Instance != null)
         {
-            MatchTimerUI.Instance.ResumeTimer(); // 止まっていた対戦ラウンドタイマーを再開
+            MatchTimerUI.Instance.ResumeTimer();
         }
 
-        UpdateUI(); // UIの表示を最新情報に更新
-        SyncBarsImmediately(); // 各種スライダー位置を即時同期
+        UpdateUI();
+        SyncBarsImmediately();
 
-        // =========================================================================
-        // 🌟【完全パージ】：領域終了時に、生成した魔法陣オブジェクトを安全にメモリから消去
-        // =========================================================================
         if (spawnedRingInstance != null)
         {
             PlayerSpellRing_Line ringScript = spawnedRingInstance.GetComponent<PlayerSpellRing_Line>();
-            if (ringScript != null)
-            {
-                ringScript.Deactivate();
-            }
-
+            if (ringScript != null) ringScript.Deactivate();
             Destroy(spawnedRingInstance);
-            spawnedRingInstance = null; // 参照のクリア化
+            spawnedRingInstance = null;
         }
 
-        // =========================================================================
-        // 🌟【完全パージ】：領域終了時に、生成した魔法陣（Circle）も安全にメモリから消去
-        // =========================================================================
         if (spawnedCircleInstance != null)
         {
             PlayerSpellCircle circleScript = spawnedCircleInstance.GetComponent<PlayerSpellCircle>();
-            if (circleScript != null)
-            {
-                circleScript.Deactivate();
-            }
+            if (circleScript != null) circleScript.Deactivate();
             if (spawnedCircleInstance != null)
             {
                 Destroy(spawnedCircleInstance);
@@ -1200,12 +1204,9 @@ public class PlayerStatusManager : MonoBehaviour
 
         if (EnemySpellCardUI.Instance != null)
         {
-            EnemySpellCardUI.Instance.HideSpell(); // 🌟領域終了と同時に看板UIを画面外へ滑らかに退場
+            EnemySpellCardUI.Instance.HideSpell();
         }
 
-        // =========================================================================
-        // 🌟【専用2D背景連動】：領域解除（または被弾全損）と同時に通常2D背景へ滑らかに復帰
-        // =========================================================================
         if (VJTSpellBackgroundManager2D.Instance != null)
         {
             VJTSpellBackgroundManager2D.Instance.SetSpellBackgroundActive(false);
@@ -1499,17 +1500,13 @@ public class PlayerStatusManager : MonoBehaviour
 
         if (isSpellCardActive)
         {
+            // 🔮 領域（VJT）展開中のUI処理
             if (spellHpBar != null)
             {
-                // 🌟【新規追加】：ストーリーモードの時は、領域用（バリア用）のサブバータイマー等を非表示にする場合はここで制御
-                // ※もしスペルバリアのHPバー自体は残しつつ、専用の秒数タイマーだけを消したい場合は専用のテキスト枠を非アクティブにします。
-                spellHpBar.gameObject.SetActive(!GameModeManager.IsStoryMode); // 例: ストーリーでは領域バーを隠す、または常時表示させるなど
-            }
-
-            // 🎯【ご要望への対応】：ストーリーモード中は領域のタイマーUIなどを非表示にする
-            if (GameModeManager.IsStoryMode)
-            {
-                // 例として、もし専用の領域タイマー表示用UIやテキストがあればここで gameObject.SetActive(false) にできます
+                // ストーリーモードかどうかに関わらず、VSモードでは確実に表示してバーを連動させる
+                spellHpBar.gameObject.SetActive(true);
+                spellHpBar.maxValue = spellMaxHP;
+                spellHpBar.value = animatedSpellHP; // 🌟 ここでピンク色のバーの長さをアニメーション値に連動！
             }
 
             if (hpBar != null)
@@ -1522,6 +1519,7 @@ public class PlayerStatusManager : MonoBehaviour
         }
         else
         {
+            // 🔷 通常状態のUI処理
             if (hpBar != null)
             {
                 hpBar.gameObject.SetActive(true);
@@ -1532,7 +1530,7 @@ public class PlayerStatusManager : MonoBehaviour
 
             if (spellHpBar != null)
             {
-                spellHpBar.gameObject.SetActive(false);
+                spellHpBar.gameObject.SetActive(false); // 領域外の時は非表示
             }
         }
 

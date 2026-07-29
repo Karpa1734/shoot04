@@ -129,10 +129,14 @@ public class MatchTimerUI : MonoBehaviour
     void Update()
     {
         // ★ 修正：isTimerStopped が false の時だけカウントダウンする
-        // ★修正：!isInfiniteTimer かつ !isTimerStopped の時だけカウントを減らす
-        if (PlayerMove.CanShoot && currentMatchTime > 0 && !isTimerStopped && !isInfiniteTimer)
+        // 通常メインタイマーのカウントダウン（無限モードでなく、かつ手動/タイムアップ停止中でない場合のみ進める）
+        if (currentMatchTime > 0 && !isTimerStopped && !isInfiniteTimer)
         {
             isTimerRunning = true;
+
+            // 💡 敵の被弾スローモーション（Time.timeScaleの変動）に影響されないようにするため、
+            // ここも unscaledDeltaTime を使用するか、あるいは通常の deltaTime を維持するかを選択できますが、
+            // 外的要因（被弾ストップ等）で止めたくない場合は realTime 系の加算・減算が安全です。
             currentMatchTime -= Time.deltaTime;
 
             if (currentMatchTime <= 0)

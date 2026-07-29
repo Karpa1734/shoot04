@@ -813,6 +813,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bceb1ff0558e9f64892ca746df87ae47, type: 2}
   - {fileID: 11400000, guid: 2ebd62a835d04e641ae11e1f6a53cec2, type: 2}
   - {fileID: 11400000, guid: 46bf364284e3ee04496259d07542f277, type: 2}
+  displayCharacterCount: 3
   selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   unselectedColor: {r: 1, g: 1, b: 1, a: 1}
   titleMenuCanvas: {fileID: 1528592940}
@@ -5753,7 +5754,7 @@ MonoBehaviour:
   - {fileID: 761178874}
   - {fileID: 942091862}
   - {fileID: 1614038629}
-  menuSelectable: 01010100000000000101
+  menuSelectable: 00010100000000000101
   disabledAlpha: 0.3
   selectedColor: {r: 1, g: 1, b: 1, a: 1}
   unselectedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}

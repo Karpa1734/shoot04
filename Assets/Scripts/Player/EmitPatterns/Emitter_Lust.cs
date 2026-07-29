@@ -10,8 +10,29 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
     // 🎯【新設インフラ】：現在戦場に実体化しているシールドへのポインタを記憶
     private LustTrackingShield _currentActiveShield = null;
+    // 🛡️【安全弁】：万が一フラグやカウントがスタックした際、一定時間で強制解除するフェイルセーフ
+    private float _lustSafetyTimer = 0f;
 
-    // 💡 外部（SkillManagerなど）から「現在シールドが生きているか？」を安全確認するための公開窓口
+    void Update()
+    {
+        // もし何かしらの理由で3秒以上チャージやスキル硬直から抜け出せない場合、強制リセット
+        if (_isLustSpearCharging || _activeSkillCoroutines > 0)
+        {
+            _lustSafetyTimer += Time.deltaTime;
+            if (_lustSafetyTimer > 4.0f)
+            {
+                Debug.LogWarning("⚠️ [Lust Safety] スキルスタック検知。強制的にフラグとコルーチンカウントをリセットします。");
+                _isLustSpearCharging = false;
+                _activeSkillCoroutines = 0;
+                _lustSafetyTimer = 0f;
+            }
+        }
+        else
+        {
+            _lustSafetyTimer = 0f;
+        }
+    }
+
     public bool IsShieldActive => (_currentActiveShield != null && _currentActiveShield.gameObject != null && _currentActiveShield.gameObject.activeSelf);
 
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
@@ -38,16 +59,11 @@ public class Emitter_Lust : PlayerDanmakuEmitter
     {
         yield return StartCoroutine(ExecuteSkillEXLust(s));
     }
-    // 🌟 世代ID追跡型：檻の多重上書きパージ誤消去バグ完全クリーン版
+
     private List<Tuple<DanmakuBullet, int>> _activeCageBulletsWithGenId = new List<Tuple<DanmakuBullet, int>>();
 
     private IEnumerator ExecuteEnemyEnclosureShrinkingRingRoutine(PlayerSkillData.SkillSettings s)
     {
-        // =========================================================================
-        // 🛡️【絶対防壁】：2発目連打時、リストに残っている古い弾の「世代ID」を監査。
-        // 💡 理由：同じプレハブがすでにプールから引き抜かれて通常ショット等になっていても、
-        //          instanceGenerationId が異なるため、無関係な弾を誤消去するリスクが0%になります！
-        // =========================================================================
         if (_activeCageBulletsWithGenId != null && _activeCageBulletsWithGenId.Count > 0)
         {
             for (int b = _activeCageBulletsWithGenId.Count - 1; b >= 0; b--)
@@ -58,7 +74,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
                 if (oldBullet != null && oldBullet.gameObject.activeSelf)
                 {
-                    // 🔍 プレハブの元本が一致し、かつ「生成された当時の世代ID」が今も維持されている場合のみ、本物の古い檻とみなしてパージ！
                     if (oldBullet.originPrefab == s.bulletData.bulletPrefab && oldBullet.instanceGenerationId == spawnedGenId)
                     {
                         oldBullet.Deactivate(true);
@@ -74,7 +89,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
-        // 内部構造の整合性を死守するためのマトリクス（形状は既存のものを完全継承）
         List<List<Tuple<Transform, float, DanmakuBullet, int>>> layersBulletMatrix = new List<List<Tuple<Transform, float, DanmakuBullet, int>>>();
         bool isGenerationFinished = false;
 
@@ -143,7 +157,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                             bullet.isMovementSuspended = true;
                             bullet.StartSelfDestructTimer(bulletLifeTime);
 
-                            // 🎯 参照ポインタと一緒に、目覚めた瞬間の「固有の世代ID」をセットで記憶！
                             var bulletRecord = new Tuple<DanmakuBullet, int>(bullet, bullet.instanceGenerationId);
                             _activeCageBulletsWithGenId.Add(bulletRecord);
 
@@ -162,7 +175,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                     }
                 }
 
-                // 🎯【自律公転駆動】：ここでも世代IDの生存監査をリアルタイム適用
                 for (int layerIndex = 0; layerIndex < layersBulletMatrix.Count; layerIndex++)
                 {
                     float rotDirection = (layerIndex % 2 == 0) ? 1.0f : -1.0f;
@@ -178,7 +190,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                         DanmakuBullet bLogic = bulletTuple.Item3;
                         int originGenId = bulletTuple.Item4;
 
-                        // 🛡️ 監査：途中で死んでプールでリサイクルされ、別目的の弾幕になっていたら位置の書き換え命令を即座に遮断！
                         if (bulletTx == null || !bulletTx.gameObject.activeSelf || bLogic == null || bLogic.instanceGenerationId != originGenId)
                             continue;
 
@@ -205,10 +216,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             }
         }
     }
-    // =========================================================================
-    // 🔶 色欲専用C：公転・反射の軌跡（跡引きトレイル弾幕）
-    // 💡【弾消し耐性溶接】：Cスキルのブーメラン親弾（メイン弾）に弾消し耐性（isIndestructible: true）を付与！
-    // =========================================================================
+
     private IEnumerator ExecuteBouncingTrailShotRoutine(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
@@ -257,7 +265,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
             foreach (float launchAngle in finalAngles)
             {
-                // 🎯 最末尾の引数に「true」を注入し、親弾を絶対に消えない弾消し耐性状態へ！[cite: 31]
                 DanmakuBullet bullet = CreateShot(s.bulletData, spawnOrigin, speed: 0f, angle: launchAngle, delay: s.delay, false, 0, 0, null, 1, isIndestructible: true);
                 if (bullet != null)
                 {
@@ -345,7 +352,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                             Vector3 positionNoise = new Vector3(UnityEngine.Random.Range(-0.05f, 0.05f), UnityEngine.Random.Range(-0.05f, 0.05f), 0f);
                             Vector3 scatterSpawnPos = currentPos + positionNoise;
                             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT1, 0.1f);
-                            // 💡 跡引きトレイル子弾は消し能力に触れると通常消滅（等倍維持）
                             DanmakuBullet trailBullet = CreateShot(trailBaseAsset, scatterSpawnPos, speed: myTrailSpeed, angle: randomAngle, delay: 0f, isConverge: false, accel: myTrailAccel);
                             if (trailBullet != null) trailBullet.StartSelfDestructTimer(myTrailLifeTime);
                         }
@@ -412,55 +418,60 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             float currentSpread = 120f;
             float minSpread = 15f;
 
-            int chargeTargetFrames = 60;
+            int chargeTargetFrames = 45;
             float shrinkSpeed = (120f - minSpread) / chargeTargetFrames;
 
-            float initialTargetAngle = GetAngleToTarget(transform.position);
-            float fixedBaseAngle = initialTargetAngle + s.angleOffset;
+            // 🎯【要件①】：引き絞り中は敵への角度追従を行わず、最初に取得したアングルで完全に固定！
+            float fixedBaseAngle = GetAngleToTarget(transform.position) + s.angleOffset;
 
             int elapsedFrames = 0;
             bool isKeyReleased = false;
 
             while (!isKeyReleased)
             {
-                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
+                if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
+                {
+                    isKeyReleased = true;
+                    break;
+                }
 
                 if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = chargeMoveSpeed;
                 if (indicatorObj != null) indicatorObj.transform.position = transform.position;
 
-                if (elapsedFrames < chargeTargetFrames) currentSpread = Mathf.Max(minSpread, currentSpread - shrinkSpeed);
-                else currentSpread = minSpread;
+                if (elapsedFrames < chargeTargetFrames)
+                {
+                    currentSpread = Mathf.Max(minSpread, 120f - (120f - minSpread) * ((float)elapsedFrames / chargeTargetFrames));
+                }
+                else
+                {
+                    currentSpread = minSpread;
+                }
 
+                // 固定されたアングルと、引き絞りに応じた収束扇形を描画
                 DrawFanMesh(meshFilter, reusableMesh, currentSpread, fixedBaseAngle, 2.5f);
-
-                if (elapsedFrames < chargeTargetFrames && elapsedFrames % 12 == 0 && SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT1, 0.12f);
 
                 yield return new WaitForFixedUpdate();
                 elapsedFrames++;
 
-                // ⭕ 修正後：AI操作中か人間操作中かを自動判別し、AIならインフラフレームの shotZ を最優先信用する！
-                if (elapsedFrames >= 3)
-                {
-                    DanmakuAgent agent = GetComponentInChildren<DanmakuAgent>();
-                    if (agent == null) agent = GetComponentInParent<DanmakuAgent>();
+                DanmakuAgent agent = GetComponentInChildren<DanmakuAgent>();
+                if (agent == null) agent = GetComponentInParent<DanmakuAgent>();
 
-                    // 🤖 AI自動操作モードの時のホールド・リリース判定
-                    if (agent != null && agent._useAutoEvadeAI)
+                if (agent != null && agent._useAutoEvadeAI)
+                {
+                    if (elapsedFrames >= chargeTargetFrames)
                     {
-                        if (myMove != null && !myMove.currentFrameInput.shotZ)
-                        {
-                            isKeyReleased = true; // AIが62Fに達して shotZ = false にした瞬間にリリース
-                        }
+                        isKeyReleased = true;
                     }
-                    // 🧑 人間がキーボード・パッドで手動操作している時の判定
-                    else
-                    {
-                        if (zAction != null && !zAction.IsPressed()) isKeyReleased = true;
-                        else if (zAction == null && !Input.anyKey) isKeyReleased = true;
-                    }
+                }
+                else
+                {
+                    if (zAction != null && !zAction.IsPressed()) isKeyReleased = true;
+                    else if (zAction == null && !Input.anyKey) isKeyReleased = true;
+                    else if (elapsedFrames >= 90) isKeyReleased = true;
                 }
             }
 
+            // 🎯【要件②】：槍（弾）の消滅・発動は引き絞ったときではなく、ボタンを離して発射したこの瞬間に実行！
             float startAngle = fixedBaseAngle - (currentSpread / 2f);
             float stepAngle = (wayCount > 1) ? (currentSpread / (wayCount - 1)) : 0f;
 
@@ -481,8 +492,9 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (reusableMesh != null) Destroy(reusableMesh);
             if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
 
-            _activeSkillCoroutines--;
             _isLustSpearCharging = false;
+            _activeSkillCoroutines--;
+            if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
         }
     }
 
@@ -583,9 +595,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             _activeSkillCoroutines--;
         }
     }
-    // =========================================================================
-    // 🛡️✨【新設】：通常Zスキル（チャージ槍）の入力時に、展開中のシールドを即座に完全パージする窓口
-    // =========================================================================
+
     public void PurgeActiveShield()
     {
         if (IsShieldActive)
@@ -594,9 +604,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             _currentActiveShield.ForceRequestDespawn();
         }
     }
-    // =========================================================================
-    // 👑【色欲EX必殺術式】：必殺の突撃大槍に、不滅の弾消し耐性を完全溶接！
-    // =========================================================================
+
     protected IEnumerator ExecuteSkillEXLust(PlayerSkillData.SkillSettings s)
     {
         if (IsShieldActive)
@@ -643,7 +651,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
         GameObject lineObj = new GameObject("EXLaserPreviewLine");
         LineRenderer previewLine = lineObj.AddComponent<LineRenderer>();
         previewLine.material = new Material(Shader.Find("Sprites/Default"));
-        previewLine.startColor = new Color(1f,1, 0.2f, 0.8f);
+        previewLine.startColor = new Color(1f, 1, 0.2f, 0.8f);
         previewLine.endColor = new Color(1f, 1, 0.2f, 0.8f);
         previewLine.startWidth = 0.06f;
         previewLine.endWidth = 0.03f;
@@ -687,7 +695,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
             if (BossEffectManager.Instance != null && _rootOwner != null)
             {
-                BossEffectManager.Instance.PlayChargeEffect(remainingChargeTime-0.5f, s.bulletData.breakColor, _rootOwner.transform.position);
+                BossEffectManager.Instance.PlayChargeEffect(remainingChargeTime - 0.5f, s.bulletData.breakColor, _rootOwner.transform.position);
             }
 
             float chargeElapsed = 0f;
@@ -711,13 +719,9 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (lineObj != null) Destroy(lineObj);
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT2, 0.5f);
 
-            // 🎯 プロジェクタイルスクリプトを追加
             LustEXSpearProjectile projectileLogic = spearObj.AddComponent<LustEXSpearProjectile>();
             float ultraSpeed = (s.speed > 0f) ? s.speed * 1.5f : 22.0f;
 
-            // 💡 射出する突撃魔槍自身のオブジェクトをコンポ追加後にフリップ起動
-            // 💡 親クラスから提供されているファクトリ窓口に「isIndestructible: true」を付与して生成されるのが理想ですが、
-            // 💡 Prefab Instantiate型ロジックのため、ここで直撃「isIndestructible = true」を仕込んで防御判定を無敵化させます。
             DanmakuBullet spearBulletComponent = spearObj.GetComponent<DanmakuBullet>();
             if (spearBulletComponent != null)
             {
@@ -730,11 +734,7 @@ public class Emitter_Lust : PlayerDanmakuEmitter
         }
         finally
         {
-            // =========================================================================
-            // 🛡️【絶対安全弁】：何があっても、技が被弾やラウンド移行で中断されても、
-            //                    EXの稼働フラグをここで100%確実に「false」へリセット解放！
-            // =========================================================================
-            _isEXSkillActive = false; // 👈 核心修正：コストのロックを物理的に完全解除！
+            _isEXSkillActive = false;
 
             _activeSkillCoroutines--;
             if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;

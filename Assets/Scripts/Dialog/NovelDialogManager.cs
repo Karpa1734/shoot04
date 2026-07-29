@@ -239,9 +239,15 @@ namespace NovelSystem
             if (_isMatchMode)
             {
                 if (leftCharacterImage != null)
+                {
                     leftCharacterImage.sprite = (_winnerPlayerId == 1) ? _leftCharAsset.normalSprite : _leftCharAsset.damagedSprite;
+                    ApplyNovelAspectFit(leftCharacterImage, leftCharacterImage.sprite);
+                }
                 if (rightCharacterImage != null)
+                {
                     rightCharacterImage.sprite = (_winnerPlayerId == 2) ? _rightCharAsset.normalSprite : _rightCharAsset.damagedSprite;
+                    ApplyNovelAspectFit(rightCharacterImage, rightCharacterImage.sprite);
+                }
             }
         }
 
@@ -343,12 +349,20 @@ namespace NovelSystem
                 if (_leftCharAsset.emotionSprites != null && _leftCharAsset.emotionSprites.Count > 0)
                 {
                     int l = Mathf.Clamp(row.emotionLeft, 0, _leftCharAsset.emotionSprites.Count - 1);
-                    if (leftCharacterImage != null) leftCharacterImage.sprite = _leftCharAsset.emotionSprites[l];
+                    if (leftCharacterImage != null)
+                    {
+                        leftCharacterImage.sprite = _leftCharAsset.emotionSprites[l];
+                        ApplyNovelAspectFit(leftCharacterImage, leftCharacterImage.sprite);
+                    }
                 }
                 if (_rightCharAsset.emotionSprites != null && _rightCharAsset.emotionSprites.Count > 0)
                 {
                     int r = Mathf.Clamp(row.emotionRight, 0, _rightCharAsset.emotionSprites.Count - 1);
-                    if (rightCharacterImage != null) rightCharacterImage.sprite = _rightCharAsset.emotionSprites[r];
+                    if (rightCharacterImage != null)
+                    {
+                        rightCharacterImage.sprite = _rightCharAsset.emotionSprites[r];
+                        ApplyNovelAspectFit(rightCharacterImage, rightCharacterImage.sprite);
+                    }
                 }
                 targetFocus = row.focus;
             }
@@ -359,7 +373,35 @@ namespace NovelSystem
             if (_typingCoroutine != null) StopCoroutine(_typingCoroutine);
             _typingCoroutine = StartCoroutine(TypeTextRoutine(row.text));
         }
+        /// <summary>
+        /// 🖼️ 立ち絵Spriteの元サイズ（縦横比）を基準に、ImageのRectTransformの大きさを綺麗にフィットさせるヘルパー
+        /// </summary>
+        private void ApplyNovelAspectFit(Image targetImage, Sprite sprite)
+        {
+            if (targetImage == null || sprite == null) return;
 
+            // 比例を維持する機能をON
+            targetImage.preserveAspect = true;
+
+            RectTransform rectTransform = targetImage.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                float spriteWidth = sprite.rect.width;
+                float spriteHeight = sprite.rect.height;
+
+                if (spriteWidth > 0f && spriteHeight > 0f)
+                {
+                    float aspectRatio = spriteWidth / spriteHeight;
+
+                    // 現在の高さを基準にして、比率に合わせたサイズへ補正
+                    float currentHeight = rectTransform.sizeDelta.y;
+                    if (currentHeight <= 0f) currentHeight = rectTransform.rect.height;
+                    if (currentHeight <= 0f) currentHeight = 600f; // フォールバック用基準高さ
+
+                    rectTransform.sizeDelta = new Vector2(currentHeight * aspectRatio, currentHeight);
+                }
+            }
+        }
         private void OnNextInput()
         {
             if (_isTyping)

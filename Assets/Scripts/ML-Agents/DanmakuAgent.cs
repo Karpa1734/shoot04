@@ -359,33 +359,29 @@ public class DanmakuAgent : Agent
             slow = autoSlowToggle
         };
 
-        if (_aiCurrentChargingSkillSlot > 0)
+        // 🎯【チャージスキル制御の完全調停】：
+        // もし選ばれたスキルがチャージスキル（LustのZ等）である場合、
+        // AI側は自動で一定フレーム（例: 45フレーム）押し続け、達成した瞬間に shotZ を false にして発射させます。
+        bool isCurrentZCharge = (statusManager != null && statusManager.characterData != null && statusManager.characterData.skillZ.isChargeSkill);
+
+        if (isCurrentZCharge && attackAction == 1)
         {
             _aiChargeFrameTimer++;
-            if (attackAction == 1 && _aiChargeFrameTimer < AI_GENERIC_CHARGE_TARGET_FRAMES)
+            // 45フレーム（約0.75秒）溜めたら自動でボタンを離す（リリース信号を送る）
+            if (_aiChargeFrameTimer <= 45)
             {
-                if (_aiCurrentChargingSkillSlot == 1) frameInput.shotZ = true;
+                frameInput.shotZ = true;
             }
             else
             {
-                if (_aiCurrentChargingSkillSlot == 1) frameInput.shotZ = false;
-                _aiCurrentChargingSkillSlot = 0;
-                _aiChargeFrameTimer = 0;
+                frameInput.shotZ = false;
+                _aiChargeFrameTimer = 0; // チャージ完了したらタイマーリセット
             }
         }
         else
         {
+            if (attackAction != 1) _aiChargeFrameTimer = 0; // Z以外を選んだらタイマーリセット
             UpdateAttackFrameAction(attackAction, autoSlowToggle, ref frameInput);
-
-            if (attackAction == 1 && statusManager != null && statusManager.characterData != null)
-            {
-                if (statusManager.characterData.skillZ.isChargeSkill)
-                {
-                    _aiCurrentChargingSkillSlot = 1;
-                    _aiChargeFrameTimer = 1;
-                    frameInput.shotZ = true;
-                }
-            }
         }
 
         playerMove.currentFrameInput = frameInput;
@@ -678,6 +674,7 @@ public class DanmakuAgent : Agent
     private int EvaluateAndSelectTacticalSkill()
     {
         float currentMP = (playerMove != null) ? playerMove.currentEnergy : 100f;
+        float maxMP = (playerMove != null) ? playerMove.maxEnergy : 100f; // 🌟 最大マナを取得
         float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
 
         bool isZReady = (skillManager != null) ? (skillManager.timerZ <= 0f) : true;
@@ -690,14 +687,13 @@ public class DanmakuAgent : Agent
         float distanceToEnemy = (opponent != null) ? Vector3.Distance(transform.position, opponent.position) : 10f;
         bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
 
-        // =========================================================================
-        // 🔮【知性逆転の完全修正】：領域展開（VJT）の発動ジャッジロジック
-        // =========================================================================
+        PlayerSkillData charData = (statusManager != null) ? statusManager.characterData : null;
+
+        // 🔮 領域展開（VJT）の判断ロジック（従来通り）
         if (!_disableEXAndVJTForDemo)
         {
             if (statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated)
             {
-                // 🛑 A. 【領域返し（カウンター）のジャッジ】
                 if (PlayerStatusManager.isAnyVJTActive)
                 {
                     if (playerMove.Opponent != null)
@@ -709,159 +705,128 @@ public class DanmakuAgent : Agent
                             float myExpectedDuration = Mathf.Lerp(statusManager.minSpellDuration, statusManager.maxSpellDuration, myProgress);
                             float oppRemainingTime = oppStatus.spellTimer;
 
-                            // 🎯 Easyの時は「領域返し（カウンター技術）」を完全封印して知性を手加減
-                            if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy)
+                            if (GameDifficultyManager.CurrentDifficulty != GameDifficulty.Easy)
                             {
-                            }
-                            else
-                            {
-                                // Normal以上は確率で執行（Normal: 30%, Hard: 70%, Lunatic: 100%）
                                 float reactionChance = 1f;
                                 if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) reactionChance = 0.3f;
                                 else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Hard) reactionChance = 0.7f;
 
                                 if (myExpectedDuration - oppRemainingTime > 10f && UnityEngine.Random.value <= reactionChance)
                                 {
-                                    Debug.Log($"<color=red>💥【AI領域返し執行】難易度：{GameDifficultyManager.CurrentDifficulty}。上書きカウンター！</color>");
                                     return 6;
                                 }
                             }
                         }
                     }
                 }
-                // 🟢 B. 【通常の領域展開（先制・主導権掌握）のジャッジ】
                 else
                 {
-                    // Easy➔ ゲージが200%溜まった瞬間、間合いに関係なく（画面端にいても）おバカに即暴発・無駄撃ち
-                    // Normal➔ ゲージが300%MAXまでしっかりと溜まっており、かつ敵が射程圏内（6.5f以内）の時のみ賢く使う
-                    // Hard/Lunatic➔ ゲージが200%以上あり、かつ敵が射程圏内（6.5f以内）の時に最速で最適に使う
-
                     if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy)
                     {
-                        if (currentUltGauge >= 200f)
-                        {
-                            Debug.Log("<color=orange>⚠️【Easy領域暴発】間合いを一切測らず、200%で即無駄撃ちを執行します！</color>");
-                            return 6;
-                        }
+                        if (currentUltGauge >= 200f) return 6;
                     }
                     else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal)
                     {
-                        if (currentUltGauge >= 300f && distanceToEnemy <= 6.5f)
-                        {
-                            Debug.Log("<color=yellow>💡【Normal戦術領域】300%MAXかつ適切な間合い（6.5f以内）で知的展開！</color>");
-                            return 6;
-                        }
+                        if (currentUltGauge >= 300f && distanceToEnemy <= 6.5f) return 6;
                     }
-                    else // Hard or Lunatic
+                    else
                     {
-                        if (currentUltGauge >= 200f && distanceToEnemy <= 6.5f)
-                        {
-                            Debug.Log($"<color=cyan>⚡【{GameDifficultyManager.CurrentDifficulty}最速領域】200%以上のジャストタイミングで展開！</color>");
-                            return 6;
-                        }
+                        if (currentUltGauge >= 200f && distanceToEnemy <= 6.5f) return 6;
                     }
                 }
             }
         }
 
-        // 🎯 通常スキル使用間のタイマーがまだ残っているなら、通常スキルの発動をここで遮断
         if (_aiSkillIntervalTimer > 0f) return 0;
 
         // =========================================================================
-        // 🔋【最核心進化】：再装填（ヒステリシス管理）閾値の難易度動的変調マトリクス
+        // 🔋【8割チャージ待機マトリクス】：トータルコストの80%以上溜まるまで通常スキルの発動を我慢！
         // =========================================================================
-        // 💡 理由：難易度が高いほどマナを極限まで引きつけてフルバーストさせ、 Easyはおバカに即撃ちさせます。
-        float actualReadyThreshold = _mpReadyThreshold; // デフォルト (Lunatic: 95%近く)
-        float actualSaveThreshold = _mpSaveThreshold;  // デフォルト
+        // 領域展開中（VjtActive）の時は、マナの回転が早いため制限を少し緩め、
+        // 通常時は必ず「最大マナの8割」まで貯まるのを待ってからバースト（解放）させます。
+        float requiredThreshold = isMyVjtActive ? (maxMP * 0.3f) : (maxMP * 0.8f);
 
-        if (isMyVjtActive)
+        if (currentMP < requiredThreshold)
         {
-            actualReadyThreshold = 35f;
-            actualSaveThreshold = 15f;
-        }
-        else
-        {
-            switch (GameDifficultyManager.CurrentDifficulty)
-            {
-                case GameDifficulty.Easy:
-                    // ❌ Easy: 溜め撃ちの概念を完全破砕（下限も上限も0）➔ コストが溜まった瞬間におバカに単発即撃ち
-                    actualReadyThreshold = 0f;
-                    actualSaveThreshold = 0f;
-                    break;
-                case GameDifficulty.Normal:
-                    // 🟢 Normal: 標準的な再装填（50%まで溜まったら連射解禁、20%で温存モードへ）
-                    actualReadyThreshold = 50f;
-                    actualSaveThreshold = 20f;
-                    break;
-                case GameDifficulty.Hard:
-                    // 👑 Hard: 賢いバースト（75%までしっかりチャージしてから撃つ）
-                    actualReadyThreshold = 75f;
-                    actualSaveThreshold = 25f;
-                    break;
-                case GameDifficulty.Lunatic:
-                    // 😈 Lunatic: 狂気のフルバースト（95%近くまで極限にエネルギーを装填して一気にハメ殺す）
-                    actualReadyThreshold = 95f;
-                    actualSaveThreshold = 30f;
-                    break;
-            }
-        }
-
-        if (_currentShootingState == ShootingState.Bursting)
-        {
-            if (currentMP <= actualSaveThreshold)
-            {
-                _currentShootingState = ShootingState.Charging;
-            }
-        }
-        else
-        {
-            if (currentMP >= actualReadyThreshold)
-            {
-                _currentShootingState = ShootingState.Bursting;
-            }
-            else
-            {
-                return 0; // 絶賛チャージ中のため通常スキルは一律封印
-            }
+            return 0; // 8割に達するまではスキルを温存して通常移動・回避に専念
         }
 
         // =========================================================================
-        // ⚔️ 通常スキルの発動判定と「使用間（手加減）」の動的注入
+        // ⚖️【戦略的マルチスキル選択マトリクス】：バランス選定
         // =========================================================================
         int selectedSkill = 0;
 
-        if (isVReady && (isMyVjtActive ? (currentMP >= 20f) : (nearbyBulletCount >= 5 && currentMP >= 20f))) selectedSkill = 4;
-        else if (isXReady && (isMyVjtActive ? (currentMP >= 25f) : (currentMP >= 25f && distanceToEnemy >= 2.0f && distanceToEnemy <= 8.5f))) selectedSkill = 2;
-        else if (isCReady && (isMyVjtActive ? (currentMP >= 30f) : (distanceToEnemy >= 5.5f && nearbyBulletCount <= 1 && currentMP >= 30f))) selectedSkill = 3;
-        else if (isZReady && currentMP >= 10f) selectedSkill = 1;
+        float costZ = (charData != null) ? charData.skillZ.cost : 10f;
+        float costX = (charData != null) ? charData.skillX.cost : 20f;
+        float costC = (charData != null) ? charData.skillC.cost : 25f;
+        float costV = (charData != null) ? charData.skillV.cost : 20f;
 
-        if (selectedSkill == 0 && isUltReady && !_disableEXAndVJTForDemo)
+        bool canUseZ = isZReady && (currentMP >= costZ);
+        bool canUseX = isXReady && (currentMP >= costX);
+        bool canUseC = isCReady && (currentMP >= costC);
+        bool canUseV = isVReady && (currentMP >= costV);
+        bool canUseEX = isUltReady && (isMyVjtActive || currentUltGauge >= 100f);
+
+        if (canUseEX && !_disableEXAndVJTForDemo)
         {
-            if (isMyVjtActive && IsVjtCancelAllowed()) selectedSkill = 5;
-            else if (!isMyVjtActive)
+            if (isMyVjtActive && IsVjtCancelAllowed())
             {
-                if (currentUltGauge >= 150f && currentUltGauge < 200f) { }
-                else
-                {
-                    if (currentUltGauge >= 300f) selectedSkill = 5;
-                    else if (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) selectedSkill = 5;
-                    else if (currentUltGauge >= 100f && distanceToEnemy < 4.0f && nearbyBulletCount <= 2) selectedSkill = 5;
-                }
+                selectedSkill = 5;
+            }
+            else if (!isMyVjtActive && (currentUltGauge >= 300f || (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) || (currentUltGauge >= 100f && distanceToEnemy < 4.0f)))
+            {
+                selectedSkill = 5;
+            }
+        }
+
+        if (selectedSkill == 0)
+        {
+            System.Collections.Generic.List<int> candidateSkills = new System.Collections.Generic.List<int>();
+
+            if (canUseZ)
+            {
+                candidateSkills.Add(1);
+                candidateSkills.Add(1);
+            }
+            if (canUseX)
+            {
+                if (distanceIdBetween(distanceToEnemy, 2.0f, 8.5f)) { candidateSkills.Add(2); candidateSkills.Add(2); }
+                else { candidateSkills.Add(2); }
+            }
+            if (canUseC)
+            {
+                if (distanceToEnemy >= 4.0f && nearbyBulletCount <= 2) { candidateSkills.Add(3); candidateSkills.Add(3); }
+                else { candidateSkills.Add(3); }
+            }
+            if (canUseV)
+            {
+                if (nearbyBulletCount >= 3) { candidateSkills.Add(4); candidateSkills.Add(4); candidateSkills.Add(4); }
+                else { candidateSkills.Add(4); }
+            }
+
+            if (candidateSkills.Count > 0)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, candidateSkills.Count);
+                selectedSkill = candidateSkills[randomIndex];
             }
         }
 
         if (selectedSkill > 0 && selectedSkill != 6)
         {
             float addedInterval = 0f;
-            if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy) addedInterval = 1.5f;
-            else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) addedInterval = 0.4f;
+            if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy) addedInterval = 1.0f;
+            else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) addedInterval = 0.3f;
+            else addedInterval = 0.1f;
 
             _aiSkillIntervalTimer = addedInterval;
         }
 
         return selectedSkill;
     }
-
+    private bool distanceIdBetween(float val, float min, float max)
+    {
+        return val >= min && val <= max;
+    }
     private Vector3 GetPerlinWanderVector(float timeValue, float speedMultiplier)
     {
         float seedOffset = (playerID == 1) ? 0f : 500f;

@@ -20,6 +20,7 @@ MonoBehaviour:
   rankSpellZone: 4
   characterName: Linghua
   imageColor: {r: 0, g: 0, b: 1, a: 1}
+  characterSprite: {fileID: 21300000, guid: 230b48c7f4968e946b103803c9eff3da, type: 3}
   spellCardName: "\u300C\u25B3\u25B3\u25B3\u25B3\u300D"
   spellCircleSprite: {fileID: 21300000, guid: 051c490da3612634b83abc85c1cb8fb7, type: 3}
   characterOverheatDuration: 20
@@ -51,7 +52,7 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0.4
     delay: 10
-    cost: 50
+    cost: 30
     ultimateGain: 8
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"

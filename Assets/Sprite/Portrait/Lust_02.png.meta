@@ -1,13 +1,10 @@
 fileFormatVersion: 2
-guid: 42bf0e9ed81a35846b400dc145f6425b
+guid: df1ca57471af444448584d0ea00cda40
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -5002967503262515101
-    second: Karin01_0
-  - first:
-      213: -3841299200432100414
-    second: Karin01_1
+      213: 5813299414550449455
+    second: Lust_02_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -103,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Karin01_0
+      name: Lust_02_0
       rect:
         serializedVersion: 2
-        x: 300
-        y: 1314
-        width: 11
-        height: 21
+        x: 220
+        y: 124
+        width: 1141
+        height: 1790
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -118,30 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 36007390093e19ab0800000000000000
-      internalID: -5002967503262515101
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Karin01_1
-      rect:
-        serializedVersion: 2
-        x: 317
-        y: 115
-        width: 1171
-        height: 1813
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 2cba042bab6f0bac0800000000000000
-      internalID: -3841299200432100414
+      spriteID: f2d0441740dfca050800000000000000
+      internalID: 5813299414550449455
       vertices: []
       indices: 
       edges: []
@@ -160,8 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Karin01_0: -5002967503262515101
-      Karin01_1: -3841299200432100414
+      Lust_02_0: 5813299414550449455
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
