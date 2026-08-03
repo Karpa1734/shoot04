@@ -28,7 +28,7 @@ public class MatchTimerUI : MonoBehaviour
     private RectTransform rectTransform;
     private int lastIntSecond = -1;
     private Vector3 originalScale;
-
+    private bool isMatchStarted = false; // 🌟 試合が正式にスタートしたかを示す専用フラグ
     // =========================================================================
     // 🌟【新規追加】：元のデータを壊さないためのVJT専用ツインタイマー拡張スロット
     // =========================================================================
@@ -66,17 +66,25 @@ public class MatchTimerUI : MonoBehaviour
         currentMatchTime = duration;
         isTimerRunning = false;
         isTimerStopped = false;
-        isTimeUpHandled = false; // ★ラウンド開始時にフラグをリセット
+        isMatchStarted = false; // 🌟 ラウンド初期化時は試合未開始状態にする
+        isTimeUpHandled = false;
         lastIntSecond = Mathf.CeilToInt(currentMatchTime);
-        vjtLastIntSecond = -1; // 🌟VJT用SEカウントリセット
+        vjtLastIntSecond = -1;
 
         if (canvasGroup != null) canvasGroup.alpha = 1f;
         UpdateUI(currentMatchTime);
 
-        // VJTツインタイマーを安全に強制終了して非表示化
         StopVJTVisualTimer();
     }
-
+    /// <summary>
+    /// 🌟 カウントダウン終了後、正式にバトルのタイマーを開始する
+    /// </summary>
+    public void StartMatchTimer()
+    {
+        isMatchStarted = true;
+        isTimerStopped = false;
+        Debug.Log("<color=lime>⏱️ [MatchTimerUI] 正式にバトルのタイマー駆動を開始します。</color>");
+    }
     // ★ 修正：外部からタイマーを止めるためのメソッド（タイムアップ時は横棒を完全ガード）
     public void StopTimer()
     {
@@ -128,15 +136,13 @@ public class MatchTimerUI : MonoBehaviour
 
     void Update()
     {
-        // ★ 修正：isTimerStopped が false の時だけカウントダウンする
-        // 通常メインタイマーのカウントダウン（無限モードでなく、かつ手動/タイムアップ停止中でない場合のみ進める）
-        if (currentMatchTime > 0 && !isTimerStopped && !isInfiniteTimer)
+        // 🌟【最重要修正】：ResetRoundTimer直後やカウントダウン中（isMatchStarted = false）の間は、
+        // どんな条件であってもタイマーを絶対に進めない！
+        bool isBattleTimeActive = isMatchStarted && currentMatchTime > 0 && !isTimerStopped && !isInfiniteTimer;
+
+        if (isBattleTimeActive)
         {
             isTimerRunning = true;
-
-            // 💡 敵の被弾スローモーション（Time.timeScaleの変動）に影響されないようにするため、
-            // ここも unscaledDeltaTime を使用するか、あるいは通常の deltaTime を維持するかを選択できますが、
-            // 外的要因（被弾ストップ等）で止めたくない場合は realTime 系の加算・減算が安全です。
             currentMatchTime -= Time.deltaTime;
 
             if (currentMatchTime <= 0)
@@ -151,9 +157,12 @@ public class MatchTimerUI : MonoBehaviour
             }
             UpdateUI(currentMatchTime);
         }
+        else
+        {
+            isTimerRunning = false;
+        }
 
-        // 通常メインタイマーのカウント音（VJT停止中はミュートされるため干渉しません）
-        if (!isInfiniteTimer && !isTimerStopped)
+        if (isBattleTimeActive)
         {
             int displaySec = Mathf.CeilToInt(currentMatchTime);
             if (displaySec <= 10 && displaySec != lastIntSecond && currentMatchTime > 0)
@@ -164,7 +173,15 @@ public class MatchTimerUI : MonoBehaviour
             }
         }
     }
-
+    /// <summary>
+    /// 🌟 対戦終了時、会話中やリザルト中を含めてタイマーを完全に終了・停止させる
+    /// </summary>
+    public void StopMatch()
+    {
+        isMatchStarted = false; // 試合中フラグを強制折りにする
+        isTimerStopped = true;
+        Debug.Log("<color=orange>⏱️ [MatchTimerUI] 対戦終了を検知。タイマーの駆動を完全に停止しました。</color>");
+    }
     void UpdateUI(float time)
     {
         if (isTimerStopped) return;

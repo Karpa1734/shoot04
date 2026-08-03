@@ -1,9 +1,11 @@
 ﻿// --- PlayerStatusManager.cs 【VJTタイムベース・UIブロック・エラー完全解消版】 ---
+using DG.Tweening;
 using KanKikuchi.AudioManager;
 using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerStatusManager : MonoBehaviour
 {
@@ -151,7 +153,8 @@ public class PlayerStatusManager : MonoBehaviour
     [Header("🔧 Debug UI Slots")]
     [Tooltip("HP/MP/アルカナの生数値を小数点第一位まで表示するデバッグ用Textアタッチ枠")]
     public TextMeshProUGUI debugStatusText;
-
+    [Header("--- VJT Counter Timing ---")]
+    [HideInInspector] public float timeSinceVJTActivated = 0f; // 🌟 領域展開からの経過時間
     // 🎯【新設】：デバッグ中断時のランク永続化を防ぐためのキャッシュ
     private StatusRank _originalCharacterRank;
     private bool _hasCachedRank = false;
@@ -328,7 +331,7 @@ public class PlayerStatusManager : MonoBehaviour
             Debug.Log($"<color=yellow>🔧 [DEBUG MODE] シーン直接起動を検知。インスペクターのデバッグ用データ【{characterData.characterName}】を同期しました。</color>");
         }
 #endif
-
+        BGMManager.Instance.Play(BGMPath.BATTLE01,1.0f,1.0f);
         // 看板テキストやUIカラー、COM名への流し込みを実行
         ApplyCharacterSettings();
 
@@ -632,7 +635,7 @@ public class PlayerStatusManager : MonoBehaviour
         if (isSpellCardActive)
         {
             if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
-
+            timeSinceVJTActivated += Time.deltaTime;
             // =========================================================================
             // 🌟【新規追加】：決着（KO）時はアルカナゲージおよび維持タイマーをその場で完全停止！
             // =========================================================================
@@ -687,7 +690,10 @@ public class PlayerStatusManager : MonoBehaviour
                 animatedSpellHP = spellHP;
             }
         }
-
+        else
+        {
+            timeSinceVJTActivated = 0f; // 領域が展開されていない時はリセット
+        }
         // 術式焼き切れデバフのタイマー処理
         if (isOverheated)
         {
@@ -789,7 +795,7 @@ public class PlayerStatusManager : MonoBehaviour
             Debug.LogError($"<color=red>❌ [VJT BLOCK] Player {playerId} の領域発動が手前で拒絶されました。 理由: {reason}</color>");
             return;
         }
-
+        // ⚔️【新システム】：領域返し（カウンターVJT）の割り込みジャッジ
         // ⚔️【新システム】：領域返し（カウンターVJT）の割り込みジャッジ
         if (isAnyVJTActive && !isSpellCardActive)
         {
@@ -798,6 +804,13 @@ public class PlayerStatusManager : MonoBehaviour
 
             if (oppStatus != null && oppStatus.isSpellCardActive)
             {
+                // 🌟【新規追加】：相手が領域を発動してから「3秒（3.0秒）」経過していなければ、領域返しはまだ受け付けない！
+                if (oppStatus.timeSinceVJTActivated < 3.0f)
+                {
+                    Debug.Log($"<color=yellow>🛡️ [VJT COUNTER BLOCKED] 相手の領域展開からまだ {oppStatus.timeSinceVJTActivated:F1}秒 です (3.0秒必要)。</color>");
+                    return; // 3秒未満はカウンターを不発（あるいは入力を弾く）
+                }
+
                 float myProgress = Mathf.InverseLerp(200f, 300f, _playerMove.ultimateEnergy);
                 float myExpectedDuration = Mathf.Lerp(minSpellDuration, maxSpellDuration, myProgress);
                 float oppRemainingTime = oppStatus.spellTimer;
@@ -805,6 +818,7 @@ public class PlayerStatusManager : MonoBehaviour
 
                 Debug.Log($"<color=yellow>⚔️ [VJT COUNTER CHECK] 領域返しジャッジ走査中... 時間差: {timeDifference:F2}秒 (必要: >10.0秒)</color>");
 
+                // 🌟【修正】：領域返しの条件を満たしていない場合の不発判定
                 if (timeDifference > 10f)
                 {
                     Debug.Log($"<color=red>💥💥【領域返し(カウンターVJT)成立!!】時間差: {timeDifference:F2}秒</color>");
@@ -817,10 +831,11 @@ public class PlayerStatusManager : MonoBehaviour
                 else
                 {
                     Debug.Log($"<color=yellow>🛡️ [VJT COUNTER FAILED] 領域返しの条件(持続アドバンテージ10秒以上)を満たしていないため、不発判定処理を行います。</color>");
+
+                    // 🔊 音声の連打（マシンガン再生）を確実に防ぐ厳密なガード
                     if (_failedSpellSoundTimer <= 0f)
                     {
-                        if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SPELL_OFF, 0.4f);
-                        _failedSpellSoundTimer = 0.5f;
+                        _failedSpellSoundTimer = 0.5f; // 0.5秒間は再発動しないようにロック
                     }
                     return;
                 }
@@ -848,6 +863,7 @@ public class PlayerStatusManager : MonoBehaviour
             if (playerId == 1) p1Requester = this;
             if (playerId == 2) p2Requester = this;
         }
+
     }
 
     /// <summary>
@@ -894,7 +910,82 @@ public class PlayerStatusManager : MonoBehaviour
         p2Requester = null;
         lastRequestFrame = -1;
     }
+    private void PlayVJTCutIn()
+    {
+        if (characterData == null || characterData.characterSprite == null) return;
 
+        // 1. カットイン用のGameObjectを動的生成
+        GameObject cutInObj = new GameObject("VJTCutInImage_" + playerId);
+
+        Canvas canvas = FindFirstObjectByType<Canvas>();
+        if (canvas != null)
+        {
+            cutInObj.transform.SetParent(canvas.transform, false);
+        }
+
+        RectTransform cutInRect = cutInObj.AddComponent<RectTransform>();
+        cutInRect.anchorMin = new Vector2(0.5f, 0.5f);
+        cutInRect.anchorMax = new Vector2(0.5f, 0.5f);
+        cutInRect.pivot = new Vector2(0.5f, 0.5f);
+
+        // 🌟【修正】：元の Sprite の縦横比を計算し、高さを基準（例: 600f）にして幅を自動調整
+        Sprite sprite = characterData.characterSprite;
+        float targetHeight = 1200f; // 立ち絵の基準の高さ（お好みに合わせて変更可能）
+        float spriteWidth = sprite.rect.width;
+        float spriteHeight = sprite.rect.height;
+
+        if (spriteWidth > 0f && spriteHeight > 0f)
+        {
+            float aspectRatio = spriteWidth / spriteHeight;
+            cutInRect.sizeDelta = new Vector2(targetHeight * aspectRatio, targetHeight);
+        }
+        else
+        {
+            cutInRect.sizeDelta = new Vector2(400f, targetHeight); // フォールバック
+        }
+
+        UnityEngine.UI.Image cutInImage = cutInObj.AddComponent<UnityEngine.UI.Image>();
+        cutInImage.sprite = sprite;
+        cutInImage.preserveAspect = true;
+
+        // 2. 1Pは「左端から」、2Pは「右端から」登場させる方向分岐
+        float startX = (playerId == 1) ? -1500f : 1500f;
+        float endX = 0f;          // 中央で停止
+        float exitX = (playerId == 1) ? 1500f : -1500f; // 逆側へ抜ける
+
+        // 初期位置とアルファ値（透明）のセット
+        cutInRect.anchoredPosition = new Vector3(startX, 500f, 0f);
+        Color c = cutInImage.color;
+        c.a = 0f;
+        cutInImage.color = c;
+
+        // フェードイン
+        cutInImage.DOFade(1f, 0.2f);
+
+        // 3. DOTweenでアニメーション構築
+        Sequence seq = DOTween.Sequence();
+
+        // ① 左/右端から中央(0)へ移動
+        seq.Append(cutInRect.DOAnchorPos(new Vector2(endX, 0f), 1.5f).SetEase(Ease.OutCubic));
+
+        // ② 中央で少しの間停止（タメ）
+        seq.AppendInterval(0.4f);
+
+        // ③ 中央から逆側へ加速して画面外へ退場
+        seq.Append(cutInRect.DOAnchorPos(new Vector2(exitX, -500f), 1.5f).SetEase(Ease.InCubic));
+
+        // 退場に合わせてフェードアウト
+        seq.Join(cutInImage.DOFade(0f, 0.2f).SetDelay(0.7f));
+
+        // 演出終了後にオブジェクトを完全破棄
+        seq.OnComplete(() =>
+        {
+            if (cutInObj != null)
+            {
+               Destroy(cutInObj);
+            }
+        });
+    }
     /// <summary>
     /// 排他権を獲得したプレイヤーのみが実行する、本物の領域展開シークエンス
     /// </summary>
@@ -909,6 +1000,7 @@ public class PlayerStatusManager : MonoBehaviour
         isAnyVJTActive = true;    // 世界ロック
         isOverheated = false;
 
+        PlayVJTCutIn();
         initialUltimateEnergy = _playerMove.ultimateEnergy;
         preSpellHP = currentHP;
 
@@ -1055,8 +1147,16 @@ public class PlayerStatusManager : MonoBehaviour
             }
         }
 
-        // 💡 1. 必殺技（EX）使用によって解除された場合：
-        // 領域終了時のULTゲージは完全に「0」で確定させ、例外なくリセットします。
+        // 🌟【追加対策】：Emitter_Lust などの個別のEX発動フラグや槍の生存状態も合わせてチェック
+        Emitter_Lust lustEmitter = GetComponentInChildren<Emitter_Lust>();
+        if (lustEmitter != null && lustEmitter.IsEXSpearActive)
+        {
+            isExSkillTriggered = true;
+        }
+
+        // 一時退避用の持ち越し値（もし非EX解除なら半分を保持、EX解除なら0）
+        float finalCarryOver = 0f;
+
         if (isExSkillTriggered)
         {
             if (_playerMove != null)
@@ -1065,16 +1165,11 @@ public class PlayerStatusManager : MonoBehaviour
                 Debug.Log("<color=orange>👑【ULTゲージ確定リセット】必殺技（EX）使用による領域解除のため、ULTゲージを完全に 0 に固定します。</color>");
             }
         }
-        // 💡 2. 必殺技以外（ラウンド終了、体力削り切り、時間切れなど）で解除された場合：
-        // その瞬間のULTゲージ残量の「半分」を計算して持ち越し準備！
         else if (_playerMove != null)
         {
-            float carryOverEnergy = _playerMove.ultimateEnergy * 0.5f;
-            Debug.Log($"<color=cyan>✨【ULTゲージ持ち越し準備】領域解除時の残量 {_playerMove.ultimateEnergy}% の半分である {carryOverEnergy}% をキープします。</color>");
+            finalCarryOver = _playerMove.ultimateEnergy * 0.5f;
+            Debug.Log($"<color=cyan>✨【ULTゲージ持ち越し準備】領域解除時の残量 {_playerMove.ultimateEnergy}% の半分である {finalCarryOver}% をキープします。</color>");
         }
-
-        // 一時退避用の持ち越し値（もし非EX解除なら半分を保持、EX解除なら0）
-        float finalCarryOver = (!isExSkillTriggered && _playerMove != null) ? (_playerMove.ultimateEnergy * 0.5f) : 0f;
 
         isSpellCardActive = false; // フラグを解除
         isAnyVJTActive = false;    // 世界共有ロックをここで完全解放
@@ -1112,7 +1207,7 @@ public class PlayerStatusManager : MonoBehaviour
             }
         }
 
-        // 対戦相手のコライダーやスプライトの復元処理（既存のまま）
+        // 対戦相手のコライダーやスプライトの復元処理
         if (_playerMove != null && _playerMove.Opponent != null)
         {
             PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
@@ -1138,7 +1233,7 @@ public class PlayerStatusManager : MonoBehaviour
             }
         }
 
-        // ライフ還元処理（既存のまま）
+        // ライフ還元処理
         if (isDefeatedByDamage)
         {
             currentHP = preSpellHP;
@@ -1162,13 +1257,20 @@ public class PlayerStatusManager : MonoBehaviour
         totalSpellDuration = 0f;
         initialUltimateEnergy = 0f;
 
-        // 🎯【重要】：領域解除ルーチンの最後に、非EX解除であれば「保持していた半分（finalCarryOver）」をULTゲージへ正確に再設定！
+        // 🎯【重要】：領域解除ルーチンの最後に、EX解除なら強制0%、非EX解除であれば保持していた半分を再設定
         if (_playerMove != null)
         {
-            _playerMove.ultimateEnergy = finalCarryOver;
-            if (!isExSkillTriggered && finalCarryOver > 0f)
+            if (isExSkillTriggered)
             {
-                Debug.Log($"<color=lime>🔋【ULTキャリーオーバー適用】非EX解除のため、次へ持ち越すゲージ {finalCarryOver}% を正しく適用しました。</color>");
+                _playerMove.ultimateEnergy = 0f; // 🌟 EX解除時は絶対に 0% に固定
+            }
+            else
+            {
+                _playerMove.ultimateEnergy = finalCarryOver;
+                if (finalCarryOver > 0f)
+                {
+                    Debug.Log($"<color=lime>🔋【ULTキャリーオーバー適用】非EX解除のため、次へ持ち越すゲージ {finalCarryOver}% を正しく適用しました。</color>");
+                }
             }
         }
 
@@ -1229,6 +1331,7 @@ public class PlayerStatusManager : MonoBehaviour
         isAnyVJTActive = true;    // 世界ロックを即座に再取得
         isOverheated = false;
 
+        PlayVJTCutIn();
         initialUltimateEnergy = _playerMove.ultimateEnergy;
         preSpellHP = currentHP;
 
@@ -1746,7 +1849,8 @@ public class PlayerStatusManager : MonoBehaviour
         else
         {
             pauseManager.SetGameOverMode(true);
-            pauseManager.PauseGame();
+            //pauseManager.PauseGame();
+            SceneManager.LoadScene("Title");
         }
     }
 

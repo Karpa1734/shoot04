@@ -215,7 +215,14 @@ public class PlayerHitHandler : MonoBehaviour
         if (playerMove.IsInvincible) yield break;
 
         currentState = PlayerState.Down;
-
+        // =========================================================================
+        // 🌟【最重要追加】：対戦終了・撃墜の瞬間に、タイマーの駆動フラグ自体を完全停止させる！
+        // =========================================================================
+        if (MatchTimerUI.Instance != null)
+        {
+            MatchTimerUI.Instance.StopTimer();
+            MatchTimerUI.Instance.StopMatch(); // 👈 試合終了フラグ（isMatchStarted = false）をここで確定！
+        }
         // =========================================================================
         // 🧠【強化学習専用：爆速超高速リセットインフラ】
         // =========================================================================

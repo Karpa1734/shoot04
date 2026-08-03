@@ -533,6 +533,9 @@ public class DanmakuAgent : Agent
             }
         }
 
+        // =========================================================================
+        // 🌟【強力強化】：弾の塊（クラスター）に対する迂回＆大反発ロジック
+        // =========================================================================
         foreach (Vector2 clusterPos in clusterPoints)
         {
             Vector2 directionFromCluster = (Vector2)transform.position - clusterPos;
@@ -541,8 +544,14 @@ public class DanmakuAgent : Agent
             if (distance < 0.05f) continue;
             hasDanger = true;
 
-            float force = 4.5f / Mathf.Max(0.5f, distance);
+            // 塊の中心から強く遠ざかる力（係数を大幅に引き上げ）
+            float force = 12.5f / Mathf.Max(0.4f, distance * distance);
             Vector2 clusterRepulsion = directionFromCluster.normalized * force;
+
+            // 塊を正面から避けるだけでなく、横に回り込んですり抜ける接線ベクトルを追加
+            Vector2 clusterDir = directionFromCluster.normalized;
+            Vector2 orbitForce = new Vector2(-clusterDir.y, clusterDir.x) * (force * 0.8f);
+            clusterRepulsion += orbitForce;
 
             if (isNearRightWall && clusterRepulsion.x > 0) { clusterRepulsion.y += (clusterRepulsion.y >= 0 ? 1f : -1f) * clusterRepulsion.x; clusterRepulsion.x = 0; }
             else if (isNearLeftWall && clusterRepulsion.x < 0) { clusterRepulsion.y += (clusterRepulsion.y >= 0 ? 1f : -1f) * Mathf.Abs(clusterRepulsion.x); clusterRepulsion.x = 0; }
@@ -552,31 +561,50 @@ public class DanmakuAgent : Agent
             totalRepulsion += clusterRepulsion;
         }
 
+        // =========================================================================
+        // 🌟【強力強化】：単発弾の未来予測 ＆ 直撃コースの緊急回避
+        // =========================================================================
         foreach (var col in singleBullets)
         {
             if (col == null) continue;
-            Vector2 directionFromBullet = (Vector2)transform.position - (Vector2)col.transform.position;
+
+            Vector2 bulletPos = col.transform.position;
+            Vector2 bulletVel = Vector2.zero;
+
+            if (col.attachedRigidbody != null)
+            {
+                bulletVel = col.attachedRigidbody.linearVelocity;
+                // 弾の軌道（うねり弾など）を先読みするために未来位置を補正
+                bulletPos += bulletVel * 0.25f;
+            }
+
+            Vector2 directionFromBullet = (Vector2)transform.position - bulletPos;
             float distance = directionFromBullet.magnitude;
             if (distance < 0.05f) continue;
 
             hasDanger = true;
 
-            float force = 1.0f / (distance * distance);
+            float force = 1.8f / (distance * distance);
+            if (bulletVel.sqrMagnitude > 0.1f)
+            {
+                Vector2 toMe = ((Vector2)transform.position - (Vector2)col.transform.position).normalized;
+                if (Vector2.Dot(bulletVel.normalized, toMe) > 0.3f)
+                {
+                    force *= 3.0f; // 迫り来る弾に対して緊急回避ウェイトを3倍に
+                }
+            }
+
             Vector2 bulletRepulsion = directionFromBullet.normalized * force;
             Vector2 finalBulletForce = bulletRepulsion;
 
-            if (col.attachedRigidbody != null)
+            if (bulletVel.sqrMagnitude > 0.1f)
             {
-                Vector2 bulletVelocity = col.attachedRigidbody.linearVelocity;
-                if (bulletVelocity.sqrMagnitude > 0.1f)
-                {
-                    Vector2 bulletDir = bulletVelocity.normalized;
-                    Vector2 sideForce1 = new Vector2(-bulletDir.y, bulletDir.x);
-                    Vector2 sideForce2 = new Vector2(bulletDir.y, -bulletDir.x);
+                Vector2 bulletDir = bulletVel.normalized;
+                Vector2 sideForce1 = new Vector2(-bulletDir.y, bulletDir.x);
+                Vector2 sideForce2 = new Vector2(bulletDir.y, -bulletDir.x);
 
-                    Vector2 bestSideForce = (Vector2.Dot(directionFromBullet, sideForce1) > 0f) ? sideForce1 : sideForce2;
-                    finalBulletForce += bestSideForce * (force * 0.7f);
-                }
+                Vector2 bestSideForce = (Vector2.Dot(directionFromBullet, sideForce1) > 0f) ? sideForce1 : sideForce2;
+                finalBulletForce += bestSideForce * (force * 1.2f);
             }
 
             if (isNearRightWall && finalBulletForce.x > 0) { finalBulletForce.y += (finalBulletForce.y >= 0 ? 1f : -1f) * finalBulletForce.x; finalBulletForce.x = 0; }
@@ -587,6 +615,7 @@ public class DanmakuAgent : Agent
             totalRepulsion += finalBulletForce;
         }
 
+        // レーザー判定の処理
         foreach (var col in hitColliders)
         {
             if (col == null || !col.CompareTag("Laser")) continue;
@@ -670,7 +699,8 @@ public class DanmakuAgent : Agent
 
         return totalRepulsion;
     }
-
+    // 🔋 マナが枯渇してスキルを我慢している状態かを示すヒステリシス用フラグ
+    private bool _isWaitingForRecharge = false;
     private int EvaluateAndSelectTacticalSkill()
     {
         float currentMP = (playerMove != null) ? playerMove.currentEnergy : 100f;
@@ -738,19 +768,28 @@ public class DanmakuAgent : Agent
         }
 
         if (_aiSkillIntervalTimer > 0f) return 0;
-
         // =========================================================================
-        // 🔋【8割チャージ待機マトリクス】：トータルコストの80%以上溜まるまで通常スキルの発動を我慢！
+        // 🔋【ヒステリシス・マナ管理】：10%まで減ったら、80%溜まるまで徹底的に我慢する！
         // =========================================================================
-        // 領域展開中（VjtActive）の時は、マナの回転が早いため制限を少し緩め、
-        // 通常時は必ず「最大マナの8割」まで貯まるのを待ってからバースト（解放）させます。
-        float requiredThreshold = isMyVjtActive ? (maxMP * 0.3f) : (maxMP * 0.8f);
+        float highThreshold = maxMP * 0.8f; // 80%
+        float lowThreshold = maxMP * 0.1f;  // 10%
 
-        if (currentMP < requiredThreshold)
+        // 現在我慢モード中でなく、マナが 10% を下回ったら「我慢モード」に突入
+        if (!_isWaitingForRecharge && currentMP <= lowThreshold)
         {
-            return 0; // 8割に達するまではスキルを温存して通常移動・回避に専念
+            _isWaitingForRecharge = true;
+        }
+        // 一度我慢モードに入ったら、マナが 80% に回復するまではスキル発動を完全に我慢し続ける
+        else if (_isWaitingForRecharge && currentMP >= highThreshold)
+        {
+            _isWaitingForRecharge = false; // 80%溜まったので我慢モード解除！
         }
 
+        // 我慢モードが有効な間は、スキルを使わずに温存
+        if (_isWaitingForRecharge)
+        {
+            return 0; // スキルを我慢して通常移動・回避に専念
+        }
         // =========================================================================
         // ⚖️【戦略的マルチスキル選択マトリクス】：バランス選定
         // =========================================================================

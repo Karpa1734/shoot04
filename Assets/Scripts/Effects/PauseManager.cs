@@ -119,6 +119,7 @@ public class PauseManager : MonoBehaviour
         selectedIndex = FindNextSelectableIndex(-1, 1);
         UpdateMenuVisuals();
         SEManager.Instance.Play(SEPath.PAUSE, 0.5f);
+        BGMManager.Instance.Pause();
     }
 
     public void ResumeGame()
@@ -133,6 +134,7 @@ public class PauseManager : MonoBehaviour
 
         Time.timeScale = 1f;
         SEManager.Instance.Play(SEPath.MENUCANCEL, 0.5f);
+        BGMManager.Instance.UnPause();
     }
 
     void HandleMenuNavigation()

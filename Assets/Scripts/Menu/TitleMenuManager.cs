@@ -44,6 +44,7 @@ public class TitleMenuManager : MonoBehaviour
 
     void Start()
     {
+        BGMManager.Instance.Play(BGMPath.TITLE,1.0f);
         BossPracticeManager.IsPracticeMode = false;
 
         if (practiceSubMenu != null) practiceSubMenu.SetActive(false);

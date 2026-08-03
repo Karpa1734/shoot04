@@ -13,6 +13,10 @@ public class Emitter_Lust : PlayerDanmakuEmitter
     // 🛡️【安全弁】：万が一フラグやカウントがスタックした際、一定時間で強制解除するフェイルセーフ
     private float _lustSafetyTimer = 0f;
 
+    // 🌟【新規追加】：EX魔槍が戦場に発射されてから消滅するまでの生存フラグ
+    private bool _isEXSpearActive = false;
+    public bool IsEXSpearActive => _isEXSpearActive;
+
     void Update()
     {
         // もし何かしらの理由で3秒以上チャージやスキル硬直から抜け出せない場合、強制リセット
@@ -37,26 +41,31 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
+        if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
         yield return StartCoroutine(ExecuteLustSpearAssaultRoutine(s));
     }
 
     protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s)
     {
+        if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
         yield return StartCoroutine(ExecuteEnemyEnclosureShrinkingRingRoutine(s));
     }
 
     protected override IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s)
     {
+        if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
         yield return StartCoroutine(ExecuteBouncingTrailShotRoutine(s));
     }
 
     protected override IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s)
     {
+        if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
         yield return StartCoroutine(ExecuteTrackSpear(s));
     }
 
     protected override IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s)
     {
+        if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 すでにEX魔槍が生存しているなら重複発動不可
         yield return StartCoroutine(ExecuteSkillEXLust(s));
     }
 
@@ -607,6 +616,9 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
     protected IEnumerator ExecuteSkillEXLust(PlayerSkillData.SkillSettings s)
     {
+        // 🌟 すでにEX魔槍が生存している場合は発動を拒絶
+        if (_isEXSpearActive) yield break;
+
         if (IsShieldActive)
         {
             Debug.Log("<color=red>🛡️➔👑【シールド強制終了連動】EX発動を検知したため、生存中のV魔槍をパージします。</color>");
@@ -719,6 +731,9 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (lineObj != null) Destroy(lineObj);
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT2, 0.5f);
 
+            // 🌟【最重要】：槍が発射されて戦場に飛び出したこの瞬間に生存フラグをONにする
+            _isEXSpearActive = true;
+
             LustEXSpearProjectile projectileLogic = spearObj.AddComponent<LustEXSpearProjectile>();
             float ultraSpeed = (s.speed > 0f) ? s.speed * 1.5f : 22.0f;
 
@@ -729,6 +744,9 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             }
 
             projectileLogic.Launch(_rootOwner, fixedFinalAngle, ultraSpeed, s.bulletData, s.trailBulletData, this, enableHoming: isSpellActive);
+
+            // 🌟 槍オブジェクトの生存を監視し、消滅したらフラグを落とす
+            StartCoroutine(MonitorEXSpearLife(spearObj));
 
             yield return new WaitForSeconds(s.cooldown);
         }
@@ -742,5 +760,16 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (lineObj != null) Destroy(lineObj);
             if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         }
+    }
+
+    private IEnumerator MonitorEXSpearLife(GameObject spear)
+    {
+        while (spear != null)
+        {
+            yield return null;
+        }
+        // 槍が画面外消滅やヒット等で消えたら制限解除
+        _isEXSpearActive = false;
+        Debug.Log("<color=cyan>👑 [EX Spear] 槍が戦場から消滅しました。スキル使用制限を解除します。</color>");
     }
 }

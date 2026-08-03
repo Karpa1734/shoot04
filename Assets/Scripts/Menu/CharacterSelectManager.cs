@@ -662,6 +662,7 @@ public class CharacterSelectManager : MonoBehaviour
 
     private void LoadGameplayScene()
     {
+        BGMManager.Instance.FadeOut();
         SceneManager.LoadScene("Shoot");
     }
 }

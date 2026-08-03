@@ -5754,7 +5754,7 @@ MonoBehaviour:
   - {fileID: 761178874}
   - {fileID: 942091862}
   - {fileID: 1614038629}
-  menuSelectable: 01010100000000000101
+  menuSelectable: 00010100000000000101
   disabledAlpha: 0.3
   selectedColor: {r: 1, g: 1, b: 1, a: 1}
   unselectedColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}

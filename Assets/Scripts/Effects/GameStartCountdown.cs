@@ -27,23 +27,31 @@ public class GameStartCountdown : MonoBehaviour
         {
             PlayerMove.CanInput = true;
             PlayerMove.CanShoot = true;
-            if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.ResumeTimer();
+            if (MatchTimerUI.Instance != null)
+            {
+                MatchTimerUI.Instance.ResetRoundTimer(99f);
+                MatchTimerUI.Instance.StartMatchTimer(); // 🌟 学習モード時は即座にタイマー開始
+            }
             return;
         }
+
         // 動作中のコルーチンを全て止めてから開始
         StopAllCoroutines();
         StartCoroutine(CountdownRoutine());
-        // ★ 追加：カウントダウン中、弾幕を消し続けるループを開始
         StartCoroutine(ConstantClearRoutine());
     }
 
     IEnumerator CountdownRoutine()
     {
-        // ★ 修正：開始時から移動は許可し、ショットのみ制限する
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = false;
 
-        countdownText.gameObject.SetActive(true);
+        // 🌟 カウントダウン開始時は、タイマーをリセットしつつ「停止状態（待機）」にしておく
+        if (MatchTimerUI.Instance != null)
+        {
+            MatchTimerUI.Instance.ResetRoundTimer(99f);
+        }
+
         countdownText.gameObject.SetActive(true);
         countdownText.text = "";
 
@@ -60,6 +68,12 @@ public class GameStartCountdown : MonoBehaviour
         // ★ 修正：ここで解禁。移動とショットの両方を許可する
         PlayerMove.CanInput = true;
         PlayerMove.CanShoot = true;
+
+        // 🌟【最重要】：カウントダウンが明け、「Go Shoot !!」の文字が出てバトルが始まったこの瞬間にタイマーを起動！
+        if (MatchTimerUI.Instance != null)
+        {
+            MatchTimerUI.Instance.StartMatchTimer();
+        }
 
         yield return StartCoroutine(AnimateText("Go Shoot !!", 1.5f));
 
