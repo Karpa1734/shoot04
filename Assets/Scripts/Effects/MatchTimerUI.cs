@@ -164,7 +164,8 @@ public class MatchTimerUI : MonoBehaviour
 
         if (isBattleTimeActive)
         {
-            int displaySec = Mathf.CeilToInt(currentMatchTime);
+            // 🌟 ここも Mathf.CeilToInt から Mathf.FloorToInt へ合わせる
+            int displaySec = Mathf.FloorToInt(currentMatchTime);
             if (displaySec <= 10 && displaySec != lastIntSecond && currentMatchTime > 0)
             {
                 StartCoroutine(PopRoutine(rectTransform, originalScale));
@@ -193,7 +194,9 @@ public class MatchTimerUI : MonoBehaviour
             return;
         }
 
-        int displaySec = Mathf.CeilToInt(time);
+        // 🌟【修正】：CeilToInt（切り上げ）だと0秒の手前で長い時間「1」になってしまうため、
+        // RoundToInt（四捨五入）または FloorToInt（切り捨て）に変更して0秒のタイミングを正確にします。
+        int displaySec = Mathf.FloorToInt(time); // または Mathf.RoundToInt(time)
         timerText.text = displaySec.ToString();
 
         if (time < 5f) timerText.color = dangerColor;

@@ -307,28 +307,35 @@ public class DanmakuAgent : Agent
         int attackAction = discrete[2];
 
         // 🧠【強化学習専用ハッキング＆温存レール】
+        // 🧠【強化学習専用ハッキング＆温存レール】
         if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
-            float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
+            float currentUltGauge = (playerMove != null ? playerMove.ultimateEnergy : 0f);
             bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
 
-            if (!isMyVjtActive && currentUltGauge >= 200f && !statusManager.isOverheated)
+            // 🌟【最重要修正】：すでに自分自身が領域展開中（isMyVjtActive）の場合は、
+            // 強制書き換え（暴発ハッキング）を一切行わず、AIの自主的な判断（または直前の評価）を100%そのまま通します！
+            if (!isMyVjtActive)
             {
-                if (attackAction >= 1 && attackAction <= 5) attackAction = 6;
-            }
-            else if (attackAction == 5)
-            {
-                if (isMyVjtActive)
+                if (currentUltGauge >= 200f && !statusManager.isOverheated)
                 {
-                    if (!IsVjtCancelAllowed()) attackAction = 0;
+                    if (attackAction >= 1 && attackAction <= 5) attackAction = 6;
                 }
-                else
+                else if (attackAction == 5)
                 {
                     if (currentUltGauge >= 100f && currentUltGauge < 200f)
                     {
                         AddReward(-0.02f);
                         attackAction = 0;
                     }
+                }
+            }
+            else
+            {
+                // 領域中の場合は、AIが自ら IsVjtCancelAllowed() を満たして action 5 を選んだ時以外は、勝手に書き換えない
+                if (attackAction == 5 && !IsVjtCancelAllowed())
+                {
+                    attackAction = 0; // 条件を満たしていなければEX発動をキャンセル
                 }
             }
         }
@@ -470,13 +477,27 @@ public class DanmakuAgent : Agent
     {
         if (statusManager == null || !statusManager.isSpellCardActive) return true;
 
+        // 🌟【最重要修正】：領域発動からの経過時間が「8秒（8.0秒）」未満のときは、絶対にEXスキル（必殺）を許可しない！
+        if (statusManager.timeSinceVJTActivated < 8.0f)
+        {
+            return false;
+        }
+
         float vjtHpRatio = (statusManager.spellMaxHP > 0f) ? (statusManager.spellHP / statusManager.spellMaxHP) : 0f;
         float vjtRemainingTime = statusManager.spellTimer;
 
-        if (vjtHpRatio <= 0.25f || vjtRemainingTime <= 1.5f) return true;
+        // 1. 体力が破壊される前（残り10%未満）
+        // 2. 残りタイマーが 5～10秒以下（7.5秒以下）
+        bool isHpLow = vjtHpRatio < 0.1f;
+        bool isTimeRunningOut = vjtRemainingTime <= 7.5f;
+
+        if ((isHpLow && isTimeRunningOut) || vjtRemainingTime <= 2.0f)
+        {
+            return true;
+        }
+
         return false;
     }
-
     private Vector2 CalculatePotentialEvadeDirection()
     {
         Vector2 totalRepulsion = Vector2.zero;
@@ -699,6 +720,8 @@ public class DanmakuAgent : Agent
 
         return totalRepulsion;
     }
+
+
     // 🔋 マナが枯渇してスキルを我慢している状態かを示すヒステリシス用フラグ
     private bool _isWaitingForRecharge = false;
     private int EvaluateAndSelectTacticalSkill()
@@ -804,11 +827,21 @@ public class DanmakuAgent : Agent
         bool canUseX = isXReady && (currentMP >= costX);
         bool canUseC = isCReady && (currentMP >= costC);
         bool canUseV = isVReady && (currentMP >= costV);
-        bool canUseEX = isUltReady && (isMyVjtActive || currentUltGauge >= 100f);
+        // 🌟【最重要修正】：領域中の場合は、厳格な IsVjtCancelAllowed()（8秒経過＆HP10%未満等）が
+        // 100% true を返した時のみ canUseEX を真にする。それ以外は領域中でのEX使用を一切不許可にする！
+        bool canUseEX = false;
+        if (isMyVjtActive)
+        {
+            canUseEX = isUltReady && IsVjtCancelAllowed();
+        }
+        else
+        {
+            canUseEX = isUltReady && (currentUltGauge >= 100f);
+        }
 
         if (canUseEX && !_disableEXAndVJTForDemo)
         {
-            if (isMyVjtActive && IsVjtCancelAllowed())
+            if (isMyVjtActive)
             {
                 selectedSkill = 5;
             }

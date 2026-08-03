@@ -163,6 +163,15 @@ public class PlayerStatusManager : MonoBehaviour
     // 🕒【新規追加】：AIによる領域返し不発SEの「マシンガン大連射」を防止するためのインターバルタイマー
     private float _failedSpellSoundTimer = 0f;
     // 🎯【デバッグ安全弁】：アセットの永続上書きバグを根絶するためのディープキャッシュ構造体
+
+    [Header("⏳ ロード画面・プログレスバー設定")]
+    [Tooltip("ロード中に表示する専用のCanvasやPanel（非同期ロード中のみActiveにする）")]
+    public GameObject loadingScreenCanvas;
+    [Tooltip("進捗状況を表示するUI Slider（値の範囲は 0.0 ～ 1.0）")]
+    public UnityEngine.UI.Slider progressBarSlider;
+    [Tooltip("進捗率をパーセンテージ（例: 50%）で表示するテキストUI（任意）")]
+    public TextMeshProUGUI progressText;
+
     private struct CharacterRankBackup
     {
         public StatusRank hp;
@@ -629,37 +638,52 @@ public class PlayerStatusManager : MonoBehaviour
             }
         }
 
-
-        // 【VJT実行中のリアルタイム毎フレーム制御】
         // 【VJT実行中のリアルタイム毎フレーム制御】
         if (isSpellCardActive)
         {
             if (MatchTimerUI.Instance != null) MatchTimerUI.Instance.StopTimer();
             timeSinceVJTActivated += Time.deltaTime;
-            // =========================================================================
-            // 🌟【新規追加】：決着（KO）時はアルカナゲージおよび維持タイマーをその場で完全停止！
-            // =========================================================================
+
             PlayerHitHandler hitHandler = GetComponentInChildren<PlayerHitHandler>();
             PlayerMove oppMove = _playerMove != null ? _playerMove.Opponent : null;
             PlayerHitHandler oppHitHandler = oppMove != null ? oppMove.GetComponentInChildren<PlayerHitHandler>() : null;
 
-            // 自分、または対戦相手のどちらかが「通常状態（Normal）」でなくなった＝決着演出が始まったら、
-            // このフレームのタイマーおよびゲージの減少計算を完全スキップ（フリーズ）させます。
-            //bool isRoundEnded = (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal) ||
-            // (oppHitHandler != null && oppHitHandler.currentState != PlayerHitHandler.PlayerState.Normal);
-            // ⭕ 修正後：ただの被弾（Hit）や食らいボム時はフリーズさせず、真の撃墜ダウン（Down）時のみタイマーを停止！
             bool isRoundEnded = (hitHandler != null && hitHandler.currentState == PlayerHitHandler.PlayerState.Down) ||
                                 (oppHitHandler != null && oppHitHandler.currentState == PlayerHitHandler.PlayerState.Down);
             if (!isRoundEnded)
             {
-
                 bool isULTActive = (myEmitter != null && myEmitter.IsUltimateSkillActive);
 
-                // 🌟【修正】：もし現在EXスキル（超必殺技）の演出・攻撃が真っ最中である場合は、
-                // 領域の残り時間によるゲージの強制上書き計算を完全にストップさせます！
-                if (!isULTActive)
+                // 領域の残り時間によるタイマーを進める
+                spellTimer -= Time.deltaTime;
+
+                // =========================================================================
+                // 🌟【最重要修正】：領域中のアルカナゲージの制御
+                // 💡 必殺技（EX）がすでに使用された後、または領域展開中にゲージが0になっている間は、
+                //    領域が終了するまでゲージを完全に「0%」で固定し続けます！
+                // =========================================================================
+                bool hasUsedEXDuringSpell = false;
+                PlayerDanmakuEmitter[] activeEmitters = GetComponentsInChildren<PlayerDanmakuEmitter>(true);
+                foreach (var em in activeEmitters)
                 {
-                    spellTimer -= Time.deltaTime;
+                    if (em != null)
+                    {
+                        // Emitter側に保持されているEX使用履歴フラグや、現在のULTエネルギーが0に固定されているかを監査
+                        System.Reflection.FieldInfo exField = typeof(PlayerDanmakuEmitter).GetField("_isEXSkillActive", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (exField != null && (bool)exField.GetValue(em)) { hasUsedEXDuringSpell = true; break; }
+                    }
+                }
+
+                Emitter_Lust lustEm = GetComponentInChildren<Emitter_Lust>();
+                if (lustEm != null && lustEm.IsEXSpearActive) hasUsedEXDuringSpell = true;
+
+                if (hasUsedEXDuringSpell || _playerMove.ultimateEnergy <= 0.1f)
+                {
+                    _playerMove.ultimateEnergy = 0f; // 👈 領域終了まで0%に完全固定！
+                }
+                else if (!isULTActive)
+                {
+                    // 通常の領域維持中のみ、比率に応じたゲージ減少を許可
                     float timeRatio = Mathf.Clamp01(spellTimer / totalSpellDuration);
                     _playerMove.ultimateEnergy = initialUltimateEnergy * timeRatio;
                 }
@@ -675,7 +699,7 @@ public class PlayerStatusManager : MonoBehaviour
                 }
             }
 
-            // ライフバーのアニメーションはフリーズ中も滑らかに追従させるため、ifの外側に配置
+            // ライフバーのアニメーション追従
             if (isAnimatingSpellBar)
             {
                 appearanceElapsed += Time.deltaTime;
@@ -1849,8 +1873,80 @@ public class PlayerStatusManager : MonoBehaviour
         else
         {
             pauseManager.SetGameOverMode(true);
-            //pauseManager.PauseGame();
-            SceneManager.LoadScene("Title");
+            // 🌟 従来の即時シーンロードから、不規則なフェイクプログレスバー付きの非同期ロードへ変更
+            StartCoroutine(LoadSceneAsyncRoutine("Title"));
+        }
+    }
+
+    /// <summary>
+    /// ⏳ CharacterSelectManagerやPauseManagerと完全共通の非同期ロードコルーチン
+    /// </summary>
+    private IEnumerator LoadSceneAsyncRoutine(string sceneName)
+    {
+        if (loadingScreenCanvas != null)
+        {
+            loadingScreenCanvas.SetActive(true);
+        }
+
+        if (BGMManager.Instance != null)
+        {
+            BGMManager.Instance.FadeOut();
+        }
+
+        AsyncOperation asyncOp = SceneManager.LoadSceneAsync(sceneName);
+        asyncOp.allowSceneActivation = false;
+
+        float fakeProgress = 0f;
+        float targetFakeProgress = 0f;
+        float timer = 0f;
+
+        while (!asyncOp.isDone)
+        {
+            float realProgress = Mathf.Clamp01(asyncOp.progress / 0.9f);
+
+            timer -= Time.unscaledDeltaTime;
+            if (timer <= 0f)
+            {
+                timer = UnityEngine.Random.Range(0.05f, 0.22f);
+
+                if (fakeProgress < realProgress)
+                {
+                    float maxNext = Mathf.Min(realProgress, fakeProgress + UnityEngine.Random.Range(0.02f, 0.12f));
+                    targetFakeProgress = UnityEngine.Random.Range(fakeProgress, maxNext);
+                }
+                else if (realProgress >= 1.0f && fakeProgress < 0.95f)
+                {
+                    targetFakeProgress = Mathf.MoveTowards(fakeProgress, 1.0f, UnityEngine.Random.Range(0.03f, 0.08f));
+                }
+            }
+
+            fakeProgress = Mathf.MoveTowards(fakeProgress, targetFakeProgress, Time.unscaledDeltaTime * UnityEngine.Random.Range(0.6f, 1.5f));
+
+            if (fakeProgress > realProgress && realProgress < 1.0f)
+            {
+                fakeProgress = realProgress;
+            }
+
+            if (progressBarSlider != null)
+            {
+                progressBarSlider.value = fakeProgress;
+            }
+
+            if (progressText != null)
+            {
+                progressText.text = $"{Mathf.RoundToInt(fakeProgress * 100f)}%";
+            }
+
+            if (fakeProgress >= 0.99f && realProgress >= 1.0f)
+            {
+                if (progressBarSlider != null) progressBarSlider.value = 1.0f;
+                if (progressText != null) progressText.text = "100%";
+
+                yield return new WaitForSecondsRealtime(0.25f);
+                asyncOp.allowSceneActivation = true;
+            }
+
+            yield return null;
         }
     }
 

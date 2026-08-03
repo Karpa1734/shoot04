@@ -258,18 +258,16 @@ public class Emitter_Greed : PlayerDanmakuEmitter
             PlaySkillSE(s.sePath); //
 
             // 1波分（全方位）の弾を生成
+            // 1波分（全方位）の弾を生成
             for (int i = 0; i < bulletCount; i++)
             {
                 // ベース角 + 全方位分割角 + wによる回転量を加算
                 float finalAngle = baseAngle + (step * i) + (angleIncrement * w); //
 
                 // =========================================================================
-                // 🎯【核心のバグ修正】：オーラ消失を完全に防ぐためのディレイ値の厳密な同期
+                // 🎯【バグ修正】：固定値 1.0f だった delay を本来の設定値である s.delay に修正
                 // =========================================================================
-                // 従来の「s.delay」の代わりに、ファクトリ内部で最も安全にオーラを早期結合できる
-                // 固定値「1.0f」を直接インジェクションします。これにより、フレーム同期のズレによって
-                // 弾の本体だけが加算オーラを置き去りにしてすり飛んでいってしまう事故を100%物理的に防ぎます！
-                CreateShot(s.bulletData, pos, currentSpeed, finalAngle, delay: 1.0f); //
+                CreateShot(s.bulletData, pos, currentSpeed, finalAngle, delay: s.delay); //[cite: 18]
             }
 
             // 次の波の弾速を上げる（段階的加速）

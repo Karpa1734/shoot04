@@ -2,6 +2,8 @@
 using TMPro;
 using UnityEngine.SceneManagement;
 using KanKikuchi.AudioManager;
+using UnityEngine.UI;
+using System.Collections;
 
 public class PauseManager : MonoBehaviour
 {
@@ -38,6 +40,14 @@ public class PauseManager : MonoBehaviour
     private bool _isFirstScrollDone = false;
     private const float FIRST_SCROLL_DELAY = 0.4f;
     private const float REPEAT_SCROLL_SPEED = 0.08f;
+    [Header("⏳ ロード画面・プログレスバー設定")]
+    [Tooltip("ロード中に表示する専用のCanvasやPanel（非同期ロード中のみActiveにする）")]
+    public GameObject loadingScreenCanvas;
+    [Tooltip("進捗状況を表示するUI Slider（値の範囲は 0.0 ～ 1.0）")]
+    public Slider progressBarSlider;
+    [Tooltip("進捗率をパーセンテージ（例: 50%）で表示するテキストUI（任意）")]
+    public TextMeshProUGUI progressText;
+
     void Start()
     {
         if (pauseCanvas != null) pauseCanvas.SetActive(false);
@@ -352,19 +362,106 @@ public class PauseManager : MonoBehaviour
 
         if (ScoreManager.Instance != null) ScoreManager.Instance.SaveHighScore();
 
-        // ★修正：全プレイヤーのコンティニューカウントをリセット
         foreach (var player in PlayerMove.AllPlayers)
         {
             var status = player.GetComponent<PlayerStatusManager>();
             if (status != null) status.ResetContinueCount();
         }
 
-        Time.timeScale = 1f;
+        // ❌ 修正前：ここで Time.timeScale = 1.0f に戻していたため、裏で時間が進んでしまっていました。
+        // ⭕ 修正：時間は 0f（停止状態）のまま維持し、バトルが一切進まないようにします！
 
-        if (currentState == PauseState.ConfirmExit) SceneManager.LoadScene("Title");
-        else if (currentState == PauseState.ConfirmRestart) SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        if (currentState == PauseState.ConfirmExit)
+        {
+            // 🌟 タイトルに戻る際は時間を止めたままロード画面を挟んで非同期ロードを実行
+            StartCoroutine(LoadSceneAsyncRoutine("Title"));
+        }
+        else if (currentState == PauseState.ConfirmRestart)
+        {
+            // 🌟 リトライ時も同様に時間を止めたまま現在のシーンを非同期ロード
+            StartCoroutine(LoadSceneAsyncRoutine(SceneManager.GetActiveScene().name));
+        }
     }
+    private IEnumerator LoadSceneAsyncRoutine(string sceneName)
+    {
+        if (pauseCanvas != null) pauseCanvas.SetActive(false);
+        if (confirmPanel != null) confirmPanel.SetActive(false);
 
+        if (loadingScreenCanvas != null)
+        {
+            loadingScreenCanvas.SetActive(true);
+        }
+
+        if (BGMManager.Instance != null)
+        {
+            BGMManager.Instance.FadeOut();
+        }
+
+        AsyncOperation asyncOp = SceneManager.LoadSceneAsync(sceneName);
+        asyncOp.allowSceneActivation = false;
+
+        float fakeProgress = 0f;
+        float targetFakeProgress = 0f;
+        float timer = 0f;
+
+        while (!asyncOp.isDone)
+        {
+            float realProgress = Mathf.Clamp01(asyncOp.progress / 0.9f);
+
+            timer -= Time.unscaledDeltaTime;
+            if (timer <= 0f)
+            {
+                timer = Random.Range(0.05f, 0.22f);
+
+                if (fakeProgress < realProgress)
+                {
+                    float maxNext = Mathf.Min(realProgress, fakeProgress + Random.Range(0.02f, 0.12f));
+                    targetFakeProgress = Random.Range(fakeProgress, maxNext);
+                }
+                else if (realProgress >= 1.0f && fakeProgress < 0.95f)
+                {
+                    targetFakeProgress = Mathf.MoveTowards(fakeProgress, 1.0f, Random.Range(0.03f, 0.08f));
+                }
+            }
+
+            fakeProgress = Mathf.MoveTowards(fakeProgress, targetFakeProgress, Time.unscaledDeltaTime * Random.Range(0.6f, 1.5f));
+
+            if (fakeProgress > realProgress && realProgress < 1.0f)
+            {
+                fakeProgress = realProgress;
+            }
+
+            if (progressBarSlider != null)
+            {
+                progressBarSlider.value = fakeProgress;
+            }
+
+            if (progressText != null)
+            {
+                progressText.text = $"{Mathf.RoundToInt(fakeProgress * 100f)}%";
+            }
+
+            if (fakeProgress >= 0.99f && realProgress >= 1.0f)
+            {
+                if (progressBarSlider != null) progressBarSlider.value = 1.0f;
+                if (progressText != null) progressText.text = "100%";
+
+                yield return new WaitForSecondsRealtime(0.25f);
+
+                // =========================================================================
+                // 🌟【最重要修正】：新しいシーンへ移行する直前に、必ず時間停止（Time.timeScale）を解除する！
+                // =========================================================================
+                Time.timeScale = 1.0f;
+                PlayerMove.CanInput = true;
+                PlayerMove.CanShoot = true;
+                PlayerStatusManager.isAnyVJTActive = false;
+
+                asyncOp.allowSceneActivation = true;
+            }
+
+            yield return null;
+        }
+    }
     void UpdateConfirmVisuals()
     {
         confirmYesText.color = (confirmIndex == 0) ? selectedColor : unselectedColor;

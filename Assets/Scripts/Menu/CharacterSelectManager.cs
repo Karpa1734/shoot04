@@ -1,10 +1,11 @@
 ﻿// --- CharacterSelectManager.cs 指定キャラ数表示拡張・エラー完全解消版 ---
 using KanKikuchi.AudioManager;
+using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class CharacterSelectManager : MonoBehaviour
 {
@@ -66,7 +67,13 @@ public class CharacterSelectManager : MonoBehaviour
     // =========================================================================
     private bool _p1DebugAutoAiToggle = false; // 1P自機のCPU自動操縦
     private bool _endlessModeToggle = false;     // エンドレスモードフラグ
-
+    [Header("⏳ ロード画面・プログレスバー設定")]
+    [Tooltip("ロード中に表示する専用のCanvasやPanel（非同期ロード中のみActiveにする）")]
+    public GameObject loadingScreenCanvas;
+    [Tooltip("進捗状況を表示するUI Slider（値の範囲は 0.0 ～ 1.0）")]
+    public Slider progressBarSlider;
+    [Tooltip("進捗率をパーセンテージ（例: 50%）で表示するテキストUI（任意）")]
+    public TextMeshProUGUI progressText;
     void OnEnable()
     {
         PlayerStatusManager.FromCharacterSelect = true;
@@ -74,13 +81,21 @@ public class CharacterSelectManager : MonoBehaviour
         _endlessModeToggle = false;
 
         bool isCleared = false;
+
+        // 🌟【安全弁強化】：SaveManagerが存在するか、あるいはエラーが発生しても絶対に処理を止めない構造に修正
         try
         {
-            isCleared = SaveManager.Load<bool>("GameCleared");
+            // SaveManagerクラスやメソッドが存在するか安全にチェックしてロード
+            var saveManagerType = System.Type.GetType("SaveManager");
+            if (saveManagerType != null)
+            {
+                isCleared = SaveManager.Load<bool>("GameCleared");
+            }
         }
         catch (System.Exception e)
         {
             Debug.LogWarning($"[SaveManager] GameClearedの読み込みに失敗、または未定義です。デフォルト(false)を適用します: {e.Message}");
+            isCleared = false;
         }
 
         int actualDataCount = availableCharacters.Count;
@@ -95,6 +110,12 @@ public class CharacterSelectManager : MonoBehaviour
             _selectableCharacterCount = targetLimit;
         }
 
+        // 💡 万が一 availableCharacters に何も登録されていない場合のフォールバック
+        if (_selectableCharacterCount <= 0)
+        {
+            _selectableCharacterCount = actualDataCount;
+        }
+
         _isP2SelectingPhase = false;
         _isGameStartReadyPhase = false;
         _currentCursor = 0;
@@ -107,6 +128,8 @@ public class CharacterSelectManager : MonoBehaviour
 
         _inputCooldownTimer = 0.2f;
         _lastConnectedControllersCount = GetConnectedJoystickCount();
+
+        // 確実に初期化メソッドをコール
         InitializeCharacterSelectUI();
         UpdateSelectionVisuals();
     }
@@ -663,6 +686,98 @@ public class CharacterSelectManager : MonoBehaviour
     private void LoadGameplayScene()
     {
         BGMManager.Instance.FadeOut();
-        SceneManager.LoadScene("Shoot");
+
+        // 🌟 シームレスな非同期ロードとプログレスバー更新処理へ移行
+        StartCoroutine(LoadSceneAsyncRoutine("Shoot"));
+    }
+
+    /// <summary>
+    /// ⏳ 実ロードの早さを超越せず、不規則かつ自然な緩急をつけて0%から100%へ進むプログレスバーコルーチン
+    /// </summary>
+    private IEnumerator LoadSceneAsyncRoutine(string sceneName)
+    {
+        // 1. ロード画面用Canvasを表示
+        if (loadingScreenCanvas != null)
+        {
+            loadingScreenCanvas.SetActive(true);
+        }
+
+        // 2. 非同期ロードの開始
+        AsyncOperation asyncOp = SceneManager.LoadSceneAsync(sceneName);
+        asyncOp.allowSceneActivation = false;
+
+        float fakeProgress = 0f; // 画面に表示する見せかけの進捗（0.0 ～ 1.0）
+        float targetFakeProgress = 0f;
+        float timer = 0f;
+
+        while (!asyncOp.isDone)
+        {
+            // 実際のロード進捗（asyncOp.progressは最大0.9でストップするため 0.0 ～ 1.0 に正規化）
+            float realProgress = Mathf.Clamp01(asyncOp.progress / 0.9f);
+
+            // 💡【自然なパーセンテージ増加・不規則な速度変化】：
+            // 一定時間（またはランダムなタイミング）ごとに「目指すべき目標地点（targetFakeProgress）」を
+            // 実際のロード進捗（realProgress）を超えない範囲でランダムに少しずつ進めます。
+            timer -= Time.unscaledDeltaTime;
+            if (timer <= 0f)
+            {
+                // 不規則なウェイト時間を設定（例: 0.05秒～0.2秒おきに変動）
+                timer = UnityEngine.Random.Range(0.05f, 0.22f);
+
+                // まだ実際のロードが進み切っていない場合は、リアル進捗を追い越さないようにランダム幅で加算
+                if (fakeProgress < realProgress)
+                {
+                    float maxNext = Mathf.Min(realProgress, fakeProgress + UnityEngine.Random.Range(0.02f, 0.12f));
+                    targetFakeProgress = UnityEngine.Random.Range(fakeProgress, maxNext);
+                }
+                else if (realProgress >= 1.0f && fakeProgress < 0.95f)
+                {
+                    // 実際のロードが完全に終わっている（100%）のにフェイクが追いついていない場合は、最後に100%へ自然に誘導
+                    targetFakeProgress = Mathf.MoveTowards(fakeProgress, 1.0f, UnityEngine.Random.Range(0.03f, 0.08f));
+                }
+            }
+
+            // 📊 緩急（スムーズにイージングしながら目標のフェイク値へ追従）
+            fakeProgress = Mathf.MoveTowards(fakeProgress, targetFakeProgress, Time.unscaledDeltaTime * UnityEngine.Random.Range(0.6f, 1.5f));
+
+            // 万が一の安全弁：実際のロード進捗をフェイクが追い抜いてしまうのを絶対に防止
+            if (fakeProgress > realProgress && realProgress < 1.0f)
+            {
+                fakeProgress = realProgress;
+            }
+
+            // UI Sliderへの反映
+            if (progressBarSlider != null)
+            {
+                progressBarSlider.value = fakeProgress;
+            }
+
+            // テキストへの反映（例: "0%" から "100%" へ滑らかに変化）
+            if (progressText != null)
+            {
+                progressText.text = $"{Mathf.RoundToInt(fakeProgress * 100f)}%";
+            }
+
+            // 3. フェイクのバーも無事に 100%（1.0）に到達し、かつ実際のロードも完了していればシーン遷移を許可
+            if (fakeProgress >= 0.99f && realProgress >= 1.0f)
+            {
+                if (progressBarSlider != null) progressBarSlider.value = 1.0f;
+                if (progressText != null) progressText.text = "100%";
+
+                yield return new WaitForSecondsRealtime(0.25f);
+
+                // =========================================================================
+                // 🌟【最重要修正】：シーンが切り替わる直前に、必ず時間の停止（Time.timeScale）や入力を完全に解除する！
+                // =========================================================================
+                Time.timeScale = 1.0f;
+                PlayerMove.CanInput = true;
+                PlayerMove.CanShoot = true;
+                PlayerStatusManager.isAnyVJTActive = false; // VJTの世界ロック等もクリーンアップ
+
+                asyncOp.allowSceneActivation = true;
+            }
+
+            yield return null;
+        }
     }
 }
