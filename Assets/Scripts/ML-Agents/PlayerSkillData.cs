@@ -1,4 +1,4 @@
-﻿// --- PlayerSkillData.cs 6大ステータス完全同期版 ---
+﻿// --- PlayerSkillData.cs 【スキルごとの同時使用許可フラグ搭載版】 ---
 using UnityEngine;
 
 // 💡 6段階のステータスランクを完全定義
@@ -71,7 +71,7 @@ public class PlayerSkillData : ScriptableObject
     public StatusRank rankMP = StatusRank.C;
 
     [Tooltip("攻撃(弾幕の基礎攻撃力倍率)の高さ評価")]
-    public StatusRank rankAttack = StatusRank.C; // ⚔️【修復】：不足していた6つ目のステータスを完全溶接！
+    public StatusRank rankAttack = StatusRank.C;
 
     [Tooltip("敏捷(高速移動速度の速さ倍率)評価")]
     public StatusRank rankAgility = StatusRank.C;
@@ -91,44 +91,46 @@ public class PlayerSkillData : ScriptableObject
     [Header("🌟 Character Specific VJT Settings")]
     [Tooltip("このキャラクター独自の聖少女領域（VJT）の技名を記入してください")]
     public string spellCardName = "〇符「〇〇〇〇」";
+    [Header("🌟 特性名・領域名の直接指定テキスト")]
+    [Tooltip("画像のような形式で表示するパッシブスキル名（例: 燃え上がる怒り）")]
+    public string customPassiveName = "燃え上がる怒り";
+    [Tooltip("パッシブスキルの詳細説明文")]
+    [TextArea(2, 4)] public string customPassiveDescription = "被弾時に攻撃力が上昇する";
+
+    [Tooltip("聖少女領域（VJT）の固有名称（例: フラメルの賢者石）")]
+    public string customSpellCardDisplayName = "フラメルの賢者石";
+    [Tooltip("聖少女領域の詳細説明文")]
+    [TextArea(2, 4)] public string customSpellCardDescription = "領域展開中の特殊効果説明";
+
     [Tooltip("このキャラクターがVJT発動時に足元に展開する魔法陣の画像を登録してください")]
     public Sprite spellCircleSprite;
 
-    // =========================================================================
-    // 🌟【エラー根治】：PlayerStatusManagerがアクセスする固有の術式冷却持続時間
-    // =========================================================================
+    [Header("🌟 Character Animation Settings")]
+    [Tooltip("このキャラクター専用の Animator Controller をここに登録してください")]
+    public RuntimeAnimatorController characterAnimatorController;
+
     [Header("--- VJT Overheat Settings ---")]
     [Tooltip("このキャラクターがVJTを解除・破砕された後の【術式焼き切れ（冷却期間）】の持続時間（秒）")]
-    public float characterOverheatDuration = 20f; // 🚨 デフォルト値を20秒に完全固定
+    public float characterOverheatDuration = 20f;
 
     [Header("--- Character Specific Spell BG Settings ---")]
-    [Tooltip("手法1：背景の土台としてそのままループスクロールさせるスプライトを登録（未設定なら共通の既定画像を使用）")]
     public Sprite characterSpellBGBase;
-    [Tooltip("手法2：土台の上で『加算合成しながらぐるぐる回転スクロール』させる幾何学模様などのスプライトを登録")]
     public Sprite characterSpellBGAdditive;
 
     [Header("--- VJT BG Animation Toggles ---")]
-    [Tooltip("【下敷き背景】をスクロールさせますか？（チェックを外すと完全停止します。デフォルト：OFF）")]
     public bool isBaseScrollActive = false;
-    [Tooltip("【加算上画像】を回転させますか？（デフォルト：ON）")]
     public bool isAdditiveRotateActive = true;
-    [Tooltip("【加算上画像】をスクロールさせますか？（デフォルト：ON）")]
     public bool isAdditiveScrollActive = true;
 
     [Header("--- VJT BG Speed Settings ---")]
-    [Tooltip("【下敷き背景】のスクロール速度（X, Y）を設定します")]
     public Vector2 baseScrollSpeed = new Vector2(0f, -0.4f);
-    [Tooltip("【加算上画像】の回転速度（1秒間に回転する度数。マイナスで逆回転）")]
     public float additiveRotateSpeed = 25f;
-    [Tooltip("【加算上画像】のスクロール速度（X, Y）を設定します")]
     public Vector2 additiveScrollSpeed = new Vector2(0.2f, 0.2f);
 
     [Header("🧬 Passive Skills List")]
-    [Tooltip("このキャラクターが常時、または特定条件で発動するパッシブスキルのリスト（複数所持可能）")]
     public System.Collections.Generic.List<PassiveSkillSlot> passiveSkills;
 
     [Header("--- VJT Spell Field Effects ---")]
-    [Tooltip("このキャラクターがVJTを展開した際に相手に与える領域効果の種類")]
     public VJTEffectType vjtEffectType = VJTEffectType.None;
 
     [System.Serializable]
@@ -136,14 +138,21 @@ public class PlayerSkillData : ScriptableObject
     {
         public string skillName;
         public Sprite skillIcon;
+        [TextArea(3, 5)]
+        public string skillDescription;
         public SkillPatternType patternType;
         public BulletData bulletData;
         [Tooltip("跡引き（トレイル）に別種の弾を使いたい場合はここに別のアセットを登録してください（未設定ならメイン弾と同じになります）")]
         public BulletData trailBulletData;
         public float cooldown;
-        // 🔮【新設・汎用チャージ属性】：今後増えるチャージスキルは、これにチェックを入れるだけで自動適応されます！
+
         [Tooltip("ボタン長押しによる引き絞り/溜めチャージ系スキルの場合はチェックを入れてください")]
         public bool isChargeSkill;
+
+        // 🌟【新規追加】：このスキルを使用中も、他のスキルの同時使用（並列実行）を許可するかどうか
+        [Tooltip("チェックを入れると、このスキルの持続中であっても他のスキルを同時に使用できるようになります")]
+        public bool isConcurrentAllowed;
+
         public string sePath;
 
         [Header("Pattern Parameters")]

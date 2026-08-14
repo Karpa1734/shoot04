@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.AppUI.UI;
 using UnityEngine;
 
 public class Emitter_Lust : PlayerDanmakuEmitter
@@ -36,7 +37,27 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             _lustSafetyTimer = 0f;
         }
     }
+    private void PlaySkillAnimation(string skillName)
+    {
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
 
+        if (pAnim != null)
+        {
+            pAnim.TriggerSkillAnimation(skillName);
+        }
+    }
+
+    private void PlayEXAnimation()
+    {
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+
+        if (pAnim != null)
+        {
+            pAnim.TriggerEXSkillAnimation();
+        }
+    }
     public bool IsShieldActive => (_currentActiveShield != null && _currentActiveShield.gameObject != null && _currentActiveShield.gameObject.activeSelf);
 
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
@@ -48,24 +69,40 @@ public class Emitter_Lust : PlayerDanmakuEmitter
     protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s)
     {
         if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
+
+        // 🎬【モーション連携】：Xスキル発動
+        PlaySkillAnimation(s.skillName);
+
         yield return StartCoroutine(ExecuteEnemyEnclosureShrinkingRingRoutine(s));
     }
 
     protected override IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s)
     {
         if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
+
+        // 🎬【モーション連携】：Cスキル発動
+        PlaySkillAnimation(s.skillName);
+
         yield return StartCoroutine(ExecuteBouncingTrailShotRoutine(s));
     }
 
     protected override IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s)
     {
         if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 EX硬直中またはEX魔槍生存中は使用不可
+
+        // 🎬【モーション連携】：Vスキル発動
+        PlaySkillAnimation(s.skillName);
+
         yield return StartCoroutine(ExecuteTrackSpear(s));
     }
 
     protected override IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s)
     {
         if (_isEXSkillActive || _isEXSpearActive) yield break; // 🌟 すでにEX魔槍が生存しているなら重複発動不可
+
+        // 🎬【モーション連携】：EXスキル発動
+        PlayEXAnimation();
+
         yield return StartCoroutine(ExecuteSkillEXLust(s));
     }
 
@@ -73,6 +110,17 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
     private IEnumerator ExecuteEnemyEnclosureShrinkingRingRoutine(PlayerSkillData.SkillSettings s)
     {
+        _activeSkillCoroutines++;
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        // 🌟 1. 【即座に反映】：移動速度の低下とスキルアニメーションの再生を最初にキック
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        PlaySkillAnimation(s.skillName);
+
+        // 🌟 2. 【ここで遅延】：アニメーションのタメに合わせ、実際の檻展開処理全体を 0.5秒遅らせる
+        yield return new WaitForSeconds(0.5f);
+
         if (_activeCageBulletsWithGenId != null && _activeCageBulletsWithGenId.Count > 0)
         {
             for (int b = _activeCageBulletsWithGenId.Count - 1; b >= 0; b--)
@@ -91,12 +139,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             }
             _activeCageBulletsWithGenId.Clear();
         }
-
-        _activeSkillCoroutines++;
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
-
-        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
         List<List<Tuple<Transform, float, DanmakuBullet, int>>> layersBulletMatrix = new List<List<Tuple<Transform, float, DanmakuBullet, int>>>();
         bool isGenerationFinished = false;
@@ -232,13 +274,21 @@ public class Emitter_Lust : PlayerDanmakuEmitter
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
+        // 🌟 1. 【即座に反映】：移動速度の低下（モーション開始と同時）
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
-        List<BouncingBulletTrack> trackingBullets = new List<BouncingBulletTrack>();
         bool isCostReleased = false;
 
         try
         {
+            // 🌟 2. 【即座に反映】：アニメーションの再生もすぐにキックする
+            PlaySkillAnimation(s.skillName);
+
+            // 🌟 3. 【ここで遅延】：アニメーションの発生に合わせて弾が出現するタイミングだけを 0.7秒遅らせる
+            yield return new WaitForSeconds(0.7f);
+
+            List<BouncingBulletTrack> trackingBullets = new List<BouncingBulletTrack>();
+
             float mainBulletSpeed = (s.speed > 0f) ? s.speed : 5.0f;
             Vector3 spawnOrigin = transform.position;
             PlaySkillSE(s.sePath);
@@ -392,6 +442,26 @@ public class Emitter_Lust : PlayerDanmakuEmitter
         float chargeMoveSpeed = (s.moveSpeedMultiplier > 0f) ? s.moveSpeedMultiplier : 0.4f;
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = chargeMoveSpeed;
 
+        // 🎬【モーション連携】：Zスキル（チャージ開始）のアニメーションを即座に再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+
+        if (pAnim != null)
+        {
+            Animator anim = pAnim.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                // 💡 修正：s.skillName を介さず、チャージ開始用の "SkillZ" トリガーをダイレクトにセット！
+                anim.ResetTrigger("SkillZ2"); // 万が一残っている発射トリガーをリセット
+                anim.SetTrigger("SkillZ");   // 🌟 構え・引き絞りモーションを開始
+            }
+            else
+            {
+                // フォールバック
+                pAnim.TriggerSkillAnimation("SkillZ");
+            }
+        }
+
         UnityEngine.InputSystem.InputAction zAction = null;
         if (InputManager.Instance != null && myStatus != null)
         {
@@ -480,6 +550,16 @@ public class Emitter_Lust : PlayerDanmakuEmitter
                 }
             }
 
+            // 🎬【モーション連携】：ボタンを離して発射する瞬間に Z2（発射用）のアニメーションへ切り替え
+            if (pAnim != null)
+            {
+                Animator anim = pAnim.GetComponentInChildren<Animator>();
+                if (anim != null)
+                {
+                    anim.SetTrigger("SkillZ2"); // 🌟 "SkillZ2" トリガーを引いて発射モーションへ移行
+                }
+            }
+
             // 🎯【要件②】：槍（弾）の消滅・発動は引き絞ったときではなく、ボタンを離して発射したこの瞬間に実行！
             float startAngle = fixedBaseAngle - (currentSpread / 2f);
             float stepAngle = (wayCount > 1) ? (currentSpread / (wayCount - 1)) : 0f;
@@ -556,6 +636,18 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        // 🎬【モーション連携】：ボタンを離して発射する瞬間に Z2（発射用）のアニメーションへ切り替え
+        if (pAnim != null)
+        {
+            Animator anim = pAnim.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                anim.SetTrigger("SkillV"); 
+            }
+        }
+
+        yield return new WaitForSeconds(1.0f);
         try
         {
             PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -634,6 +726,19 @@ public class Emitter_Lust : PlayerDanmakuEmitter
 
         if (myMove != null) myMove.skillSpeedMultiplier = 0.15f;
 
+        // 🎬【モーション連携】：EXスキルのチャージ開始時に SkillEX アニメーションを即座に再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            Animator anim = pAnim.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                anim.ResetTrigger("SkillEX2"); // 残った発射トリガーを安全にクリア
+                anim.SetTrigger("SkillEX");    // 🌟 チャージ開始モーションのトリガー
+            }
+        }
+
         Transform enemyTarget = null;
         foreach (var p in PlayerMove.AllPlayers)
         {
@@ -656,6 +761,9 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (s.bulletData.material != null) spearSR.material = s.bulletData.material;
             spearSR.sortingOrder = 16000;
         }
+
+        // 👻【修正の核心】：発射の瞬間まで槍を完全不可視化（描画をOFFにする）
+        spearObj.SetActive(false);
 
         float currentAimAngle = (ownerId == 2) ? 180f : 0f;
         spearObj.transform.rotation = Quaternion.Euler(90f, 0f, currentAimAngle - 90f);
@@ -731,6 +839,20 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (lineObj != null) Destroy(lineObj);
             if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SHOT2, 0.5f);
 
+            // 🎬【モーション連携】：タメが完了して実際に槍を発射する瞬間に SkillEX2（発動用）へ切り替え
+            if (pAnim != null)
+            {
+                Animator anim = pAnim.GetComponentInChildren<Animator>();
+                if (anim != null)
+                {
+                    anim.SetTrigger("SkillEX2"); // 🌟 発射モーションのトリガー
+                }
+            }
+
+            // ✨【修正の核心】：SkillEX2 が再生されるこのタイミングで槍を可視化（アクティブ化）！
+            spearObj.SetActive(true);
+
+            yield return new WaitForSeconds(0.2f);
             // 🌟【最重要】：槍が発射されて戦場に飛び出したこの瞬間に生存フラグをONにする
             _isEXSpearActive = true;
 
@@ -761,7 +883,6 @@ public class Emitter_Lust : PlayerDanmakuEmitter
             if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         }
     }
-
     private IEnumerator MonitorEXSpearLife(GameObject spear)
     {
         while (spear != null)

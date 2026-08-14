@@ -97,11 +97,6 @@ public class DanmakuAgent : Agent
         }
         else
         {
-            // =========================================================================
-            // 🎯【ピンポイントバグ修正】：1P自機のEキーデバッグ自動操縦のバトルシーン完全同期
-            // 💡 理由：キャラ選択画面で蓄積した「IsP1AutoAiDebugMode」が真なら、
-            //          手動入力を強制遮断して、自機自身の知性をAI自動回避モードへ最優先で上書きします！
-            // =========================================================================
             if (GameDifficultyManager.IsP1AutoAiDebugMode)
             {
                 _useAutoEvadeAI = true;
@@ -122,9 +117,6 @@ public class DanmakuAgent : Agent
 
     void FixedUpdate()
     {
-        // =========================================================================
-        // 📊【難易度マトリクス・危険デテクション領域（探索半径）の動的変調】
-        // =========================================================================
         switch (GameDifficultyManager.CurrentDifficulty)
         {
             case GameDifficulty.Easy: _detectionRadius = 1.5f; break;
@@ -133,19 +125,16 @@ public class DanmakuAgent : Agent
             case GameDifficulty.Lunatic: _detectionRadius = 5.0f; break;
         }
 
-        // 手加減用タイマーの進行
         if (_aiSkillIntervalTimer > 0f)
         {
             _aiSkillIntervalTimer -= Time.fixedDeltaTime;
         }
 
-        // 間引きタイマーの減算
         if (skipFrameTimer > 0)
         {
             skipFrameTimer--;
         }
 
-        // 🚨 試合終了時やカウントダウン中、被弾中など、動けない時は入力をクリア
         if (!PlayerMove.CanShoot)
         {
             _timeSinceMatchEnd += Time.fixedDeltaTime;
@@ -307,14 +296,11 @@ public class DanmakuAgent : Agent
         int attackAction = discrete[2];
 
         // 🧠【強化学習専用ハッキング＆温存レール】
-        // 🧠【強化学習専用ハッキング＆温存レール】
         if (Unity.MLAgents.Academy.Instance.IsCommunicatorOn)
         {
             float currentUltGauge = (playerMove != null ? playerMove.ultimateEnergy : 0f);
             bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
 
-            // 🌟【最重要修正】：すでに自分自身が領域展開中（isMyVjtActive）の場合は、
-            // 強制書き換え（暴発ハッキング）を一切行わず、AIの自主的な判断（または直前の評価）を100%そのまま通します！
             if (!isMyVjtActive)
             {
                 if (currentUltGauge >= 200f && !statusManager.isOverheated)
@@ -332,10 +318,9 @@ public class DanmakuAgent : Agent
             }
             else
             {
-                // 領域中の場合は、AIが自ら IsVjtCancelAllowed() を満たして action 5 を選んだ時以外は、勝手に書き換えない
                 if (attackAction == 5 && !IsVjtCancelAllowed())
                 {
-                    attackAction = 0; // 条件を満たしていなければEX発動をキャンセル
+                    attackAction = 0;
                 }
             }
         }
@@ -366,15 +351,11 @@ public class DanmakuAgent : Agent
             slow = autoSlowToggle
         };
 
-        // 🎯【チャージスキル制御の完全調停】：
-        // もし選ばれたスキルがチャージスキル（LustのZ等）である場合、
-        // AI側は自動で一定フレーム（例: 45フレーム）押し続け、達成した瞬間に shotZ を false にして発射させます。
         bool isCurrentZCharge = (statusManager != null && statusManager.characterData != null && statusManager.characterData.skillZ.isChargeSkill);
 
         if (isCurrentZCharge && attackAction == 1)
         {
             _aiChargeFrameTimer++;
-            // 45フレーム（約0.75秒）溜めたら自動でボタンを離す（リリース信号を送る）
             if (_aiChargeFrameTimer <= 45)
             {
                 frameInput.shotZ = true;
@@ -382,12 +363,12 @@ public class DanmakuAgent : Agent
             else
             {
                 frameInput.shotZ = false;
-                _aiChargeFrameTimer = 0; // チャージ完了したらタイマーリセット
+                _aiChargeFrameTimer = 0;
             }
         }
         else
         {
-            if (attackAction != 1) _aiChargeFrameTimer = 0; // Z以外を選んだらタイマーリセット
+            if (attackAction != 1) _aiChargeFrameTimer = 0;
             UpdateAttackFrameAction(attackAction, autoSlowToggle, ref frameInput);
         }
 
@@ -461,7 +442,24 @@ public class DanmakuAgent : Agent
         if (inputSet.skillEX != null && inputSet.skillEX.action != null) pEX = inputSet.skillEX.action.IsPressed();
         else pEX = (isCPressed && isVPressed);
 
-        if (pEX) discrete[2] = 5;
+        if (pEX)
+        {
+            bool isMyVjtActive = (statusManager != null && statusManager.isSpellCardActive);
+
+            // 🌟【最重要ガード】：領域展開中であり、かつ経過時間が8.0秒未満の場合は、EX入力を一切受け付けない！
+            if (isMyVjtActive && statusManager.timeSinceVJTActivated < 8.0f)
+            {
+                discrete[2] = 0; // 入力を無効化
+            }
+            else if (isMyVjtActive && !IsVjtCancelAllowed())
+            {
+                discrete[2] = 0;
+            }
+            else
+            {
+                discrete[2] = 5;
+            }
+        }
         else
         {
             if (inputSet.skillZ != null && inputSet.skillZ.action != null && inputSet.skillZ.action.IsPressed()) discrete[2] = 1;
@@ -472,32 +470,64 @@ public class DanmakuAgent : Agent
 
         if (inputSet.slow != null && inputSet.slow.action != null && inputSet.slow.action.IsPressed()) discrete[3] = 1;
     }
-
-    private bool IsVjtCancelAllowed()
+    /// <summary>
+    /// 🤖【AI専用】：領域展開中のEX（ULT）使用を厳しく制限するルール関数
+    /// </summary>
+    private bool IsAIEXAllowed()
     {
         if (statusManager == null || !statusManager.isSpellCardActive) return true;
 
-        // 🌟【最重要修正】：領域発動からの経過時間が「8秒（8.0秒）」未満のときは、絶対にEXスキル（必殺）を許可しない！
+        // 🌟【AIのみの制限】：領域発動からの経過時間が「8秒（8.0秒）」未満のときは、AIは絶対にEXを使用させない！
         if (statusManager.timeSinceVJTActivated < 8.0f)
         {
             return false;
         }
 
-        float vjtHpRatio = (statusManager.spellMaxHP > 0f) ? (statusManager.spellHP / statusManager.spellMaxHP) : 0f;
+        float vjtHpRatio = (statusManager.spellMaxHP > 0f) ? (statusManager.spellHP / statusManager.spellMaxHP) : 1f;
         float vjtRemainingTime = statusManager.spellTimer;
 
-        // 1. 体力が破壊される前（残り10%未満）
-        // 2. 残りタイマーが 5～10秒以下（7.5秒以下）
-        bool isHpLow = vjtHpRatio < 0.1f;
-        bool isTimeRunningOut = vjtRemainingTime <= 7.5f;
-
-        if ((isHpLow && isTimeRunningOut) || vjtRemainingTime <= 2.0f)
+        // 🌟【ピンチ時の即時使用・締めでの使用】：体力が10％以下（0.1以下）に落ちた大ピンチ、または残り時間がわずかなときはEXを許可
+        if (vjtHpRatio <= 0.1f || vjtRemainingTime <= 2.0f)
         {
             return true;
         }
 
         return false;
     }
+    private bool IsVjtCancelAllowed()
+    {
+        if (statusManager == null || !statusManager.isSpellCardActive) return true;
+
+        // 🌟 1. 領域発動からの経過時間が「8秒（8.0秒）」未満のときは、絶対にEXスキル（必殺）を許可しない！
+        if (statusManager.timeSinceVJTActivated < 8.0f)
+        {
+            return false;
+        }
+
+        // 💡 2. 領域のバリア体力の割合を計算（0.0 ～ 1.0）
+        float vjtHpRatio = (statusManager.spellMaxHP > 0f) ? (statusManager.spellHP / statusManager.spellMaxHP) : 1f;
+        float vjtRemainingTime = statusManager.spellTimer;
+
+        // 🌟 3. 【最重要要件】：体力が10％を切っている（vjtHpRatio <= 0.1f）場合は、即座にEX（反撃）を許可する！
+        if (vjtHpRatio <= 0.1f)
+        {
+            return true;
+        }
+
+        // 4. 領域の残り時間がわずか（例: 2秒以下）になった場合も締めとしてEXを許可
+        if (vjtRemainingTime <= 2.0f)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool isHpLowAndTimeOut(float hpRatio, float remTime)
+    {
+        return (hpRatio < 0.2f && remTime <= 7.5f);
+    }
+
     private Vector2 CalculatePotentialEvadeDirection()
     {
         Vector2 totalRepulsion = Vector2.zero;
@@ -554,9 +584,6 @@ public class DanmakuAgent : Agent
             }
         }
 
-        // =========================================================================
-        // 🌟【強力強化】：弾の塊（クラスター）に対する迂回＆大反発ロジック
-        // =========================================================================
         foreach (Vector2 clusterPos in clusterPoints)
         {
             Vector2 directionFromCluster = (Vector2)transform.position - clusterPos;
@@ -565,11 +592,9 @@ public class DanmakuAgent : Agent
             if (distance < 0.05f) continue;
             hasDanger = true;
 
-            // 塊の中心から強く遠ざかる力（係数を大幅に引き上げ）
             float force = 12.5f / Mathf.Max(0.4f, distance * distance);
             Vector2 clusterRepulsion = directionFromCluster.normalized * force;
 
-            // 塊を正面から避けるだけでなく、横に回り込んですり抜ける接線ベクトルを追加
             Vector2 clusterDir = directionFromCluster.normalized;
             Vector2 orbitForce = new Vector2(-clusterDir.y, clusterDir.x) * (force * 0.8f);
             clusterRepulsion += orbitForce;
@@ -582,9 +607,6 @@ public class DanmakuAgent : Agent
             totalRepulsion += clusterRepulsion;
         }
 
-        // =========================================================================
-        // 🌟【強力強化】：単発弾の未来予測 ＆ 直撃コースの緊急回避
-        // =========================================================================
         foreach (var col in singleBullets)
         {
             if (col == null) continue;
@@ -595,7 +617,6 @@ public class DanmakuAgent : Agent
             if (col.attachedRigidbody != null)
             {
                 bulletVel = col.attachedRigidbody.linearVelocity;
-                // 弾の軌道（うねり弾など）を先読みするために未来位置を補正
                 bulletPos += bulletVel * 0.25f;
             }
 
@@ -611,7 +632,7 @@ public class DanmakuAgent : Agent
                 Vector2 toMe = ((Vector2)transform.position - (Vector2)col.transform.position).normalized;
                 if (Vector2.Dot(bulletVel.normalized, toMe) > 0.3f)
                 {
-                    force *= 3.0f; // 迫り来る弾に対して緊急回避ウェイトを3倍に
+                    force *= 3.0f;
                 }
             }
 
@@ -636,7 +657,6 @@ public class DanmakuAgent : Agent
             totalRepulsion += finalBulletForce;
         }
 
-        // レーザー判定の処理
         foreach (var col in hitColliders)
         {
             if (col == null || !col.CompareTag("Laser")) continue;
@@ -721,14 +741,12 @@ public class DanmakuAgent : Agent
         return totalRepulsion;
     }
 
-
-    // 🔋 マナが枯渇してスキルを我慢している状態かを示すヒステリシス用フラグ
     private bool _isWaitingForRecharge = false;
     private int EvaluateAndSelectTacticalSkill()
     {
         float currentMP = (playerMove != null) ? playerMove.currentEnergy : 100f;
-        float maxMP = (playerMove != null) ? playerMove.maxEnergy : 100f; // 🌟 最大マナを取得
-        float currentUltGauge = (playerMove != null) ? playerMove.ultimateEnergy : 0f;
+        float maxMP = (playerMove != null) ? playerMove.maxEnergy : 100f;
+        float currentUltGauge = (playerMove != null ? playerMove.ultimateEnergy : 0f);
 
         bool isZReady = (skillManager != null) ? (skillManager.timerZ <= 0f) : true;
         bool isXReady = (skillManager != null) ? (skillManager.timerX <= 0f) : true;
@@ -742,97 +760,27 @@ public class DanmakuAgent : Agent
 
         PlayerSkillData charData = (statusManager != null) ? statusManager.characterData : null;
 
-        // 🔮 領域展開（VJT）の判断ロジック（従来通り）
-        if (!_disableEXAndVJTForDemo)
+        int selectedSkill = 0;
+
+        // =========================================================================
+        // 🔮 1. 領域展開（VJT）のAI発動判定
+        // =========================================================================
+        if (!_disableEXAndVJTForDemo && statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated)
         {
-            if (statusManager != null && !statusManager.isSpellCardActive && !statusManager.isOverheated)
+            if (currentUltGauge >= 200f && distanceToEnemy <= 6.5f)
             {
-                if (PlayerStatusManager.isAnyVJTActive)
-                {
-                    if (playerMove.Opponent != null)
-                    {
-                        PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
-                        if (oppStatus != null && oppStatus.isSpellCardActive && currentUltGauge >= 200f)
-                        {
-                            float myProgress = Mathf.InverseLerp(200f, 300f, currentUltGauge);
-                            float myExpectedDuration = Mathf.Lerp(statusManager.minSpellDuration, statusManager.maxSpellDuration, myProgress);
-                            float oppRemainingTime = oppStatus.spellTimer;
-
-                            if (GameDifficultyManager.CurrentDifficulty != GameDifficulty.Easy)
-                            {
-                                float reactionChance = 1f;
-                                if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal) reactionChance = 0.3f;
-                                else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Hard) reactionChance = 0.7f;
-
-                                if (myExpectedDuration - oppRemainingTime > 10f && UnityEngine.Random.value <= reactionChance)
-                                {
-                                    return 6;
-                                }
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Easy)
-                    {
-                        if (currentUltGauge >= 200f) return 6;
-                    }
-                    else if (GameDifficultyManager.CurrentDifficulty == GameDifficulty.Normal)
-                    {
-                        if (currentUltGauge >= 300f && distanceToEnemy <= 6.5f) return 6;
-                    }
-                    else
-                    {
-                        if (currentUltGauge >= 200f && distanceToEnemy <= 6.5f) return 6;
-                    }
-                }
+                return 6; // 6 = 領域展開アクション
             }
         }
 
-        if (_aiSkillIntervalTimer > 0f) return 0;
         // =========================================================================
-        // 🔋【ヒステリシス・マナ管理】：10%まで減ったら、80%溜まるまで徹底的に我慢する！
+        // 👑 EXスキル（ULT）のAI発動判定
         // =========================================================================
-        float highThreshold = maxMP * 0.8f; // 80%
-        float lowThreshold = maxMP * 0.1f;  // 10%
-
-        // 現在我慢モード中でなく、マナが 10% を下回ったら「我慢モード」に突入
-        if (!_isWaitingForRecharge && currentMP <= lowThreshold)
-        {
-            _isWaitingForRecharge = true;
-        }
-        // 一度我慢モードに入ったら、マナが 80% に回復するまではスキル発動を完全に我慢し続ける
-        else if (_isWaitingForRecharge && currentMP >= highThreshold)
-        {
-            _isWaitingForRecharge = false; // 80%溜まったので我慢モード解除！
-        }
-
-        // 我慢モードが有効な間は、スキルを使わずに温存
-        if (_isWaitingForRecharge)
-        {
-            return 0; // スキルを我慢して通常移動・回避に専念
-        }
-        // =========================================================================
-        // ⚖️【戦略的マルチスキル選択マトリクス】：バランス選定
-        // =========================================================================
-        int selectedSkill = 0;
-
-        float costZ = (charData != null) ? charData.skillZ.cost : 10f;
-        float costX = (charData != null) ? charData.skillX.cost : 20f;
-        float costC = (charData != null) ? charData.skillC.cost : 25f;
-        float costV = (charData != null) ? charData.skillV.cost : 20f;
-
-        bool canUseZ = isZReady && (currentMP >= costZ);
-        bool canUseX = isXReady && (currentMP >= costX);
-        bool canUseC = isCReady && (currentMP >= costC);
-        bool canUseV = isVReady && (currentMP >= costV);
-        // 🌟【最重要修正】：領域中の場合は、厳格な IsVjtCancelAllowed()（8秒経過＆HP10%未満等）が
-        // 100% true を返した時のみ canUseEX を真にする。それ以外は領域中でのEX使用を一切不許可にする！
         bool canUseEX = false;
         if (isMyVjtActive)
         {
-            canUseEX = isUltReady && IsVjtCancelAllowed();
+            // 🤖 AIは領域中のEX使用に IsAIEXAllowed()（8秒経過 ＆ ピンチ等）の制限を強制
+            canUseEX = isUltReady && IsAIEXAllowed();
         }
         else
         {
@@ -843,13 +791,47 @@ public class DanmakuAgent : Agent
         {
             if (isMyVjtActive)
             {
-                selectedSkill = 5;
+                if (IsAIEXAllowed())
+                {
+                    return 5; // EX発動
+                }
             }
             else if (!isMyVjtActive && (currentUltGauge >= 300f || (currentUltGauge >= 200f && distanceToEnemy <= 8.5f) || (currentUltGauge >= 100f && distanceToEnemy < 4.0f)))
             {
-                selectedSkill = 5;
+                return 5; // EX発動
             }
         }
+
+        if (_aiSkillIntervalTimer > 0f) return 0;
+
+        float highThreshold = maxMP * 0.8f;
+        float lowThreshold = maxMP * 0.1f;
+
+        if (!_isWaitingForRecharge && currentMP <= lowThreshold)
+        {
+            _isWaitingForRecharge = true;
+        }
+        else if (_isWaitingForRecharge && currentMP >= highThreshold)
+        {
+            _isWaitingForRecharge = false;
+        }
+
+        if (_isWaitingForRecharge)
+        {
+            return 0;
+        }
+
+        float costZ = (charData != null) ? charData.skillZ.cost : 10f;
+        float costX = (charData != null) ? charData.skillX.cost : 20f;
+        float costC = (charData != null) ? charData.skillC.cost : 25f;
+        float costV = (charData != null) ? charData.skillV.cost : 20f;
+
+        bool canUseZ = isZReady && (currentMP >= costZ);
+        bool canUseX = isXReady && (currentMP >= costX);
+        bool canUseC = isCReady && (currentMP >= costC);
+
+        bool isEmergencyThreat = (nearbyBulletCount >= 4);
+        bool canUseV = isVReady && (currentMP >= costV) && (!isMyVjtActive || isEmergencyThreat);
 
         if (selectedSkill == 0)
         {
@@ -872,8 +854,16 @@ public class DanmakuAgent : Agent
             }
             if (canUseV)
             {
-                if (nearbyBulletCount >= 3) { candidateSkills.Add(4); candidateSkills.Add(4); candidateSkills.Add(4); }
-                else { candidateSkills.Add(4); }
+                if (isEmergencyThreat)
+                {
+                    candidateSkills.Add(4);
+                    candidateSkills.Add(4);
+                    candidateSkills.Add(4);
+                }
+                else if (nearbyBulletCount >= 2)
+                {
+                    candidateSkills.Add(4);
+                }
             }
 
             if (candidateSkills.Count > 0)
@@ -895,10 +885,12 @@ public class DanmakuAgent : Agent
 
         return selectedSkill;
     }
+
     private bool distanceIdBetween(float val, float min, float max)
     {
         return val >= min && val <= max;
     }
+
     private Vector3 GetPerlinWanderVector(float timeValue, float speedMultiplier)
     {
         float seedOffset = (playerID == 1) ? 0f : 500f;

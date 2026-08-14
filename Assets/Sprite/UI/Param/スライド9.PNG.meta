@@ -1,13 +1,10 @@
 fileFormatVersion: 2
-guid: fdcbd3d125b5d8b41a09e0419acaaae3
+guid: 3efc922943cd40e4180b3191d5885d7d
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -6502909469228348891
-    second: Karin02_0
-  - first:
-      213: 4275594987227852013
-    second: Karin02_1
+      213: 4821829290768111170
+    second: "\u30B9\u30E9\u30A4\u30C99_0"
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -103,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Karin02_0
+      name: "\u30B9\u30E9\u30A4\u30C99_0"
       rect:
         serializedVersion: 2
-        x: 300
-        y: 1314
-        width: 11
-        height: 21
+        x: 0
+        y: 0
+        width: 1920
+        height: 1080
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -118,30 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 52ace18aa4601c5a0800000000000000
-      internalID: -6502909469228348891
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Karin02_1
-      rect:
-        serializedVersion: 2
-        x: 317
-        y: 115
-        width: 1171
-        height: 1813
-      alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: dec2821ecf6f55b30800000000000000
-      internalID: 4275594987227852013
+      spriteID: 2469ecb51349ae240800000000000000
+      internalID: 4821829290768111170
       vertices: []
       indices: 
       edges: []
@@ -160,8 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Karin02_0: -6502909469228348891
-      Karin02_1: 4275594987227852013
+      "\u30B9\u30E9\u30A4\u30C99_0": 4821829290768111170
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

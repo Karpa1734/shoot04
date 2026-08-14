@@ -3,8 +3,8 @@ guid: 03b46788c6898d846ae7b636bcd9aa65
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -2248484059499022325
-    second: Gemini_Generated_Image_274n0p274n0p274n_0
+      213: -5109532631040177426
+    second: Karin_BG_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -100,7 +100,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Gemini_Generated_Image_274n0p274n0p274n_0
+      name: Karin_BG_0
       rect:
         serializedVersion: 2
         x: 0
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b08be6e29a7cbc0e0800000000000000
-      internalID: -2248484059499022325
+      spriteID: eea459eb42b4719b0800000000000000
+      internalID: -5109532631040177426
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Gemini_Generated_Image_274n0p274n0p274n_0: -2248484059499022325
+      Karin_BG_0: -5109532631040177426
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

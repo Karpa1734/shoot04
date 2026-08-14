@@ -20,9 +20,14 @@ MonoBehaviour:
   rankSpellZone: 2
   characterName: Karin
   imageColor: {r: 1, g: 0, b: 0, a: 1}
-  characterSprite: {fileID: 21300000, guid: 42bf0e9ed81a35846b400dc145f6425b, type: 3}
-  spellCardName: "\u300C\u25CB\u25CB\u25CB\u25CB\u300D"
+  characterSprite: {fileID: 21300000, guid: 38e476b73bc74fd45b32f0418a98449e, type: 3}
+  spellCardName: "\u300C\u9EC4\u6CC9\u6D25\u9053\u6577\u300D"
+  customPassiveName: "\u71C3\u3048\u4E0A\u304C\u308B\u6012\u308A"
+  customPassiveDescription: "\u88AB\u5F3E\u6642\u306B\u653B\u6483\u529B\u304C\u4E0A\u6607\u3059\u308B"
+  customSpellCardDisplayName: "\u9EC4\u6CC9\u6D25\u9053\u6577"
+  customSpellCardDescription: "\u76F8\u624B\u306EHP\u3092\u5C11\u3057\u305A\u3064\u524A\u308B"
   spellCircleSprite: {fileID: 21300000, guid: a2ff8ddc4f635d94d8238129b1b43534, type: 3}
+  characterAnimatorController: {fileID: 9100000, guid: d4d1af69c8ff30b4dbcc15436c764034, type: 2}
   characterOverheatDuration: 20
   characterSpellBGBase: {fileID: 21300000, guid: 03b46788c6898d846ae7b636bcd9aa65, type: 3}
   characterSpellBGAdditive: {fileID: 21300000, guid: 835c3ccf8eca278408c1112a0b757dd9, type: 3}
@@ -40,11 +45,13 @@ MonoBehaviour:
   skillZ:
     skillName: "\u9000\u9B54\u306E\u8B77\u7B26"
     skillIcon: {fileID: 21300000, guid: 81389833fb952f642beb021b1fa0032e, type: 3}
+    skillDescription: 
     patternType: 14
     bulletData: {fileID: 11400000, guid: 7d8f266f18fdc1d46b2a90a5d56bb2b0, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.7
     isChargeSkill: 0
+    isConcurrentAllowed: 0
     sePath: Slash
     count: 1
     speed: 4.5
@@ -57,11 +64,13 @@ MonoBehaviour:
   skillX:
     skillName: "\u72C2\u6C17\u306E\u7344\u708E"
     skillIcon: {fileID: 21300000, guid: 24cad1715cbe98e47bd620be71fbdabd, type: 3}
+    skillDescription: 
     patternType: 15
     bulletData: {fileID: 11400000, guid: 893a83124dd3cd544b869d72239b9e95, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.8
     isChargeSkill: 0
+    isConcurrentAllowed: 0
     sePath: Slash
     count: 7
     speed: 5
@@ -74,11 +83,13 @@ MonoBehaviour:
   skillC:
     skillName: "\u5927\u5E63\u30D6\u30FC\u30E1\u30E9\u30F3"
     skillIcon: {fileID: 21300000, guid: cb66565d526d507489c2a10b27a5cd6c, type: 3}
+    skillDescription: 
     patternType: 8
     bulletData: {fileID: 11400000, guid: 45fdd80e96a96b84e8d4c748a727f5c0, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 12
     isChargeSkill: 0
+    isConcurrentAllowed: 0
     sePath: 
     count: 0
     speed: 5
@@ -91,28 +102,32 @@ MonoBehaviour:
   skillV:
     skillName: "\u795E\u79D8\u7070\u71FC"
     skillIcon: {fileID: 21300000, guid: 4d4d4fa85c1834a469f0bb65f5ff9450, type: 3}
+    skillDescription: 
     patternType: 9
     bulletData: {fileID: 11400000, guid: 65a549f923218164cb7b228aa015c502, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 10
     isChargeSkill: 0
+    isConcurrentAllowed: 0
     sePath: 
     count: 0
     speed: 0
     angleOffset: 0
     wideAngle: 0
-    moveSpeedMultiplier: 0.0001
+    moveSpeedMultiplier: 0
     delay: 30
     cost: 60
     ultimateGain: 10
   skillEX:
     skillName: "\u5922\u5E7B\u795E\u73E0"
     skillIcon: {fileID: 0}
+    skillDescription: 
     patternType: 12
     bulletData: {fileID: 11400000, guid: d361fc89164f35a4aad6de22b177b018, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 5
     isChargeSkill: 0
+    isConcurrentAllowed: 0
     sePath: 
     count: 5
     speed: 1

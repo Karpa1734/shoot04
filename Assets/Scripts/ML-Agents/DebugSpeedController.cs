@@ -10,6 +10,7 @@ public class DebugSpeedController : MonoBehaviour
 
     void Update()
     {// 🧠【強化学習適合化】：シーン内に学習中のAIがいれば、このスクリプトによるブレーキを完全無効化する
+     #if UNITY_EDITOR
         if (FindAnyObjectByType<DanmakuAgent>() != null) 
         {
             //Time.timeScale = 5;
@@ -33,7 +34,7 @@ public class DebugSpeedController : MonoBehaviour
                 Time.timeScale = 1.0f;
             }
         }
-
+#endif
 
     }
 }

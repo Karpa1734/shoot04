@@ -47,9 +47,11 @@ public class PauseManager : MonoBehaviour
     public Slider progressBarSlider;
     [Tooltip("進捗率をパーセンテージ（例: 50%）で表示するテキストUI（任意）")]
     public TextMeshProUGUI progressText;
-
+    // 💡【追加】：重複ロード防止ガードフラグ
+    private bool _isLoadingScene = false;
     void Start()
     {
+        _isLoadingScene = false;
         if (pauseCanvas != null) pauseCanvas.SetActive(false);
         if (confirmPanel != null) confirmPanel.SetActive(false);
 
@@ -96,25 +98,28 @@ public class PauseManager : MonoBehaviour
             if (isPaused)
             {
                 // 演習リザルト画面、またはゲームオーバー画面の時はポーズ強制解除を無効化（誤操作防止）
-                if (isPracticeResultMode || isGameOverMode) return;
+                if (isPracticeResultMode || isGameOverMode) return; 
 
                 // 確認ダイアログ（本当にタイトルに戻る？等）を開いている時は、1個前のメインポーズメニューに戻る
-                if (currentState != PauseState.Main) CancelConfirmation();
+                if (currentState != PauseState.Main) CancelConfirmation(); 
                 else ResumeGame(); // 通常ポーズ中ならゲーム再開
             }
             else
             {
                 // 🚨 カウントダウン中など（自機の移動・入力が許可されていないタイミング）はポーズを開かない
-                if (!PlayerMove.CanInput) return;
+                if (!PlayerMove.CanInput) return; 
+
+                // 💬【新規追加】：会話（ノベル演出）進行中はポーズを開かない
+                if (NovelSystem.NovelDialogManager.isTalking) return;
 
                 PauseGame(); // ポーズ画面を開く
             }
         }
 
         // 🔔 ポーズ中のメニュー操作ナビゲーション
-        if (isPaused)
+        if (isPaused) 
         {
-            if (currentState == PauseState.Main) HandleMenuNavigation();
+            if (currentState == PauseState.Main) HandleMenuNavigation(); 
             else HandleConfirmNavigation(); // 確認画面用
         }
     }
@@ -358,28 +363,28 @@ public class PauseManager : MonoBehaviour
 
     void ExecuteConfirmedAction()
     {
-        SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f);
+        // 🚨 ロード中であれば入力を即座に弾く
+        if (_isLoadingScene) return;
 
-        if (ScoreManager.Instance != null) ScoreManager.Instance.SaveHighScore();
+        SEManager.Instance.Play(SEPath.MENUDECIDE, 0.5f); 
 
-        foreach (var player in PlayerMove.AllPlayers)
+        if (ScoreManager.Instance != null) ScoreManager.Instance.SaveHighScore(); 
+
+        foreach (var player in PlayerMove.AllPlayers) 
         {
-            var status = player.GetComponent<PlayerStatusManager>();
-            if (status != null) status.ResetContinueCount();
+            var status = player.GetComponent<PlayerStatusManager>(); 
+            if (status != null) status.ResetContinueCount(); 
         }
 
-        // ❌ 修正前：ここで Time.timeScale = 1.0f に戻していたため、裏で時間が進んでしまっていました。
-        // ⭕ 修正：時間は 0f（停止状態）のまま維持し、バトルが一切進まないようにします！
-
-        if (currentState == PauseState.ConfirmExit)
+        if (currentState == PauseState.ConfirmExit) 
         {
-            // 🌟 タイトルに戻る際は時間を止めたままロード画面を挟んで非同期ロードを実行
-            StartCoroutine(LoadSceneAsyncRoutine("Title"));
+            _isLoadingScene = true;
+            StartCoroutine(LoadSceneAsyncRoutine("Title")); 
         }
-        else if (currentState == PauseState.ConfirmRestart)
+        else if (currentState == PauseState.ConfirmRestart) 
         {
-            // 🌟 リトライ時も同様に時間を止めたまま現在のシーンを非同期ロード
-            StartCoroutine(LoadSceneAsyncRoutine(SceneManager.GetActiveScene().name));
+            _isLoadingScene = true;
+            StartCoroutine(LoadSceneAsyncRoutine(SceneManager.GetActiveScene().name)); 
         }
     }
     private IEnumerator LoadSceneAsyncRoutine(string sceneName)

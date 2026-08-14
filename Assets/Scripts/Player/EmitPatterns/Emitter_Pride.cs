@@ -8,6 +8,29 @@ public class Emitter_Pride : PlayerDanmakuEmitter
     // 👑 傲慢のステート管理（デフォルトはディフェンスモードから開始）
     private bool IsAttackmode = false;
 
+    // 🌟 共通でアニメーションを安全に取得・実行するためのヘルパーメソッド
+    private void PlaySkillAnimation(string skillName)
+    {
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+
+        if (pAnim != null)
+        {
+            pAnim.TriggerSkillAnimation(skillName);
+        }
+    }
+
+    private void PlayEXAnimation()
+    {
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+
+        if (pAnim != null)
+        {
+            pAnim.TriggerEXSkillAnimation();
+        }
+    }
+
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
         if (IsAttackmode)

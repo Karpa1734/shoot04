@@ -38,12 +38,23 @@ public class Emitter_Greed : PlayerDanmakuEmitter
 
     private IEnumerator ChainRandomAimRoutine(PlayerSkillData.SkillSettings s)
     {
-        Debug.Log("Executing Skill Z2");
+        
         _activeSkillCoroutines++; // 実行中カウントを増やす（エネルギー回復停止）
 
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
+        // 🎬【モーション連携】：バックステップ完了（チャージ開始時）に SkillEX（チャージ用）のアニメーションを再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        Animator anim = pAnim.GetComponentInChildren<Animator>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("SkillZ"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
 
         int burstCount = 6;
         int knivesway = s.count;
@@ -121,6 +132,19 @@ public class Emitter_Greed : PlayerDanmakuEmitter
     {
         _activeSkillCoroutines++;
         if (BulletManager.Instance == null) { _activeSkillCoroutines--; yield break; }
+
+
+        // 🎬【モーション連携】：バックステップ完了（チャージ開始時）に SkillEX（チャージ用）のアニメーションを再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        Animator anim = pAnim.GetComponentInChildren<Animator>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("SkillZ"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
 
         List<EnemyLaserBeam> spawnedLasers = new List<EnemyLaserBeam>();
         int LaserWay = 24;
@@ -210,6 +234,19 @@ public class Emitter_Greed : PlayerDanmakuEmitter
         float addan = 12;
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
 
+
+        // 🎬【モーション連携】：バックステップ完了（チャージ開始時）に SkillEX（チャージ用）のアニメーションを再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        Animator anim = pAnim.GetComponentInChildren<Animator>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("SkillX"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
+
         Vector3 pos = transform.position; //
 
         // =========================================================================
@@ -292,6 +329,20 @@ public class Emitter_Greed : PlayerDanmakuEmitter
         _activeSkillCoroutines++; //
 
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>(); //
+
+
+        // 🎬【モーション連携】：バックステップ完了（チャージ開始時）に SkillEX（チャージ用）のアニメーションを再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        Animator anim = pAnim.GetComponentInChildren<Animator>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("SkillZ"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
+
         if (myMove != null && !_isEXSkillActive && s.moveSpeedMultiplier < 1.0f) //
         {
             myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
@@ -371,6 +422,18 @@ public class Emitter_Greed : PlayerDanmakuEmitter
         _isEXSkillActive = true;
         if (myMove != null) myMove.skillSpeedMultiplier = 0.3f;
 
+        // 🎬【モーション連携】：バックステップ完了（チャージ開始時）に SkillEX（チャージ用）のアニメーションを再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        Animator anim = pAnim.GetComponentInChildren<Animator>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("ULT"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
+
         // 🎯 1. ターゲットの左右極性を精密測定
         float targetAngle = GetAngleToTarget(transform.position);
         bool isEnemyOnRightSide = (targetAngle > -90f && targetAngle <= 90f);
@@ -423,7 +486,14 @@ public class Emitter_Greed : PlayerDanmakuEmitter
         // ⏳ タイムライン完全同期ホールド（2.9秒）
         // =========================================================================
         yield return new WaitForSeconds(2.9f);
-
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("ULT2"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
         _isEXSkillActive = false;
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;

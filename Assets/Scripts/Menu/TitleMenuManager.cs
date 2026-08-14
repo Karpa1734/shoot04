@@ -28,7 +28,9 @@ public class TitleMenuManager : MonoBehaviour
 
     [Header("Character Select UI")]
     public GameObject characterSelectSubMenu;
-
+    [Header("🔧 PowerPoint Status SubMenu Panel")]
+    [Tooltip("PowerPointSlideMenuManager が付いているパネルをここにアタッチ")]
+    public GameObject statusSlideSubMenu;
     // =========================================================================
     // 🔧【新設】：独立コンフィグパネル（GameObject）のアタッチ枠
     // =========================================================================
@@ -44,9 +46,9 @@ public class TitleMenuManager : MonoBehaviour
 
     void Start()
     {
-        BGMManager.Instance.Play(BGMPath.TITLE,1.0f);
+        BGMManager.Instance.Play(BGMPath.TITLE,0.7f);
         BossPracticeManager.IsPracticeMode = false;
-
+        if (statusSlideSubMenu != null) statusSlideSubMenu.SetActive(false);
         if (practiceSubMenu != null) practiceSubMenu.SetActive(false);
         if (configSubMenu != null) configSubMenu.SetActive(false);
 
@@ -198,11 +200,16 @@ public class TitleMenuManager : MonoBehaviour
             case 2: OpenCharSelect(GameSelectionData.GameMode.VsPlayer); break;
             case 3: OpenCharSelect(GameSelectionData.GameMode.VsNetwork); break;
             case 4: OpenPracticeMenu(); break;
+            case 7: OpenStatusSlideMenu(); break;
             case 8: OpenConfigMenu(); break;
             case 9: StartEndGameSequence(); break;
         }
     }
-
+    public void OpenStatusSlideMenu()
+    {
+        this.enabled = false;
+        if (statusSlideSubMenu != null) statusSlideSubMenu.SetActive(true);
+    }
     void OpenConfigMenu()
     {
         this.enabled = false;

@@ -16,6 +16,9 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     [Tooltip("攻撃対象（相手）のタグ")]
     public string targetTag = "Player";
 
+    [Header("--- Fire Limit Settings ---")]
+    [Tooltip("同時に実行を許可するスキルの最大コルーチン数（連射スキル等の緩和用）")]
+    public int maxConcurrentSkills = 1; // 💡 1➔4 などに緩和
     protected GameObject _rootOwner;
     protected bool _isArcReversed = false;
     // 現在アクティブなコルーチンの数をカウント[cite: 7]
@@ -106,13 +109,44 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         return 0f;
     }
     /// <summary>
-    /// スキル設定に基づき、弾幕を生成・射出するメインエントランス（完全オブジェクト指向新調版）
+    /// 🛡️ 現在の状態で新規スキルを発動可能かどうかを判定する窓口
     /// </summary>
+    /// <summary>
+    /// 🛡️ 現在の状態で新規スキルを発動可能かどうかを判定する窓口
+    /// </summary>
+    public bool CanFire(PlayerSkillData.SkillSettings s)
+    {
+        if (!enabled) return false;
+        if (!PlayerMove.CanShoot) return false;
+
+        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return false;
+
+        if (_isEXSkillActive) return false;
+
+        // =========================================================================
+        // 🌟【最重要修正】：このスキルが「同時使用許可（isConcurrentAllowed）」または「チャージスキル」の場合、
+        //    他のスキルがすでに稼働中（_activeSkillCoroutines > 0）であっても、一切の制限を無視して即座に発動を許可する！
+        // =========================================================================
+        if (s.isConcurrentAllowed || s.isChargeSkill)
+        {
+            return true;
+        }
+
+        // 🛡️ ここまで来るのは「同時使用が許可されていない通常の排他スキル」のみです。
+        // すでに他のスキルが1つでも動いている場合は、重複を許さないためブロックします。
+        if (_activeSkillCoroutines >= maxConcurrentSkills)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     public void Fire(PlayerSkillData.SkillSettings s)
     {
         if (!enabled)
         {
-            // 🛠️ 修正：transform.parent をパージし、同じオブジェクトから安全に全Emitterを全抽出！
             PlayerDanmakuEmitter[] allEmitters = GetComponents<PlayerDanmakuEmitter>();
             foreach (var emitter in allEmitters)
             {
@@ -125,15 +159,28 @@ public class PlayerDanmakuEmitter : MonoBehaviour
             return;
         }
 
-
+        // 🛡️ 1. 基本的なバリデーション（CanShoot や被弾ステートなど）をここで先にすべてチェック！
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
         if (!PlayerMove.CanShoot) return;
         if (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal) return;
         if (s.bulletData == null || s.bulletData.bulletPrefab == null) return;
         if (_isEXSkillActive && s.patternType != SkillPatternType.Line) return;
 
+        // 🛡️ 2. 個別の同時使用・排他制限のチェック
+        if (!CanFire(s)) return;
+
         var myStatusMgr = GetComponentInParent<PlayerStatusManager>();
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>();
+
+        // 🌟【安全なコスト清算】：すべてのハードルを完全にクリアし、今からスキルが発動することが確定したこの瞬間にのみコストを引く！
+        if (myMove != null)
+        {
+            if (!s.isChargeSkill)
+            {
+                if (myMove.currentEnergy < s.cost) return; // 念のための所持量チェック
+                myMove.currentEnergy -= s.cost;
+            }
+        }
 
         // 🌟【修正】：自身が現在領域展開中（isSpellCardActive）でない場合のみ、スキル使用時のULTゲージ増加を有効にする
         bool isMyVjtActive = (myStatusMgr != null && myStatusMgr.isSpellCardActive);
@@ -174,17 +221,13 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         if (myStatusMgr != null && myStatusMgr.characterData != null)
         {
-            var data = myStatusMgr.characterData; 
-            
-            // 🛠️ 修正：ただの StartCoroutine ではなく「this.StartCoroutine」に固定することで、
-            //    自分が Emitter_Greed なら Greed の、Emitter_Wrath なら Wrath の上書き関数を100%正確に呼び出します。
+            var data = myStatusMgr.characterData;
+
             if (s.skillName == data.skillZ.skillName) { this.StartCoroutine(this.ExecuteSkillZ(s)); return; }
             if (s.skillName == data.skillX.skillName) { this.StartCoroutine(this.ExecuteSkillX(s)); return; }
             if (s.skillName == data.skillC.skillName) { this.StartCoroutine(this.ExecuteSkillC(s)); return; }
             if (s.skillName == data.skillV.skillName) { this.StartCoroutine(this.ExecuteSkillV(s)); return; }
         }
-
-
     }
 
     /// <summary>
@@ -622,7 +665,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         return laser;
     }
 
-    
+
 
 
     /// <summary>

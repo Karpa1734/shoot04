@@ -20,9 +20,14 @@ MonoBehaviour:
   rankSpellZone: 2
   characterName: Charlotte
   imageColor: {r: 1, g: 1, b: 0, a: 1}
-  characterSprite: {fileID: 21300000, guid: 558b2f4cf2e410745a2e699316ef214c, type: 3}
-  spellCardName: "\u300C\u25A1\u25A1\u25A1\u25A1\u300D"
+  characterSprite: {fileID: 21300000, guid: 702209c28da89d64d88ecd04ea9d4d12, type: 3}
+  spellCardName: "\u300C\u30D5\u30E9\u30E1\u30EB\u306E\u8CE2\u8005\u77F3\u300D"
+  customPassiveName: "\u9EC4\u91D1\u5F8B"
+  customPassiveDescription: "\u30B3\u30B9\u30C8\u56DE\u5FA9\u307E\u3067\u306E\u30C7\u30A3\u30EC\u30A4\u304C\u77ED\u7E2E"
+  customSpellCardDisplayName: "\u30D5\u30E9\u30E1\u30EB\u306E\u8CE2\u8005\u77F3"
+  customSpellCardDescription: "\u76F8\u624B\u306E\u30B3\u30B9\u30C8\u56DE\u5FA9\u529B\u3092\u5438\u53CE\u3059\u308B"
   spellCircleSprite: {fileID: 21300000, guid: 76012f8bd59ccaf4ba33831a5a621911, type: 3}
+  characterAnimatorController: {fileID: 9100000, guid: c2815df6fab837249bc82001062598fb, type: 2}
   characterOverheatDuration: 20
   characterSpellBGBase: {fileID: 21300000, guid: f1d0c95c39292994eb137aa55737abab, type: 3}
   characterSpellBGAdditive: {fileID: 21300000, guid: c26dba28eb276554589b5a4c8fd23db7, type: 3}
@@ -40,14 +45,16 @@ MonoBehaviour:
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
     skillIcon: {fileID: 21300000, guid: 79ee490740de9f24dbc952a82f682c22, type: 3}
+    skillDescription: 
     patternType: 10
     bulletData: {fileID: 11400000, guid: a5fd71ae477afb7489d0992c800345dc, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.4
     isChargeSkill: 0
+    isConcurrentAllowed: 1
     sePath: 
     count: 3
-    speed: 7
+    speed: 8
     angleOffset: 0
     wideAngle: 60
     moveSpeedMultiplier: 0.4
@@ -57,11 +64,13 @@ MonoBehaviour:
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
     skillIcon: {fileID: 21300000, guid: 7aeb424a66555004dae2b97903dc4a9f, type: 3}
+    skillDescription: 
     patternType: 12
     bulletData: {fileID: 11400000, guid: 04d6be309d86670458301f4f6d9359a4, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0.5
     isChargeSkill: 0
+    isConcurrentAllowed: 1
     sePath: 
     count: 5
     speed: 1.5
@@ -74,11 +83,13 @@ MonoBehaviour:
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: 481c0b3f8f05e1d41bfec267f36cb5a0, type: 3}
+    skillDescription: 
     patternType: 11
     bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 1.5
     isChargeSkill: 0
+    isConcurrentAllowed: 1
     sePath: Laser2
     count: 60
     speed: 1.5
@@ -86,16 +97,18 @@ MonoBehaviour:
     wideAngle: 0.3
     moveSpeedMultiplier: 0.3
     delay: 20
-    cost: 45
+    cost: 35
     ultimateGain: 8
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 21300000, guid: 9b21e57d97f8d79418e1928e94877cf4, type: 3}
+    skillDescription: 
     patternType: 13
     bulletData: {fileID: 11400000, guid: 381538d65205de743b4e7db8e743c41e, type: 2}
     trailBulletData: {fileID: 0}
-    cooldown: 12
+    cooldown: 10
     isChargeSkill: 0
+    isConcurrentAllowed: 1
     sePath: 
     count: 0
     speed: 4.5
@@ -108,11 +121,13 @@ MonoBehaviour:
   skillEX:
     skillName: "\u30D5\u30EB\u30FC\u30EB\u30FB\u30C9\u30FB\u30E2\u30CD"
     skillIcon: {fileID: 0}
+    skillDescription: 
     patternType: 4
     bulletData: {fileID: 11400000, guid: 2e2ee01fb5556ee4483f903aca685098, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 0
     isChargeSkill: 0
+    isConcurrentAllowed: 0
     sePath: 
     count: 12
     speed: 12

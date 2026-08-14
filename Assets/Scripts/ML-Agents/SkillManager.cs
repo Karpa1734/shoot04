@@ -282,12 +282,12 @@ public class SkillManager : MonoBehaviour
             statusManager.ActivateSpellCard();
             return;
         }
-
         // 👑 超必殺技の発動執行
         if (exPressed)
         {
             if (statusManager.isSpellCardActive)
             {
+                // 💡 人間プレイヤーは領域展開中であっても、リキャスト（timerEX <= 0f）さえ終わっていればいつでも自由に強化版EXを使用可能！
                 if (timerEX <= 0f)
                 {
                     playerMove.ultimateEnergy = 0f;
@@ -355,37 +355,38 @@ public class SkillManager : MonoBehaviour
     {
         bool isCostAllowed = (playerMove.currentEnergy >= settings.cost);
 
+        // 🛡️ エミッター側へ「このスキルを今撃っていいか？」を直接問い合わせる（個別フラグもここで評価されます）
+        bool isEmitterReady = (activeEmitter != null && activeEmitter.CanFire(settings));
+
         if (settings.isChargeSkill)
         {
             // 💡 A. チャージ開始（最初の押し込みフレーム）
-            if (isPressed && timer <= 0 && isCostAllowed && !_isZCharging)
+            if (isPressed && timer <= 0 && isCostAllowed && isEmitterReady && !_isZCharging)
             {
                 _isZCharging = true;
                 _recoveryDelayTimer = 0f;
-                activeEmitter.Fire(settings); // ➔ 槍のチャージ（インジケーター収束）演出のみを開始
+                activeEmitter.Fire(settings);
             }
 
-            // 💡 B. チャージ解放（ボタンを離して、実際に槍が戦場へ放たれたジャストの瞬間！）
-            // 💡 AIの入力終了フラグ、または「溜めタイマー満了によるAI側の強制リリース」のどちらからでも確実にフックします
+            // 💡 B. チャージ解放（ボタンを離して、実際に発射が確定した瞬間）
             if (!isPressed && _isZCharging)
             {
                 _isZCharging = false;
 
-                // 🎯 1. 【コスト消費】：ボタンを離したこの瞬間にマナコストを消費（先払いを防止）
+                // 🎯 チャージスキルは解放時にコストを消費
+                if (playerMove.currentEnergy < settings.cost) return;
                 playerMove.currentEnergy -= settings.cost;
 
-                // 🎯 2. 【アルカナゲージ加算】：チャージ開始時をブロックし、この発射時の「1回だけ」に集約加算！
                 if (playerMove != null && statusManager != null)
                 {
-                    float finalGain = settings.ultimateGain; // アセット設定値（例: 15f など）
+                    float finalGain = settings.ultimateGain;
                     if (statusManager.isOverheated)
                     {
-                        finalGain *= 0.5f; // 術式焼き切れ時は獲得量半減
+                        finalGain *= 0.5f;
                     }
                     playerMove.AddUltimateEnergy(finalGain);
                 }
 
-                // 🎯 3. 【シールド消滅】：槍が出たこの瞬間に、展開中のシールドを安全・確実に直撃パージ！
                 if (activeEmitter is Emitter_Lust lustEmitter && lustEmitter.IsShieldActive)
                 {
                     lustEmitter.PurgeActiveShield();
@@ -397,11 +398,10 @@ public class SkillManager : MonoBehaviour
         }
         else
         {
-            // 通常の単発スキル（従来通りの一瞬でコスト消費する処理）
-            if (isPressed && timer <= 0 && isCostAllowed)
+            // 🔄 通常スキル：isEmitterReady が true の時のみ Fire() を呼ぶ（コストは emitter 側で安全に精算されます）
+            if (isPressed && timer <= 0 && isCostAllowed && isEmitterReady)
             {
                 _recoveryDelayTimer = 0f;
-                playerMove.currentEnergy -= settings.cost;
                 activeEmitter.Fire(settings);
 
                 float cooldownMultiplier = statusManager.isOverheated ? 1.5f : 1.0f;

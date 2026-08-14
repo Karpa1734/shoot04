@@ -108,6 +108,12 @@ public class PlayerHitHandler : MonoBehaviour
         bool willSpellCardEnd = myStatusManager != null && myStatusManager.isSpellCardActive && (myStatusManager.spellHP - damage <= 0);
         bool isLastHitOnNormalHP = myStatusManager != null && !myStatusManager.isSpellCardActive && (myStatusManager.currentHP - damage <= 0);
 
+        // 🌟【要件変更】：領域展開中（isSpellCardActive）でない場合のみ、被弾アニメーションを再生する！
+        bool isSpellActive = (myStatusManager != null && myStatusManager.isSpellCardActive);
+        if (playerAnim != null && !isSpellActive)
+        {
+            playerAnim.TriggerDamageAnimation();
+        }
 
         if (myStatusManager != null)
         {
@@ -577,7 +583,12 @@ public class PlayerHitHandler : MonoBehaviour
 
             if (loserHandler != null)
             {
-                // 時間切れによる敗北フラグを立てて、通常の撃墜演出（スローモーション等）へ安全に流し込む
+                // 💡【最重要】：敗者の HP を確定で 0 にし、星の計算（SubtractLifeAndCheckRebirth）を正しく機能させる
+                if (loserHandler.myStatusManager != null)
+                {
+                    loserHandler.myStatusManager.currentHP = 0;
+                }
+
                 loserHandler.isTriggeredByTimeUp = true;
                 loserHandler.currentState = PlayerState.Hit;
                 loserHandler.StartCoroutine(loserHandler.ExplosionAndStunRoutine());

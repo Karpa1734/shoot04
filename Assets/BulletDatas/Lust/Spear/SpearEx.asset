@@ -15,16 +15,16 @@ MonoBehaviour:
   isLaser: 0
   laserColor: 0
   bulletPrefab: {fileID: 7775521949114364911, guid: 9a49196e7b3fa094aa0a2fabdf2bf784, type: 3}
-  sizeType: 1
+  sizeType: 0
   bulletScale: 3
   radius: 0.06
   colliderOffset: {x: 0, y: 0}
-  damage: 40
-  bulletSprite: {fileID: 197234311, guid: 93d2e9ba5be95e34eb6e971f99038895, type: 3}
+  damage: 30
+  bulletSprite: {fileID: 21300000, guid: f2b0531d7802d734aa652db6aa0de752, type: 3}
   animationSprites: []
   animationFPS: 10
   delaySprite: {fileID: 7099077274376888169, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
   breakColor: {r: 1, g: 1, b: 0, a: 1}
   material: {fileID: 0}
   auraMaterial: {fileID: 2100000, guid: b955a6fe290ae404496e5fc9dc6bd3da, type: 2}
-  auraWhiteSprite: {fileID: -340714805496813612, guid: 93d2e9ba5be95e34eb6e971f99038895, type: 3}
+  auraWhiteSprite: {fileID: 21300000, guid: b17efb98dff70ae489ee05fe92a93647, type: 3}

@@ -35,7 +35,30 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         yield return StartCoroutine(ExecuteKarinKokuZessenEXRoutine(s));
     }
 
+    private void PlaySkillAnimation(string skillName)
+    {
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
 
+        if (pAnim != null)
+        {
+            pAnim.TriggerSkillAnimation(skillName);
+        }
+    }
+
+    private void PlayEXAnimation()
+    {
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+
+        if (pAnim != null)
+        {
+            pAnim.TriggerEXSkillAnimation();
+        }
+    }
+
+    // 🔄【新規追加】：カリンのZスキルの使用回数を数えて奇数/偶数を判定するためのカウンター
+    private int _karinZComboCount = 0;
 
     // =========================================================================
     // 🐉【一本化完結版】：カリン専用Z：「しの字」アーク・ポリモーフィック一閃
@@ -48,6 +71,22 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
         if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        // 🎬【モーション連携】：使用回数をインクリメントし、奇数回なら SkillZ、偶数回なら SkillZ2 を切り替え再生！
+        _karinZComboCount++;
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            Animator anim = pAnim.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                // 1回目、3回目、5回目… は "SkillZ"、2回目、4回目、6回目… は "SkillZ2" をトリガー
+                string targetTrigger = (_karinZComboCount % 2 != 0) ? "SkillZ" : "SkillZ2";
+                anim.SetTrigger(targetTrigger);
+            }
+        }
+
+        yield return new WaitForSeconds(0.15f);
 
         // 💡 領域展開（スペルカード）中かどうかのステートを上流インフラから安全に取得
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -182,6 +221,9 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
             yield return new WaitForFixedUpdate();
         }
     }
+    // 🔄【新規追加】：カリンのXスキルの使用回数を数えて奇数/偶数を判定するためのカウンター
+    private int _karinXComboCount = 0;
+
     /// <summary>
     /// ⚔️ カリン専用X：空間一閃・自機外し双極ブレード
     /// 🌟 【領域展開・4wayクアッド変調適合版】：
@@ -196,6 +238,20 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
         if (myMove != null) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        // 🎬【モーション連携】：使用回数をインクリメントし、奇数回なら SkillX、偶数回なら SkillX2 を切り替え再生！
+        _karinXComboCount++;
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            Animator anim = pAnim.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                // 1回目、3回目、5回目… は "SkillX"、2回目、4回目、6回目… は "SkillX2" をトリガー
+                string targetTrigger = (_karinXComboCount % 2 != 0) ? "SkillZ" : "SkillZ2";
+                anim.SetTrigger(targetTrigger);
+            }
+        }
 
         // -------------------------------------------------------------------------
         // 🔮 一直線ラインの空間パラメータ設計
@@ -300,8 +356,6 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
 
     // =========================================================================
     // 🐉【自律判断・インフラ一元化完結版】：カリン専用究極EX：神速・虚空絶閃
-    // 💡 独自のInstantiate、タグ、レイヤー、二重バフ計算を完全パージ！
-    // 💡 親クラスから継承した最強の `CreateLaserShot` インフラを通じて15本の極大空間破砕を執行します！
     // =========================================================================
     protected IEnumerator ExecuteKarinKokuZessenEXRoutine(PlayerSkillData.SkillSettings s)
     {
@@ -344,6 +398,18 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         }
         _rootOwner.transform.position = backStepTargetPos;
 
+        // 🎬【モーション連携】：バックステップ完了（チャージ開始時）に SkillEX（チャージ用）のアニメーションを再生
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        Animator anim = pAnim.GetComponentInChildren<Animator>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            if (anim != null)
+            {
+                anim.SetTrigger("ULT"); // 🌟 チャージ開始モーションのトリガー
+            }
+        }
+
         // ⏳ 抜刀の「タメ」演出
         float chargeTime = 0.4f;
         if (BossEffectManager.Instance != null)
@@ -353,6 +419,16 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         yield return new WaitForSeconds(chargeTime);
 
         Vector3 laserStartPos = _rootOwner.transform.position;
+        // 🎬【モーション連携】：タメが完了して超高速突撃（発射）する瞬間に SkillEX2（発動用）へ切り替え
+        if (anim != null) // ※もしanim変数をスコープ内で使い回す場合は直接取得します
+        {
+            // 安全のため再取得
+            Animator animTarget = (pAnim != null) ? pAnim.GetComponentInChildren<Animator>() : null;
+            if (animTarget != null)
+            {
+                animTarget.SetTrigger("ULT2"); // 🌟 突撃・発射モーションのトリガー
+            }
+        }
 
         // ⚡ 刹那一閃・敵陣の画面端まで超高速突撃
         SEManager.Instance.Play(SEPath.SLASH, 0.5f);
@@ -393,23 +469,20 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
             float currentYOffset = startYOffset + (offsetStep * i);
             Vector3 finalLaserSpawnPos = new Vector3(laserStartPos.x, laserStartPos.y + currentYOffset, laserStartPos.z);
 
-            // 🎯【インフラ完全一元化】：面倒な手動生成、レイヤー分類、バフ適用処理をすべて親の「CreateLaserShot」へ1行で全面委託！
-            // 💡 数理アライメント調停として、countに「レーザーの長さ」、wideAngleに「レーザーの太さ(0.5f)」を流し込んで SetupA をキックします。
             int dynamicDelay = isEnhancedLines ? (20 + (i * 1)) : 20;
 
             EnemyLaserBeam zessenLaser = CreateLaserShot(
                 s.bulletData,
                 finalLaserSpawnPos,
                 s.speed,
-                count: Mathf.RoundToInt(laserDistance), // 🛠️ 長さパラメータをcount引数へマッピング中継
-                wideAngle: 0.5f,                      // 🛠️ 太さパラメータをwideAngle引数へマッピング中継
+                count: Mathf.RoundToInt(laserDistance),
+                wideAngle: 0.5f,
                 warningFrame: dynamicDelay,
-                isSetupB: false                       // 👈 通常直線レーザー（SetupA）を実行
+                isSetupB: false
             );
 
             if (zessenLaser != null)
             {
-                // カスタムスプライトや特殊マテリアルがアセット側にあれば自動同期
                 SpriteRenderer laserSR = zessenLaser.GetComponentInChildren<SpriteRenderer>();
                 bool isCustomSpriteAssigned = (s.bulletData.bulletSprite != null);
 
@@ -419,7 +492,6 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
                     if (s.bulletData.material != null) laserSR.material = s.bulletData.material;
                 }
 
-                // 進行方向の回転角度をバインド
                 float laserFacingAngle = faceRight ? 0f : 180f;
                 zessenLaser.AddData(new EnemyLaserBeam.LaserTransformData { frame = 0, angle = laserFacingAngle });
                 zessenLaser.Fire();
@@ -436,7 +508,6 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
                 }
 
                 float extendedDuration = s.speed + 1.0f;
-                // 判定ボックスのリアルタイム吸いつき追従と、時間切れ自動クローズをキック
                 StartCoroutine(KeepInvertingLaserOffsetRoutine(zessenLaser.gameObject, laserDistance, extendedDuration, faceRight));
                 StartCoroutine(ForceCloseLaserAfterSeconds(zessenLaser, extendedDuration));
             }
@@ -494,6 +565,9 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
     {
         _activeSkillCoroutines++; // 実行カウントを増やす
 
+        // 🎬【モーション連携】：ブーメラン投げ発動時にスキルアニメーションを即座に再生
+        PlaySkillAnimation(s.skillName);
+
         // --- 既存の生成ロジック ---
         GameObject bitObj = Instantiate(s.bulletData.bulletPrefab, transform.position, Quaternion.identity);
         var myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -520,7 +594,8 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
 
         _activeSkillCoroutines--; // 2秒経ったらカウントを減らす
     }
-
+    // --- ★ 追加：防御フィールド専用のチャージ演出ルーチン ---
+    // 📄 PlayerDanmakuEmitter.cs 内の防御フィールド制御セクター【領域展開・動的巨大延長版】
     // --- ★ 追加：防御フィールド専用のチャージ演出ルーチン ---
     // 📄 PlayerDanmakuEmitter.cs 内の防御フィールド制御セクター【領域展開・動的巨大延長版】
     private IEnumerator ChargeAndExecuteDefensiveField(PlayerSkillData.SkillSettings s)
@@ -528,10 +603,8 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         _activeSkillCoroutines++; //
         PlayerMove myMove = _rootOwner.GetComponent<PlayerMove>(); //
 
-        if (myMove != null) //
-        {
-            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier; //
-        }
+        // 🎬【モーション連携】：チャージ開始時に SkillV アニメーションを即座に再生
+        PlaySkillAnimation(s.skillName); // ※これがインスペクター上の skillV 名に一致して "SkillV" トリガーを引きます
 
         // 💡 1. 領域展開中（スペルカード発動中）であるかステートをチェック
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
@@ -543,31 +616,52 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
 
         if (isSpellActive)
         {
-            finalFieldDuration = 2.0f;   // 🎯 領域展開中：持続時間を「3.0秒」へ延長（2倍）
-            finalFieldScale = 3.5f;      // 🎯 領域展開中：サイズ（最大スケール）を「3.5倍」へ巨大化
+            finalFieldDuration = 2.0f;   // 🎯 領域展開中：持続時間を延長
+            finalFieldScale = 3.5f;      // 🎯 領域展開中：サイズを巨大化
             Debug.Log($"<color=gold>🔮【領域展開・絶対防壁】防御フィールドを極大化！ Duration: {finalFieldDuration}s, Scale: {finalFieldScale}</color>");
         }
 
         // チャージ演出
-        float chargeTime = 0.3f; //
+        float chargeTime = 0.2f; //
+
+        // 🛡️【完全静止】：チャージが始まった瞬間から移動速度を 0 にしてその場に完全に固定！
+        if (myMove != null)
+        {
+            myMove.skillSpeedMultiplier = 0f;
+        }
+
         if (BossEffectManager.Instance != null) //
         {
             BossEffectManager.Instance.PlayChargeEffect(chargeTime, s.bulletData.breakColor, transform.position); //
         }
-        yield return new WaitForSeconds(chargeTime + 0.2f); //
+        yield return new WaitForSeconds(chargeTime); //
 
         if (SEManager.Instance != null)
         {
             SEManager.Instance.Play(SEPath.SLASH, 0.5f); //
         }
 
+        // 🎬【モーション連携】：チャージが完了し、実際にフィールドを発動する瞬間に V2（発動用）へ切り替え
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null)
+        {
+            Animator anim = pAnim.GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                anim.SetTrigger("SkillV2"); // 🌟 "SkillV2" トリガーを引いて発動モーションへ移行
+            }
+        }
+
         // 💡 3. 変調されたサイズと持続時間を手渡しして、スキル本体を実体化！
         ExecuteDefensiveField(s, finalFieldDuration, finalFieldScale);
 
-        // 💡 4. 【インフラ完全同期】：スキル終了まで待機（引き伸ばされた動的持続時間に正確に合わせる）
-        yield return new WaitForSeconds(finalFieldDuration);
+        // 💡 4. 【完全同期】：シールドの展開時間（expandTime=0.2秒）＋持続時間（finalFieldDuration）＋縮小消滅時間（shrinkTime=0.5秒）の間、移動を完全にロック！
+        // ※ DefensiveField.cs の定義に合わせ、消滅演出が完全に終わるまでの時間を正確に同期させます。
+        float totalShieldLifeTime = 0.2f + finalFieldDuration + 0.5f;
+        yield return new WaitForSeconds(totalShieldLifeTime);
 
-        // 倍率を戻す
+        // 🛡️ シールドが画面上から完全に消滅した瞬間に、移動倍率を 1.0f に戻して自由に行動できるようにする
         if (myMove != null) //
         {
             myMove.skillSpeedMultiplier = 1.0f; //
@@ -590,5 +684,6 @@ public class Emitter_Wrath : PlayerDanmakuEmitter
         // 💡 拡張された Initialize 窓口へパラメータを一挙にインジェクション！
         field.Initialize(transform, s.bulletData, duration, assignedTag, assignedLayer, scale);
     }
+
 
 }

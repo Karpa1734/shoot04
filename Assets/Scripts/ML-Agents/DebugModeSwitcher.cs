@@ -5,6 +5,7 @@ public class DebugModeSwitcher : MonoBehaviour
 {
     void Update()
     {
+        #if UNITY_EDITOR
         // [V]キー：対戦モードに切り替えてリロード
         if (Input.GetKeyDown(KeyCode.V))
         {
@@ -18,6 +19,7 @@ public class DebugModeSwitcher : MonoBehaviour
             GameModeManager.CurrentMode = GameModeManager.Mode.Story;
             ReloadScene();
         }
+        #endif
     }
 
     private void ReloadScene()

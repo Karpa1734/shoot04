@@ -312,6 +312,16 @@ public class PlayerStatusManager : MonoBehaviour
                 var void_ = GetComponentInChildren<Emitter_Void>(true);
                 if (void_ != null) void_.enabled = true;
             }
+
+            // =========================================================================
+            // 🎬【新規追加】：キャラクター名に応じて Animator Controller を動的にアタッチする
+            // =========================================================================
+            Animator playerAnimator = GetComponentInChildren<Animator>(true);
+            if (playerAnimator != null && characterData.characterAnimatorController != null)
+            {
+                playerAnimator.runtimeAnimatorController = characterData.characterAnimatorController;
+                Debug.Log(string.Format("<color=lime>🎬 [PlayerStatusManager] {0} の専用アニメーターを正常に適用しました。</color>", characterData.characterName));
+            }
         }
     }
 
@@ -340,7 +350,7 @@ public class PlayerStatusManager : MonoBehaviour
             Debug.Log($"<color=yellow>🔧 [DEBUG MODE] シーン直接起動を検知。インスペクターのデバッグ用データ【{characterData.characterName}】を同期しました。</color>");
         }
 #endif
-        BGMManager.Instance.Play(BGMPath.BATTLE01,1.0f,1.0f);
+        BGMManager.Instance.Play(BGMPath.BATTLE01,0.7f,1.0f);
         // 看板テキストやUIカラー、COM名への流し込みを実行
         ApplyCharacterSettings();
 
@@ -990,13 +1000,13 @@ public class PlayerStatusManager : MonoBehaviour
         Sequence seq = DOTween.Sequence();
 
         // ① 左/右端から中央(0)へ移動
-        seq.Append(cutInRect.DOAnchorPos(new Vector2(endX, 0f), 1.5f).SetEase(Ease.OutCubic));
+        seq.Append(cutInRect.DOAnchorPos(new Vector2(endX, 0f), 1.1f).SetEase(Ease.OutCubic));
 
         // ② 中央で少しの間停止（タメ）
         seq.AppendInterval(0.4f);
 
         // ③ 中央から逆側へ加速して画面外へ退場
-        seq.Append(cutInRect.DOAnchorPos(new Vector2(exitX, -500f), 1.5f).SetEase(Ease.InCubic));
+        seq.Append(cutInRect.DOAnchorPos(new Vector2(exitX, -500f), 1.1f).SetEase(Ease.InCubic));
 
         // 退場に合わせてフェードアウト
         seq.Join(cutInImage.DOFade(0f, 0.2f).SetDelay(0.7f));

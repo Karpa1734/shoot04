@@ -1,4 +1,4 @@
-﻿// --- CharacterSelectManager.cs 指定キャラ数表示拡張・エラー完全解消版 ---
+﻿// --- CharacterSelectManager.cs デバッグ機能完全除外・クリーン版 ---
 using KanKikuchi.AudioManager;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,36 +10,59 @@ using UnityEngine.UI;
 public class CharacterSelectManager : MonoBehaviour
 {
     [Header("🎯 UIアタッチ枠")]
-    [Tooltip("画面上に存在するキャラクター名テキストUIを順番に登録（最大数分）")]
     public TextMeshProUGUI[] charNameTexts;
     public TextMeshProUGUI randomText;
     public TextMeshProUGUI guideText;
 
     [Header("✨ 選択状況・GameStart表示用UI")]
-    [Tooltip("画面左側に配置する、1Pが選択中/選択したキャラクター名テキスト")]
     public TextMeshProUGUI p1SelectedNameText;
-    [Tooltip("画面右側に配置する、2Pが選択中/選択したキャラクター名テキスト")]
     public TextMeshProUGUI p2SelectedNameText;
-    [Tooltip("2P選択完了時に表示する「GameStart」テキストUI")]
     public TextMeshProUGUI gameStartText;
-    [Tooltip("コントローラー未接続時や準備未完了時に警告を表示するテキストUI")]
     public TextMeshProUGUI warningText;
 
     [Header("🖼️ プレイヤー立ち絵表示枠")]
-    [Tooltip("画面左側に配置する、1Pの立ち絵表示用Imageコンポーネント")]
     public Image p1SelectedCharacterImage;
-    [Tooltip("画面右側に配置する、2Pの立ち絵表示用Imageコンポーネント")]
     public Image p2SelectedCharacterImage;
-
-    [Tooltip("ランダムカーソルホバー時や、未選択時に表示させるデフォルト/シルエット用Sprite（任意）")]
     public Sprite randomOrDefaultSprite;
 
+    [Header("🏷️ 1P側 通常時パッシブ・領域名表示枠")]
+    public TextMeshProUGUI p1PassiveNameText;
+    public TextMeshProUGUI p1SpellNameText;
+
+    [Header("🏷️ 2P側 通常時パッシブ・領域名表示枠")]
+    public TextMeshProUGUI p2PassiveNameText;
+    public TextMeshProUGUI p2SpellNameText;
+
+    [Header("⚔️ 1P側 スキルアイコン表示枠 (4つ)")]
+    public Image[] p1SkillIconImages;
+    public TextMeshProUGUI p1TitleSkillNameText;
+    public TextMeshProUGUI p1TitleSkillDescText;
+
+    [Header("⚔️ 2P側 スキルアイコン表示枠 (4つ)")]
+    public Image[] p2SkillIconImages;
+    public TextMeshProUGUI p2TitleSkillNameText;
+    public TextMeshProUGUI p2TitleSkillDescText;
+
+    [Header("📖 1P側 スキル詳細ポップアップ設定")]
+    public GameObject p1SkillDetailCanvas;
+    public CanvasGroup p1DetailCanvasGroup;
+    public TextMeshProUGUI p1DetailSkillKeyText;
+    public TextMeshProUGUI p1DetailSkillNameText;
+    public TextMeshProUGUI p1DetailSkillDescText;
+    public Image p1DetailSkillIconImage;
+
+    [Header("📖 2P側 スキル詳細ポップアップ設定")]
+    public GameObject p2SkillDetailCanvas;
+    public CanvasGroup p2DetailCanvasGroup;
+    public TextMeshProUGUI p2DetailSkillKeyText;
+    public TextMeshProUGUI p2DetailSkillNameText;
+    public TextMeshProUGUI p2DetailSkillDescText;
+    public Image p2DetailSkillIconImage;
+
     [Header("📦 キャラクターデータマスター")]
-    [Tooltip("ゲームに登場させる全キャラクターの PlayerSkillData をインスペクターでここに登録してください")]
     public List<PlayerSkillData> availableCharacters = new List<PlayerSkillData>();
 
     [Header("⚙️ 表示設定")]
-    [Tooltip("選択肢として画面に表示させるキャラクターの数（例: 3を指定すると上から3キャラ＋ランダムのみ表示されます）")]
     public int displayCharacterCount = 7;
 
     [Header("🎨 カラー表現")]
@@ -51,41 +74,57 @@ public class CharacterSelectManager : MonoBehaviour
     private bool _isP2SelectingPhase = false;
     private bool _isGameStartReadyPhase = false;
 
+    private bool _isP1SkillDetailMode = false;
+    private bool _isP2SkillDetailMode = false;
+    private int _p1CurrentSkillIndex = 0;
+    private int _p2CurrentSkillIndex = 0;
+
     private int _finalP1CharacterId = -1;
     private int _finalP2CharacterId = -1;
     private float _inputCooldownTimer = 0f;
-    private float _keyHoldTimer = 0f;
-    private bool _isFirstScrollDone = false;
 
-    private const float FIRST_SCROLL_DELAY = 0.4f;
-    private const float REPEAT_SCROLL_SPEED = 0.08f;
+    // 長押し制御管理タイマー
+    private float _cursorKeyHoldTimer = 0f;
+    private bool _isCursorFirstScrollDone = false;
+
+    private float _skillKeyHoldTimer = 0f;
+    private bool _isSkillFirstScrollDone = false;
+
+    private const float MENU_FIRST_SCROLL_DELAY = 0.4f;
+    private const float MENU_REPEAT_SCROLL_SPEED = 0.15f;
+
     private int _lastConnectedControllersCount = -1;
     public GameObject titleMenuCanvas;
 
-    // =========================================================================
-    // 🔧【デモ専用新設】：ワーク用デバッグステート
-    // =========================================================================
-    private bool _p1DebugAutoAiToggle = false; // 1P自機のCPU自動操縦
-    private bool _endlessModeToggle = false;     // エンドレスモードフラグ
     [Header("⏳ ロード画面・プログレスバー設定")]
-    [Tooltip("ロード中に表示する専用のCanvasやPanel（非同期ロード中のみActiveにする）")]
     public GameObject loadingScreenCanvas;
-    [Tooltip("進捗状況を表示するUI Slider（値の範囲は 0.0 ～ 1.0）")]
     public Slider progressBarSlider;
-    [Tooltip("進捗率をパーセンテージ（例: 50%）で表示するテキストUI（任意）")]
     public TextMeshProUGUI progressText;
+
+    private bool _isLoadingScene = false;
+
+    void Awake()
+    {
+        SetDetailCanvasVisible(1, false);
+        SetDetailCanvasVisible(2, false);
+    }
+
     void OnEnable()
     {
+        _isLoadingScene = false;
+
         PlayerStatusManager.FromCharacterSelect = true;
-        _p1DebugAutoAiToggle = false;
-        _endlessModeToggle = false;
+        _isP1SkillDetailMode = false;
+        _isP2SkillDetailMode = false;
+        _p1CurrentSkillIndex = 0;
+        _p2CurrentSkillIndex = 0;
+
+        SetDetailCanvasVisible(1, false);
+        SetDetailCanvasVisible(2, false);
 
         bool isCleared = false;
-
-        // 🌟【安全弁強化】：SaveManagerが存在するか、あるいはエラーが発生しても絶対に処理を止めない構造に修正
         try
         {
-            // SaveManagerクラスやメソッドが存在するか安全にチェックしてロード
             var saveManagerType = System.Type.GetType("SaveManager");
             if (saveManagerType != null)
             {
@@ -94,7 +133,7 @@ public class CharacterSelectManager : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogWarning($"[SaveManager] GameClearedの読み込みに失敗、または未定義です。デフォルト(false)を適用します: {e.Message}");
+            Debug.LogWarning($"[SaveManager] 読み込み失敗: {e.Message}");
             isCleared = false;
         }
 
@@ -110,7 +149,6 @@ public class CharacterSelectManager : MonoBehaviour
             _selectableCharacterCount = targetLimit;
         }
 
-        // 💡 万が一 availableCharacters に何も登録されていない場合のフォールバック
         if (_selectableCharacterCount <= 0)
         {
             _selectableCharacterCount = actualDataCount;
@@ -127,9 +165,12 @@ public class CharacterSelectManager : MonoBehaviour
         if (warningText != null) warningText.gameObject.SetActive(false);
 
         _inputCooldownTimer = 0.2f;
+        _cursorKeyHoldTimer = 0f;
+        _isCursorFirstScrollDone = false;
+        _skillKeyHoldTimer = 0f;
+        _isSkillFirstScrollDone = false;
         _lastConnectedControllersCount = GetConnectedJoystickCount();
 
-        // 確実に初期化メソッドをコール
         InitializeCharacterSelectUI();
         UpdateSelectionVisuals();
     }
@@ -157,34 +198,88 @@ public class CharacterSelectManager : MonoBehaviour
 
     void Update()
     {
-        int prevCursor = _currentCursor;
+        int activePlayer = _isP2SelectingPhase ? 2 : 1;
+        bool isDetailOpen = (_isP1SkillDetailMode || _isP2SkillDetailMode);
 
+        bool isLeftHeld = false;
+        bool isRightHeld = false;
+
+        if (MenuInputManager.Instance != null)
+        {
+            Vector2 nav = _isP2SelectingPhase ? MenuInputManager.Instance.navigateP2.action.ReadValue<Vector2>() : MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
+            isLeftHeld = nav.x < -0.5f;
+            isRightHeld = nav.x > 0.5f;
+        }
+        else
+        {
+            isLeftHeld = Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A);
+            isRightHeld = Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D);
+        }
+
+        bool executeSkillScroll = false;
+        if (isLeftHeld || isRightHeld)
+        {
+            if (_skillKeyHoldTimer == 0f && !_isSkillFirstScrollDone)
+            {
+                executeSkillScroll = true;
+                _isSkillFirstScrollDone = true;
+                _skillKeyHoldTimer = MENU_FIRST_SCROLL_DELAY;
+            }
+            else
+            {
+                _skillKeyHoldTimer -= Time.deltaTime;
+                if (_skillKeyHoldTimer <= 0f)
+                {
+                    executeSkillScroll = true;
+                    _skillKeyHoldTimer = MENU_REPEAT_SCROLL_SPEED;
+                }
+            }
+        }
+        else
+        {
+            _skillKeyHoldTimer = 0f;
+            _isSkillFirstScrollDone = false;
+        }
+
+        if (executeSkillScroll && !_isGameStartReadyPhase)
+        {
+            if (isLeftHeld)
+            {
+                if (!_isP2SelectingPhase) _p1CurrentSkillIndex = (_p1CurrentSkillIndex - 1 + 4) % 4;
+                else _p2CurrentSkillIndex = (_p2CurrentSkillIndex - 1 + 4) % 4;
+            }
+            else if (isRightHeld)
+            {
+                if (!_isP2SelectingPhase) _p1CurrentSkillIndex = (_p1CurrentSkillIndex + 1) % 4;
+                else _p2CurrentSkillIndex = (_p2CurrentSkillIndex + 1) % 4;
+            }
+
+            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUSELECT, 0.5f);
+            UpdateSelectionVisuals();
+            if (isDetailOpen) UpdateSkillDetailVisuals(activePlayer);
+            return;
+        }
+
+        if (isDetailOpen)
+        {
+            bool isClosePressed = Input.GetKeyDown(_isP1SkillDetailMode ? KeyCode.F : KeyCode.R) || Input.GetKeyDown(KeyCode.X) || Input.GetKeyDown(KeyCode.Escape);
+            if (MenuInputManager.Instance != null)
+            {
+                if (_isP1SkillDetailMode && MenuInputManager.Instance.cancelP1.action.triggered) isClosePressed = true;
+                if (_isP2SkillDetailMode && MenuInputManager.Instance.cancelP2.action.triggered) isClosePressed = true;
+            }
+            if (isClosePressed)
+            {
+                ToggleSkillDetailMode(_isP1SkillDetailMode ? 1 : 2);
+            }
+            return;
+        }
+
+        int prevCursor = _currentCursor;
         bool isStoryMode = (GameSelectionData.CurrentMode == GameSelectionData.GameMode.Story);
         int maxIndexLimit = isStoryMode ? (_selectableCharacterCount - 1) : _selectableCharacterCount;
 
-        if (_inputCooldownTimer > 0f)
-        {
-            _inputCooldownTimer -= Time.deltaTime;
-        }
-
-        if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom)
-        {
-            if (Input.GetKeyDown(KeyCode.C))
-            {
-                _p1DebugAutoAiToggle = !_p1DebugAutoAiToggle;
-                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUSELECT, 0.6f);
-                Debug.Log($"<color=lime>🛠️【Debugトグル】1P自機のAI自動操縦状態を変更 ➔ ACTIVE: {_p1DebugAutoAiToggle}</color>");
-                UpdateSelectionVisuals();
-            }
-
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                _endlessModeToggle = !_endlessModeToggle;
-                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.CARDCALL, 0.6f);
-                Debug.Log($"<color=orange>⚔️【Debugトグル】エンドレスモード（勝ち星カウント停止）状態を変更 ➔ ACTIVE: {_endlessModeToggle}</color>");
-                UpdateSelectionVisuals();
-            }
-        }
+        if (_inputCooldownTimer > 0f) _inputCooldownTimer -= Time.deltaTime;
 
         int connectedControllers = GetConnectedJoystickCount();
         if (connectedControllers != _lastConnectedControllersCount)
@@ -195,39 +290,19 @@ public class CharacterSelectManager : MonoBehaviour
 
         if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsPlayer && connectedControllers < 2)
         {
-            if (warningText != null)
-            {
-                warningText.text = "PleaseConnect2Controller";
-                warningText.gameObject.SetActive(true);
-            }
+            if (warningText != null) { warningText.text = "PleaseConnect2Controller"; warningText.gameObject.SetActive(true); }
             UpdateSelectionVisuals();
-            bool isLockCancel = false;
-            if (MenuInputManager.Instance != null)
-            {
-                isLockCancel = MenuInputManager.Instance.cancelP1.action.triggered;
-            }
-            else
-            {
-                isLockCancel = Input.GetKeyDown(KeyCode.X);
-            }
-
-            if (isLockCancel)
-            {
-                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
-                HandleCancel();
-            }
+            bool isLockCancel = MenuInputManager.Instance != null ? MenuInputManager.Instance.cancelP1.action.triggered : Input.GetKeyDown(KeyCode.X);
+            if (isLockCancel) { if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL); HandleCancel(); }
             return;
         }
         else
         {
-            if (warningText != null && warningText.text == "PleaseConnect2Controller")
-            {
-                warningText.gameObject.SetActive(false);
-            }
+            if (warningText != null && warningText.text == "PleaseConnect2Controller") warningText.gameObject.SetActive(false);
         }
 
-        bool isUpPressed = false;
-        bool isDownPressed = false;
+        bool isUpHeld = false;
+        bool isDownHeld = false;
         bool isDecidePressed = false;
         bool isCancelPressed = false;
 
@@ -238,16 +313,14 @@ public class CharacterSelectManager : MonoBehaviour
                 if (!_isP2SelectingPhase && !_isGameStartReadyPhase)
                 {
                     Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
-                    isUpPressed = nav.y > 0.5f;
-                    isDownPressed = nav.y < -0.5f;
+                    isUpHeld = nav.y > 0.5f; isDownHeld = nav.y < -0.5f;
                     isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered;
                     isCancelPressed = MenuInputManager.Instance.cancelP1.action.triggered;
                 }
                 else if (_isP2SelectingPhase && !_isGameStartReadyPhase)
                 {
                     Vector2 nav = MenuInputManager.Instance.navigateP2.action.ReadValue<Vector2>();
-                    isUpPressed = nav.y > 0.5f;
-                    isDownPressed = nav.y < -0.5f;
+                    isUpHeld = nav.y > 0.5f; isDownHeld = nav.y < -0.5f;
                     isDecidePressed = MenuInputManager.Instance.submitP2.action.triggered;
                     isCancelPressed = MenuInputManager.Instance.cancelP2.action.triggered;
                 }
@@ -260,61 +333,56 @@ public class CharacterSelectManager : MonoBehaviour
             else
             {
                 Vector2 nav = MenuInputManager.Instance.navigateP1.action.ReadValue<Vector2>();
-                isUpPressed = nav.y > 0.5f;
-                isDownPressed = nav.y < -0.5f;
+                isUpHeld = nav.y > 0.5f; isDownHeld = nav.y < -0.5f;
                 isDecidePressed = MenuInputManager.Instance.submitP1.action.triggered;
                 isCancelPressed = MenuInputManager.Instance.cancelP1.action.triggered;
             }
         }
         else
         {
-            isUpPressed = Input.GetKey(KeyCode.UpArrow);
-            isDownPressed = Input.GetKey(KeyCode.DownArrow);
-            isDecidePressed = Input.GetKeyDown(KeyCode.Z);
-            isCancelPressed = Input.GetKeyDown(KeyCode.X);
+            isUpHeld = Input.GetKey(KeyCode.UpArrow); isDownHeld = Input.GetKey(KeyCode.DownArrow);
+            isDecidePressed = Input.GetKeyDown(KeyCode.Z); isCancelPressed = Input.GetKeyDown(KeyCode.X);
         }
 
         if (_isGameStartReadyPhase)
         {
-            if (isDecidePressed && _inputCooldownTimer <= 0f)
-            {
-                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
-                LoadGameplayScene();
-            }
-            if (isCancelPressed)
-            {
-                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
-                RollbackToP2Selection();
-            }
+            if (isDecidePressed && _inputCooldownTimer <= 0f) { if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE); LoadGameplayScene(); }
+            if (isCancelPressed) { if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL); RollbackToP2Selection(); }
             return;
         }
 
-        if (isUpPressed || isDownPressed)
+        bool executeCursorScroll = false;
+        if (isUpHeld || isDownHeld)
         {
-            if (_keyHoldTimer == 0f && !_isFirstScrollDone)
+            if (_cursorKeyHoldTimer == 0f && !_isCursorFirstScrollDone)
             {
-                if (isUpPressed) _currentCursor = (_currentCursor - 1 + (maxIndexLimit + 1)) % (maxIndexLimit + 1);
-                if (isDownPressed) _currentCursor = (_currentCursor + 1) % (maxIndexLimit + 1);
-
-                _isFirstScrollDone = true;
-                _keyHoldTimer = FIRST_SCROLL_DELAY;
+                executeCursorScroll = true;
+                _isCursorFirstScrollDone = true;
+                _cursorKeyHoldTimer = MENU_FIRST_SCROLL_DELAY;
             }
             else
             {
-                _keyHoldTimer -= Time.deltaTime;
-                if (_keyHoldTimer <= 0f)
+                _cursorKeyHoldTimer -= Time.deltaTime;
+                if (_cursorKeyHoldTimer <= 0f)
                 {
-                    if (isUpPressed) _currentCursor = (_currentCursor - 1 + (maxIndexLimit + 1)) % (maxIndexLimit + 1);
-                    if (isDownPressed) _currentCursor = (_currentCursor + 1) % (maxIndexLimit + 1);
-
-                    _keyHoldTimer = REPEAT_SCROLL_SPEED;
+                    executeCursorScroll = true;
+                    _cursorKeyHoldTimer = MENU_REPEAT_SCROLL_SPEED;
                 }
             }
         }
         else
         {
-            _keyHoldTimer = 0f;
-            _isFirstScrollDone = false;
+            _cursorKeyHoldTimer = 0f;
+            _isCursorFirstScrollDone = false;
+        }
+
+        if (executeCursorScroll && isUpHeld)
+        {
+            _currentCursor = (_currentCursor - 1 + (maxIndexLimit + 1)) % (maxIndexLimit + 1);
+        }
+        else if (executeCursorScroll && isDownHeld)
+        {
+            _currentCursor = (_currentCursor + 1) % (maxIndexLimit + 1);
         }
 
         if (prevCursor != _currentCursor)
@@ -323,16 +391,234 @@ public class CharacterSelectManager : MonoBehaviour
             UpdateSelectionVisuals();
         }
 
-        if (isDecidePressed && _inputCooldownTimer <= 0f)
+        if (isDecidePressed && _inputCooldownTimer <= 0f) { if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE); ConfirmSelection(); }
+        if (isCancelPressed) { if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL); HandleCancel(); }
+    }
+
+    private void ToggleSkillDetailMode(int playerId)
+    {
+        if (playerId == 1)
         {
-            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
-            ConfirmSelection();
+            _isP1SkillDetailMode = !_isP1SkillDetailMode;
+            SetDetailCanvasVisible(1, _isP1SkillDetailMode);
+
+            if (_isP1SkillDetailMode)
+            {
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
+                UpdateSkillDetailVisuals(1);
+            }
+            else
+            {
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
+            }
+        }
+        else if (playerId == 2)
+        {
+            _isP2SkillDetailMode = !_isP2SkillDetailMode;
+            SetDetailCanvasVisible(2, _isP2SkillDetailMode);
+
+            if (_isP2SkillDetailMode)
+            {
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUDECIDE);
+                UpdateSkillDetailVisuals(2);
+            }
+            else
+            {
+                if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
+            }
+        }
+    }
+
+    private void SetDetailCanvasVisible(int playerId, bool visible)
+    {
+        if (playerId == 1)
+        {
+            if (p1SkillDetailCanvas != null) p1SkillDetailCanvas.SetActive(true);
+            if (p1DetailCanvasGroup != null)
+            {
+                p1DetailCanvasGroup.alpha = visible ? 1f : 0f;
+                p1DetailCanvasGroup.interactable = visible;
+                p1DetailCanvasGroup.blocksRaycasts = visible;
+            }
+            else if (p1SkillDetailCanvas != null) p1SkillDetailCanvas.SetActive(visible);
+        }
+        else
+        {
+            if (p2SkillDetailCanvas != null) p2SkillDetailCanvas.SetActive(true);
+            if (p2DetailCanvasGroup != null)
+            {
+                p2DetailCanvasGroup.alpha = visible ? 1f : 0f;
+                p2DetailCanvasGroup.interactable = visible;
+                p2DetailCanvasGroup.blocksRaycasts = visible;
+            }
+            else if (p2SkillDetailCanvas != null) p2SkillDetailCanvas.SetActive(visible);
+        }
+    }
+
+    private void UpdateSkillDetailVisuals(int playerId)
+    {
+        PlayerSkillData currentData = GetCurrentCharacterDataForPlayer(playerId);
+        if (currentData == null) return;
+
+        bool isRandomHover = !_isGameStartReadyPhase && (_currentCursor == _selectableCharacterCount);
+
+        int skillIndex = (playerId == 1) ? _p1CurrentSkillIndex : _p2CurrentSkillIndex;
+        PlayerSkillData.SkillSettings targetSkill = GetSkillSettingsByIndex(currentData, skillIndex);
+
+        string keyLabel = "";
+        switch (skillIndex)
+        {
+            case 0: keyLabel = "[ Skill: Z ]"; break;
+            case 1: keyLabel = "[ Skill: X ]"; break;
+            case 2: keyLabel = "[ Skill: C ]"; break;
+            case 3: keyLabel = "[ Skill: V ]"; break;
         }
 
-        if (isCancelPressed)
+        if (playerId == 1)
         {
-            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.MENUCANCEL);
-            HandleCancel();
+            if (p1DetailSkillKeyText != null) p1DetailSkillKeyText.text = keyLabel;
+            if (p1DetailSkillNameText != null) p1DetailSkillNameText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : targetSkill.skillName;
+            if (p1DetailSkillDescText != null) p1DetailSkillDescText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : targetSkill.skillDescription;
+            if (p1DetailSkillIconImage != null)
+            {
+                if (!isRandomHover && targetSkill.skillIcon != null) { p1DetailSkillIconImage.gameObject.SetActive(true); p1DetailSkillIconImage.sprite = targetSkill.skillIcon; }
+                else { p1DetailSkillIconImage.gameObject.SetActive(false); }
+            }
+        }
+        else
+        {
+            if (p2DetailSkillKeyText != null) p2DetailSkillKeyText.text = keyLabel;
+            if (p2DetailSkillNameText != null) p2DetailSkillNameText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : targetSkill.skillName;
+            if (p2DetailSkillDescText != null) p2DetailSkillDescText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : targetSkill.skillDescription;
+            if (p2DetailSkillIconImage != null)
+            {
+                if (!isRandomHover && targetSkill.skillIcon != null) { p2DetailSkillIconImage.gameObject.SetActive(true); p2DetailSkillIconImage.sprite = targetSkill.skillIcon; }
+                else { p2DetailSkillIconImage.gameObject.SetActive(false); }
+            }
+        }
+    }
+
+    private void UpdatePlayerTitleSkillText(int playerId)
+    {
+        PlayerSkillData currentData = GetCurrentCharacterDataForPlayer(playerId);
+        bool isRandomHover = !_isGameStartReadyPhase && (_currentCursor == _selectableCharacterCount);
+
+        if (playerId == 1)
+        {
+            bool isP1Active = !_isP2SelectingPhase && !_isGameStartReadyPhase;
+            bool isP1Ready = _isP2SelectingPhase || _isGameStartReadyPhase;
+
+            if (p1PassiveNameText != null)
+            {
+                p1PassiveNameText.gameObject.SetActive(isP1Active || isP1Ready);
+                string pName = (currentData != null) ? currentData.customPassiveName : "？？？";
+                p1PassiveNameText.text = $"パッシブ：「{pName}」";
+            }
+            if (p1SpellNameText != null)
+            {
+                p1SpellNameText.gameObject.SetActive(isP1Active || isP1Ready);
+                string sName = (currentData != null) ? currentData.customSpellCardDisplayName : "？？？";
+                p1SpellNameText.text = $"聖少女領域：「{sName}」";
+            }
+
+            if (p1TitleSkillNameText != null)
+            {
+                p1TitleSkillNameText.gameObject.SetActive(isP1Active || isP1Ready);
+                PlayerSkillData.SkillSettings skill = GetSkillSettingsByIndex(currentData, _p1CurrentSkillIndex);
+                p1TitleSkillNameText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : skill.skillName;
+            }
+            if (p1TitleSkillDescText != null)
+            {
+                p1TitleSkillDescText.gameObject.SetActive(isP1Active || isP1Ready);
+                PlayerSkillData.SkillSettings skill = GetSkillSettingsByIndex(currentData, _p1CurrentSkillIndex);
+                p1TitleSkillDescText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : skill.skillDescription;
+            }
+        }
+        else
+        {
+            bool isP2Active = _isP2SelectingPhase && !_isGameStartReadyPhase;
+            bool isP2Ready = _isGameStartReadyPhase;
+
+            if (p2PassiveNameText != null)
+            {
+                p2PassiveNameText.gameObject.SetActive(isP2Active || isP2Ready);
+                string pName = (currentData != null) ? currentData.customPassiveName : "？？？";
+                p2PassiveNameText.text = $"パッシブ：「{pName}」";
+            }
+            if (p2SpellNameText != null)
+            {
+                p2SpellNameText.gameObject.SetActive(isP2Active || isP2Ready);
+                string sName = (currentData != null) ? currentData.customSpellCardDisplayName : "？？？";
+                p2SpellNameText.text = $"聖少女領域：「{sName}」";
+            }
+
+            if (p2TitleSkillNameText != null)
+            {
+                p2TitleSkillNameText.gameObject.SetActive(isP2Active || isP2Ready);
+                PlayerSkillData.SkillSettings skill = GetSkillSettingsByIndex(currentData, _p2CurrentSkillIndex);
+                p2TitleSkillNameText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : skill.skillName;
+            }
+            if (p2TitleSkillDescText != null)
+            {
+                p2TitleSkillDescText.gameObject.SetActive(isP2Active || isP2Ready);
+                PlayerSkillData.SkillSettings skill = GetSkillSettingsByIndex(currentData, _p2CurrentSkillIndex);
+                p2TitleSkillDescText.text = (isRandomHover && !_isGameStartReadyPhase) ? "？？？" : skill.skillDescription;
+            }
+        }
+    }
+
+    private PlayerSkillData GetCurrentCharacterDataForPlayer(int playerId)
+    {
+        if (_isGameStartReadyPhase)
+        {
+            int charId = (playerId == 1) ? GameSelectionData.SelectedCharacterP1 : GameSelectionData.SelectedCharacterP2;
+            if (charId >= 0 && charId < availableCharacters.Count)
+            {
+                return availableCharacters[charId];
+            }
+        }
+
+        if (playerId == 1 && _isP2SelectingPhase)
+        {
+            int charId = GameSelectionData.SelectedCharacterP1;
+            if (charId >= 0 && charId < availableCharacters.Count)
+            {
+                return availableCharacters[charId];
+            }
+        }
+
+        if (playerId == 1 && !_isP2SelectingPhase)
+        {
+            return GetCurrentHoveredCharacterData();
+        }
+        else if (playerId == 2 && _isP2SelectingPhase)
+        {
+            return GetCurrentHoveredCharacterData();
+        }
+
+        return null;
+    }
+
+    private PlayerSkillData GetCurrentHoveredCharacterData()
+    {
+        if (_currentCursor < _selectableCharacterCount && _currentCursor < availableCharacters.Count)
+        {
+            return availableCharacters[_currentCursor];
+        }
+        return null;
+    }
+
+    private PlayerSkillData.SkillSettings GetSkillSettingsByIndex(PlayerSkillData data, int index)
+    {
+        if (data == null) return new PlayerSkillData.SkillSettings();
+
+        switch (index)
+        {
+            case 0: return data.skillZ;
+            case 1: return data.skillX;
+            case 2: return data.skillC;
+            case 3: return data.skillV;
+            default: return data.skillZ;
         }
     }
 
@@ -381,16 +667,47 @@ public class CharacterSelectManager : MonoBehaviour
 
         string hoveringName = "Random";
         Sprite hoveringSprite = randomOrDefaultSprite;
+        PlayerSkillData hoveredData = GetCurrentHoveredCharacterData();
 
-        if (_currentCursor < _selectableCharacterCount && _currentCursor < availableCharacters.Count && availableCharacters[_currentCursor] != null)
+        if (hoveredData != null)
         {
-            hoveringName = availableCharacters[_currentCursor].characterName;
-            hoveringSprite = availableCharacters[_currentCursor].characterSprite;
+            hoveringName = hoveredData.characterName;
+            hoveringSprite = hoveredData.characterSprite;
         }
+
+        if (_isGameStartReadyPhase)
+        {
+            PlayerSkillData p1FinalData = GetCurrentCharacterDataForPlayer(1);
+            PlayerSkillData p2FinalData = GetCurrentCharacterDataForPlayer(2);
+
+            UpdatePlayerSkillIcons(1, p1FinalData);
+            UpdatePlayerTitleSkillText(1);
+
+            UpdatePlayerSkillIcons(2, p2FinalData);
+            UpdatePlayerTitleSkillText(2);
+        }
+        else if (!_isP2SelectingPhase)
+        {
+            UpdatePlayerSkillIcons(1, hoveredData);
+            UpdatePlayerTitleSkillText(1);
+            TogglePlayerDisplay(2, false);
+        }
+        else
+        {
+            UpdatePlayerSkillIcons(2, hoveredData);
+            UpdatePlayerTitleSkillText(2);
+
+            PlayerSkillData p1FinalData = GetCurrentCharacterDataForPlayer(1);
+            UpdatePlayerSkillIcons(1, p1FinalData);
+            UpdatePlayerTitleSkillText(1);
+        }
+
+        if (_isP1SkillDetailMode) UpdateSkillDetailVisuals(1);
+        if (_isP2SkillDetailMode) UpdateSkillDetailVisuals(2);
 
         if (p1SelectedNameText != null)
         {
-            string p1Label = _p1DebugAutoAiToggle ? "1P(COM): " : "1P: ";
+            string p1Label = "1P: ";
 
             if (_isGameStartReadyPhase)
             {
@@ -405,8 +722,17 @@ public class CharacterSelectManager : MonoBehaviour
             {
                 if (_finalP1CharacterId == _selectableCharacterCount)
                 {
-                    p1SelectedNameText.text = p1Label + "Random";
-                    SetCharacterImage(p1SelectedCharacterImage, randomOrDefaultSprite);
+                    int realP1Id = GameSelectionData.SelectedCharacterP1;
+                    if (realP1Id >= 0 && realP1Id < availableCharacters.Count && availableCharacters[realP1Id] != null)
+                    {
+                        p1SelectedNameText.text = p1Label + availableCharacters[realP1Id].characterName;
+                        SetCharacterImage(p1SelectedCharacterImage, availableCharacters[realP1Id].characterSprite);
+                    }
+                    else
+                    {
+                        p1SelectedNameText.text = p1Label + "Random";
+                        SetCharacterImage(p1SelectedCharacterImage, randomOrDefaultSprite);
+                    }
                 }
                 else
                 {
@@ -471,31 +797,83 @@ public class CharacterSelectManager : MonoBehaviour
             }
             else if (_isGameStartReadyPhase)
             {
-                if (_endlessModeToggle)
-                {
-                    guideText.text = "PRESS START BUTTON [DEBUG: ENDLESS MODE ON]";
-                    guideText.color = Color.cyan;
-                }
-                else
-                {
-                    guideText.text = "PRESS START BUTTON TO BATTLE";
-                }
+                guideText.text = "PRESS START BUTTON TO BATTLE";
+                guideText.color = unselectedColor;
             }
             else
             {
-                string debugSuffix = "";
-                if (_p1DebugAutoAiToggle) debugSuffix += "[1P:AI] ";
-                if (_endlessModeToggle) debugSuffix += "[ENDLESS] ";
-
-                if (!string.IsNullOrEmpty(debugSuffix))
+                string baseGuide = "";
+                if (_isP2SelectingPhase)
                 {
-                    guideText.text = $"1P SELECT <color=yellow>{debugSuffix}</color>";
+                    baseGuide = (GameSelectionData.CurrentMode == GameSelectionData.GameMode.VsCom) ? "COM SELECT" : "2P SELECT";
                 }
                 else
                 {
-                    guideText.text = "1P SELECT";
+                    baseGuide = "1P SELECT";
                 }
+
+                guideText.text = baseGuide;
                 guideText.color = unselectedColor;
+            }
+        }
+    }
+
+    private void TogglePlayerDisplay(int playerId, bool show)
+    {
+        if (playerId == 1)
+        {
+            if (p1PassiveNameText != null) p1PassiveNameText.gameObject.SetActive(show);
+            if (p1SpellNameText != null) p1SpellNameText.gameObject.SetActive(show);
+            if (p1TitleSkillNameText != null) p1TitleSkillNameText.gameObject.SetActive(show);
+            if (p1TitleSkillDescText != null) p1TitleSkillDescText.gameObject.SetActive(show);
+            if (p1SkillIconImages != null) foreach (var img in p1SkillIconImages) if (img != null) img.gameObject.SetActive(show);
+        }
+        else
+        {
+            if (p2PassiveNameText != null) p2PassiveNameText.gameObject.SetActive(show);
+            if (p2SpellNameText != null) p2SpellNameText.gameObject.SetActive(show);
+            if (p2TitleSkillNameText != null) p2TitleSkillNameText.gameObject.SetActive(show);
+            if (p2TitleSkillDescText != null) p2TitleSkillDescText.gameObject.SetActive(show);
+            if (p2SkillIconImages != null) foreach (var img in p2SkillIconImages) if (img != null) img.gameObject.SetActive(show);
+        }
+    }
+
+    private void UpdatePlayerSkillIcons(int playerId, PlayerSkillData charData)
+    {
+        Image[] targetIcons = (playerId == 1) ? p1SkillIconImages : p2SkillIconImages;
+        if (targetIcons == null || targetIcons.Length == 0) return;
+
+        bool isRandomHover = !_isGameStartReadyPhase && (_currentCursor == _selectableCharacterCount);
+
+        if (playerId == 2 && !_isP2SelectingPhase && !_isGameStartReadyPhase)
+        {
+            foreach (var icon in targetIcons) if (icon != null) icon.gameObject.SetActive(false);
+            return;
+        }
+
+        if (charData == null || (isRandomHover && !_isGameStartReadyPhase))
+        {
+            foreach (var icon in targetIcons) if (icon != null) icon.gameObject.SetActive(false);
+            return;
+        }
+
+        for (int i = 0; i < targetIcons.Length; i++)
+        {
+            if (targetIcons[i] == null) continue;
+
+            PlayerSkillData.SkillSettings skill = GetSkillSettingsByIndex(charData, i);
+
+            if (!string.IsNullOrEmpty(skill.skillName) && skill.skillIcon != null)
+            {
+                targetIcons[i].gameObject.SetActive(true);
+                targetIcons[i].sprite = skill.skillIcon;
+
+                int currentIndex = (playerId == 1) ? _p1CurrentSkillIndex : _p2CurrentSkillIndex;
+                targetIcons[i].color = (i == currentIndex) ? selectedColor : unselectedColor;
+            }
+            else
+            {
+                targetIcons[i].gameObject.SetActive(false);
             }
         }
     }
@@ -508,8 +886,6 @@ public class CharacterSelectManager : MonoBehaviour
         {
             targetImage.gameObject.SetActive(true);
             targetImage.sprite = sprite;
-
-            // 🌟【追加】：画像の縦横比を維持したまま、Imageのサイズ（RectTransform）を自動調整する
             ApplyAspectFit(targetImage, sprite);
         }
         else
@@ -527,17 +903,11 @@ public class CharacterSelectManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 🖼️ Spriteの元サイズ（縦横比）を基準に、ImageのRectTransformの大きさを綺麗にフィットさせるヘルパーメソッド
-    /// </summary>
     private void ApplyAspectFit(Image targetImage, Sprite sprite)
     {
         if (targetImage == null || sprite == null) return;
-
-        // Image自体の設定として、元画像の比率を維持するプロパティをONにする
         targetImage.preserveAspect = true;
 
-        // もし「Imageコンポーネントがアタッチされている枠の大きさ自体を、画像の比率に合わせて自動変形させたい」場合：
         RectTransform rectTransform = targetImage.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
@@ -547,22 +917,29 @@ public class CharacterSelectManager : MonoBehaviour
             if (spriteWidth > 0f && spriteHeight > 0f)
             {
                 float aspectRatio = spriteWidth / spriteHeight;
-
-                // 現在の高さ（あるいは幅）を基準にして、比率に合わせたサイズへ補正
-                // ※ここでは高さを基準に幅を自動調整する例です
                 float currentHeight = rectTransform.sizeDelta.y;
                 if (currentHeight <= 0f) currentHeight = rectTransform.rect.height;
-                if (currentHeight <= 0f) currentHeight = 300f; // フォールバック値
+                if (currentHeight <= 0f) currentHeight = 300f;
 
                 rectTransform.sizeDelta = new Vector2(currentHeight * aspectRatio, currentHeight);
             }
         }
     }
+
     private void ConfirmSelection()
     {
         if (!_isP2SelectingPhase)
         {
             _finalP1CharacterId = _currentCursor;
+
+            if (_finalP1CharacterId == _selectableCharacterCount)
+            {
+                GameSelectionData.SelectedCharacterP1 = Random.Range(0, _selectableCharacterCount);
+            }
+            else
+            {
+                GameSelectionData.SelectedCharacterP1 = _finalP1CharacterId;
+            }
 
             if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.Story)
             {
@@ -583,30 +960,7 @@ public class CharacterSelectManager : MonoBehaviour
         else
         {
             _finalP2CharacterId = _currentCursor;
-            _inputCooldownTimer = 0.2f;
-            EnterGameStartReady();
-        }
-    }
 
-    private void EnterGameStartReady()
-    {
-        _isGameStartReadyPhase = true;
-
-        if (_finalP1CharacterId == _selectableCharacterCount)
-        {
-            GameSelectionData.SelectedCharacterP1 = Random.Range(0, _selectableCharacterCount);
-        }
-        else
-        {
-            GameSelectionData.SelectedCharacterP1 = _finalP1CharacterId;
-        }
-
-        if (GameSelectionData.CurrentMode == GameSelectionData.GameMode.Story)
-        {
-            GameSelectionData.SelectedCharacterP2 = 7;
-        }
-        else
-        {
             if (_finalP2CharacterId == _selectableCharacterCount)
             {
                 GameSelectionData.SelectedCharacterP2 = Random.Range(0, _selectableCharacterCount);
@@ -622,17 +976,21 @@ public class CharacterSelectManager : MonoBehaviour
             {
                 GameSelectionData.SelectedCharacterP2 = _finalP2CharacterId;
             }
-        }
 
-        // 🌟【修正】：誤字（gameStartTest）を正しい変数名（gameStartText）に修正
+            _inputCooldownTimer = 0.2f;
+            EnterGameStartReady();
+        }
+    }
+
+    private void EnterGameStartReady()
+    {
+        _isGameStartReadyPhase = true;
+
         if (gameStartText != null)
         {
             gameStartText.gameObject.SetActive(true);
             gameStartText.color = selectedColor;
         }
-
-        GameDifficultyManager.IsP1AutoAiDebugMode = _p1DebugAutoAiToggle;
-        GameDifficultyManager.IsEndlessMode = _endlessModeToggle;
 
         UpdateSelectionVisuals();
     }
@@ -685,80 +1043,64 @@ public class CharacterSelectManager : MonoBehaviour
 
     private void LoadGameplayScene()
     {
-        BGMManager.Instance.FadeOut();
+        if (_isLoadingScene) return;
+        _isLoadingScene = true;
 
-        // 🌟 シームレスな非同期ロードとプログレスバー更新処理へ移行
+        BGMManager.Instance.FadeOut();
         StartCoroutine(LoadSceneAsyncRoutine("Shoot"));
     }
 
-    /// <summary>
-    /// ⏳ 実ロードの早さを超越せず、不規則かつ自然な緩急をつけて0%から100%へ進むプログレスバーコルーチン
-    /// </summary>
     private IEnumerator LoadSceneAsyncRoutine(string sceneName)
     {
-        // 1. ロード画面用Canvasを表示
         if (loadingScreenCanvas != null)
         {
             loadingScreenCanvas.SetActive(true);
         }
 
-        // 2. 非同期ロードの開始
         AsyncOperation asyncOp = SceneManager.LoadSceneAsync(sceneName);
         asyncOp.allowSceneActivation = false;
 
-        float fakeProgress = 0f; // 画面に表示する見せかけの進捗（0.0 ～ 1.0）
+        float fakeProgress = 0f;
         float targetFakeProgress = 0f;
         float timer = 0f;
 
         while (!asyncOp.isDone)
         {
-            // 実際のロード進捗（asyncOp.progressは最大0.9でストップするため 0.0 ～ 1.0 に正規化）
             float realProgress = Mathf.Clamp01(asyncOp.progress / 0.9f);
 
-            // 💡【自然なパーセンテージ増加・不規則な速度変化】：
-            // 一定時間（またはランダムなタイミング）ごとに「目指すべき目標地点（targetFakeProgress）」を
-            // 実際のロード進捗（realProgress）を超えない範囲でランダムに少しずつ進めます。
             timer -= Time.unscaledDeltaTime;
             if (timer <= 0f)
             {
-                // 不規則なウェイト時間を設定（例: 0.05秒～0.2秒おきに変動）
-                timer = UnityEngine.Random.Range(0.05f, 0.22f);
+                timer = Random.Range(0.05f, 0.22f);
 
-                // まだ実際のロードが進み切っていない場合は、リアル進捗を追い越さないようにランダム幅で加算
                 if (fakeProgress < realProgress)
                 {
-                    float maxNext = Mathf.Min(realProgress, fakeProgress + UnityEngine.Random.Range(0.02f, 0.12f));
-                    targetFakeProgress = UnityEngine.Random.Range(fakeProgress, maxNext);
+                    float maxNext = Mathf.Min(realProgress, fakeProgress + Random.Range(0.02f, 0.12f));
+                    targetFakeProgress = Random.Range(fakeProgress, maxNext);
                 }
                 else if (realProgress >= 1.0f && fakeProgress < 0.95f)
                 {
-                    // 実際のロードが完全に終わっている（100%）のにフェイクが追いついていない場合は、最後に100%へ自然に誘導
-                    targetFakeProgress = Mathf.MoveTowards(fakeProgress, 1.0f, UnityEngine.Random.Range(0.03f, 0.08f));
+                    targetFakeProgress = Mathf.MoveTowards(fakeProgress, 1.0f, Random.Range(0.03f, 0.08f));
                 }
             }
 
-            // 📊 緩急（スムーズにイージングしながら目標のフェイク値へ追従）
-            fakeProgress = Mathf.MoveTowards(fakeProgress, targetFakeProgress, Time.unscaledDeltaTime * UnityEngine.Random.Range(0.6f, 1.5f));
+            fakeProgress = Mathf.MoveTowards(fakeProgress, targetFakeProgress, Time.unscaledDeltaTime * Random.Range(0.6f, 1.5f));
 
-            // 万が一の安全弁：実際のロード進捗をフェイクが追い抜いてしまうのを絶対に防止
             if (fakeProgress > realProgress && realProgress < 1.0f)
             {
                 fakeProgress = realProgress;
             }
 
-            // UI Sliderへの反映
             if (progressBarSlider != null)
             {
                 progressBarSlider.value = fakeProgress;
             }
 
-            // テキストへの反映（例: "0%" から "100%" へ滑らかに変化）
             if (progressText != null)
             {
                 progressText.text = $"{Mathf.RoundToInt(fakeProgress * 100f)}%";
             }
 
-            // 3. フェイクのバーも無事に 100%（1.0）に到達し、かつ実際のロードも完了していればシーン遷移を許可
             if (fakeProgress >= 0.99f && realProgress >= 1.0f)
             {
                 if (progressBarSlider != null) progressBarSlider.value = 1.0f;
@@ -766,13 +1108,10 @@ public class CharacterSelectManager : MonoBehaviour
 
                 yield return new WaitForSecondsRealtime(0.25f);
 
-                // =========================================================================
-                // 🌟【最重要修正】：シーンが切り替わる直前に、必ず時間の停止（Time.timeScale）や入力を完全に解除する！
-                // =========================================================================
                 Time.timeScale = 1.0f;
                 PlayerMove.CanInput = true;
                 PlayerMove.CanShoot = true;
-                PlayerStatusManager.isAnyVJTActive = false; // VJTの世界ロック等もクリーンアップ
+                PlayerStatusManager.isAnyVJTActive = false;
 
                 asyncOp.allowSceneActivation = true;
             }
