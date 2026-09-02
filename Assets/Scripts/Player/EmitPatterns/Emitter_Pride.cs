@@ -96,18 +96,10 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         for (int i = 0; i < burstCount; i++)
         {
             if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
-
-            // 毎波ターゲットへの角度を精密追従計算
-            float targetAngle = GetAngleToTarget(transform.position) + s.angleOffset;
-
-            // 正面へ直線スナイプ弾を射出
-            CreateShot(s.bulletData, transform.position, s.speed, targetAngle, s.delay);
-
-            // 4フレームの時間差時差連射ディレイ
-            for (int f = 0; f < 4; f++) yield return new WaitForFixedUpdate();
+            Debug.Log("Executing Icicle Ray");
         }
 
-        yield return new WaitForSeconds(s.cooldown);
+        yield return null;
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
@@ -128,16 +120,11 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         int sphereCount = Mathf.Max(4, s.count); // 盾の枚数
         float currentTargetAngle = GetAngleToTarget(transform.position);
 
-        for (int i = 0; i < sphereCount; i++)
-        {
-            // 自身の周囲360度へ環状均等に配置
-            float placementAngle = currentTargetAngle + (360f / sphereCount * i) + s.angleOffset;
 
-            // s.speed を 0f にして、自機の周りに留まらせる（公転や移動は弾のアセット側または低速直進で適合）
-            CreateShot(s.bulletData, transform.position, s.speed, placementAngle, s.delay);
-        }
+        Debug.Log("Executing Hollow Sphere");
 
-        yield return new WaitForSeconds(s.cooldown);
+
+        yield return null;
         if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
@@ -164,25 +151,9 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         float startAngle = centerAngle - (spread / 2f);
         float stepAngle = spread / (wayCount - 1);
 
-        // 弾速差をつけた2層のパルスを同時射出（時間差ハメ防止用）
-        for (int layer = 0; layer < 2; layer++)
-        {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
+        Debug.Log("Executing Dark Pulsar");
 
-            float layerSpeed = s.speed * (layer == 0 ? 1.0f : 0.75f);
-
-            for (int i = 0; i < wayCount; i++)
-            {
-                float finalAngle = startAngle + (stepAngle * i);
-                CreateShot(s.bulletData, transform.position, layerSpeed, finalAngle, s.delay);
-            }
-
-            // 2フレームだけずらして厚みを持たせる
-            yield return new WaitForFixedUpdate();
-            yield return new WaitForFixedUpdate();
-        }
-
-        yield return new WaitForSeconds(s.cooldown);
+        yield return null;
         _activeSkillCoroutines--;
     }
 
@@ -199,15 +170,10 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         float stepAngle = 360f / allWayCount;
         float randomBaseOffset = Random.Range(0f, 360f);
 
-        for (int i = 0; i < allWayCount; i++)
-        {
-            float finalAngle = randomBaseOffset + (stepAngle * i) + s.angleOffset;
 
-            // ディスチャージ用の波を四方八方へ一斉射出
-            CreateShot(s.bulletData, transform.position, s.speed, finalAngle, s.delay);
-        }
+        Debug.Log("Executing Discharge");
 
-        yield return new WaitForSeconds(s.cooldown);
+        yield return null;
         _activeSkillCoroutines--;
     }
 
@@ -235,30 +201,41 @@ public class Emitter_Pride : PlayerDanmakuEmitter
     /// 👑 Vスキル: 傲慢のフォームチェンジ（Attack ⇔ Defense）
     /// 使うたびに極性が完全反転。さらに焼き切れ状態でなければ、モード変更のSEとログを美しく出力。
     /// </summary>
+    /// <summary>
+    /// 👑 Vスキル: 傲慢のフォームチェンジ（Attack ⇔ Defense）
+    /// 使うたびに極性が完全反転。切り替え時のアニメーション、SE、詳細なステータスログを出力します。
+    /// </summary>
     private IEnumerator ExecuteFormChangeV(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
 
-        // モードを反転
-        IsAttackmode = !IsAttackmode; 
+        // 1. モード変数を反転（False: ディフェンス ⇄ True: アタック）
+        IsAttackmode = !IsAttackmode;
 
-        // モード変更の切り替え効果音を再生
+        // 2. フォームチェンジ用のアニメーションを再生
+        PlaySkillAnimation(s.skillName);
+
+        // 3. 切り替え効果音を再生
         if (SEManager.Instance != null)
         {
-            SEManager.Instance.Play(SEPath.MENUSELECT, 0.7f);
+            SEManager.Instance.Play(SEPath.MENUSELECT, 0.7f); // 必要に応じて専用のSEパスに変更可能
         }
 
+        // 4. 現在のモードに応じた詳細なデバッグログ（変数状態の可視化）を出力
         if (IsAttackmode)
         {
-            Debug.Log("<color=red>⚔️【傲慢：Change_AtkMode!!】攻撃特化形態へ移行。アイシクルレイ ＆ ダークパルサーが解禁！</color>");
+            Debug.Log($"<color=red>⚔️【傲慢 (Pride) フォームチェンジ】アタックモード起動！ (IsAttackmode = {IsAttackmode}) ➔ [アイシクルレイ ＆ ダークパルサー] が解放されました。</color>");
 
+            // 💡 補足：もしアタックモード時に機体カラーやオーラを変化させたい場合はここに処理を追加できます
         }
         else
         {
-            Debug.Log("<color=cyan>🛡️【傲慢：Change_DefMode!!】絶対防御形態へ移行。ホロウスフィア ＆ ディスチャージが解禁！</color>"); 
+            Debug.Log($"<color=cyan>🛡️【傲慢 (Pride) フォームチェンジ】ディフェンスモード起動！ (IsAttackmode = {IsAttackmode}) ➔ [ホロウスフィア ＆ ディスチャージ] が解放されました。</color>");
+
+            // 💡 補足：ディフェンスモード時の見た目の切り替え処理などもここに記述可能です
         }
 
-        // フォームチェンジ自体の硬直（ごくわずか）
+        // 5. フォームチェンジ自体の硬直（ごくわずかなウェイト）
         yield return new WaitForSeconds(Mathf.Max(0.1f, s.cooldown));
         _activeSkillCoroutines--;
     }
