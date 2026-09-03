@@ -1238,7 +1238,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bceb1ff0558e9f64892ca746df87ae47, type: 2}
   - {fileID: 11400000, guid: 2ebd62a835d04e641ae11e1f6a53cec2, type: 2}
   - {fileID: 11400000, guid: 46bf364284e3ee04496259d07542f277, type: 2}
-  displayCharacterCount: 7
+  displayCharacterCount: 3
   selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   unselectedColor: {r: 1, g: 1, b: 1, a: 1}
   titleMenuCanvas: {fileID: 1528592940}
