@@ -114,7 +114,8 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     /// <summary>
     /// 🛡️ 現在の状態で新規スキルを発動可能かどうかを判定する窓口
     /// </summary>
-    public bool CanFire(PlayerSkillData.SkillSettings s)
+// 🛡️ 仮想メソッドに変更して、子クラス（各キャラのエミッター）で固有の判定を上書きできるようにする
+    public virtual bool CanFire(PlayerSkillData.SkillSettings s)
     {
         if (!enabled) return false;
         if (!PlayerMove.CanShoot) return false;
@@ -124,18 +125,12 @@ public class PlayerDanmakuEmitter : MonoBehaviour
 
         if (_isEXSkillActive) return false;
 
-        // =========================================================================
-        // 🌟【最重要修正】：このスキルが「同時使用許可（isConcurrentAllowed）」または「チャージスキル」の場合、
-        //    他のスキルがすでに稼働中（_activeSkillCoroutines > 0）であっても、一切の制限を無視して即座に発動を許可する！
-        // =========================================================================
         if (s.isConcurrentAllowed || s.isChargeSkill)
         {
             return true;
         }
 
-        // 🛡️ ここまで来るのは「同時使用が許可されていない通常の排他スキル」のみです。
-        // すでに他のスキルが1つでも動いている場合は、重複を許さないためブロックします。
-        if (_activeSkillCoroutines >= maxConcurrentSkills)
+        if (_activeSkillCoroutines >= maxConcurrentSkills && !s.isConcurrentAllowed)
         {
             return false;
         }

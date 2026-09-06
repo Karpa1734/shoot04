@@ -1,5 +1,6 @@
 ﻿using KanKikuchi.AudioManager;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 
@@ -33,26 +34,13 @@ public class Emitter_Pride : PlayerDanmakuEmitter
 
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
-        if (IsAttackmode)
-        {
-            yield return StartCoroutine(ExecuteIcicleRay(s)); // 💥 アタック：アイシクルレイ
-        }
-        else
-        {
-            yield return StartCoroutine(ExecuteHollowSphere(s)); // 🛡️ ディフェンス：ホロウスフィア
-        }
+        yield return StartCoroutine(ExecuteIcicleRay(s)); // 💥 アタック：アイシクルレイ
     }
 
     protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s)
     {
-        if (IsAttackmode)
-        {
-            yield return StartCoroutine(ExecuteDarkPulsar(s)); // 💥 アタック：ダークパルサー
-        }
-        else
-        {
-            yield return StartCoroutine(ExecuteDischarge(s)); // 🛡️ ディフェンス：ディスチャージ
-        }
+        yield return StartCoroutine(ExecuteDarkPulsar(s)); // 💥 アタック：ダークパルサー
+
     }
 
     protected override IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s)
@@ -73,144 +61,183 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         yield return StartCoroutine(ExecutePrideUltimateEX(s));
     }
 
-    // =========================================================================
-    // ⚔️ 【Zスキル】：アタック（アイシクルレイ） ✕ ディフェンス（ホロウスフィア）
-    // =========================================================================
+
+    // 🌟 同時展開しているアクティブなレーザーのセットを追跡するリスト
+    private List<List<EnemyLaserBeam>> _activeIcicleLaserSets = new List<List<EnemyLaserBeam>>();
+    private const int MAX_ICICLE_SETS = 3; // 最大3セットまで同時展開可能
+
+    // 💡 外部（PlayerDanmakuEmitterのCanFireなど）から上限に達しているか安全に確認するためのヘルパー
+    public bool HasReachedMaxIcicleLasers()
+    {
+        if (_activeIcicleLaserSets != null)
+        {
+            _activeIcicleLaserSets.RemoveAll(set => set == null || set.TrueForAll(l => l == null));
+            return _activeIcicleLaserSets.Count >= MAX_ICICLE_SETS;
+        }
+        return false;
+    }
 
     /// <summary>
-    /// 💥 Z-Attack: アイシクルレイ
-    /// 敵の座標へ向けて、高速かつ攻撃力ランクの高い直線氷刃弾を3つ時間差で高速スナイプ連射する
+    /// 🧊 予告線を敵機方向に向かわせ、指定フレーム後に実線化して発射するアイスレーザー（即時完了・連射対応版）
     /// </summary>
     private IEnumerator ExecuteIcicleRay(PlayerSkillData.SkillSettings s)
     {
-        _activeSkillCoroutines++;
-        PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+        if (BulletManager.Instance == null) yield break;
 
-        // アタックモード時は前傾姿勢（減速をゆるくして攻めやすく）
-        if (myMove != null) myMove.skillSpeedMultiplier = Mathf.Max(s.moveSpeedMultiplier, 0.8f);
-
-        int burstCount = Mathf.Max(1, s.count); // 通常3連射想定
-        PlaySkillSE(s.sePath);
-
-        for (int i = 0; i < burstCount; i++)
+        // 🛡️ 最大数チェック
+        if (_activeIcicleLaserSets != null)
         {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
-
-            // 毎波ターゲットへの角度を精密追従計算
-            float targetAngle = GetAngleToTarget(transform.position) + s.angleOffset;
-
-            // 正面へ直線スナイプ弾を射出
-            CreateShot(s.bulletData, transform.position, s.speed, targetAngle, s.delay);
-
-            // 4フレームの時間差時差連射ディレイ
-            for (int f = 0; f < 4; f++) yield return new WaitForFixedUpdate();
+            _activeIcicleLaserSets.RemoveAll(set => set == null || set.TrueForAll(l => l == null));
+            if (_activeIcicleLaserSets.Count >= MAX_ICICLE_SETS)
+            {
+                yield break;
+            }
         }
 
-        yield return new WaitForSeconds(s.cooldown);
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
+        PlaySkillSE(s.sePath);
+        PlaySkillAnimation(s.skillName);
+
+        int warningFrame = 30; // 予告フレーム (0.5秒)
+        float targetAngle = GetAngleToTarget(transform.position) + s.angleOffset;
+
+        List<EnemyLaserBeam> currentSetLasers = new List<EnemyLaserBeam>();
+
+ 
+            EnemyLaserBeam laser = CreateLaserShot(
+                s.bulletData,
+                transform.position,
+                s.speed,
+                s.count,
+                s.wideAngle,
+                warningFrame,
+                isSetupB: true
+            );
+
+        if (laser != null)
+        {
+            currentSetLasers.Add(laser);
+
+            // 予告線が敵機方向を向くようにデータを登録（少しずつ角度を散らす）
+            laser.AddData(new EnemyLaserBeam.LaserTransformData
+            {
+                frame = 0,
+                dist = 0f,
+                distAngle = 0f,
+                laserAngle = targetAngle,
+                    distAngleVel = 0f,
+                laserAngleVel = 0f,
+                isSmooth = true
+            });
+
+            // 予告時間後の実線化ロックデータ
+            laser.AddData(new EnemyLaserBeam.LaserTransformData
+            {
+                frame = warningFrame,
+                laserAngleVel = 0f,
+                isSmooth = true
+            });
+
+            laser.Fire();
+
+        }
+
+        if (currentSetLasers.Count > 0)
+        {
+            _activeIcicleLaserSets.Add(currentSetLasers);
+
+            // 💡 スキル本体は即座に終了しますが、レーザーが消えるまでの間だけ
+            // マナの自然回復を止めるためにライフタイム管理コルーチンを裏で独立して走らせます
+            StartCoroutine(ManageIcicleSetLifetime(currentSetLasers, (warningFrame / 60f) + 1.0f));
+        }
+
+        // 🎯 予告線を出した瞬間にスキル発射処理としては完了（即座に別のスキルや連射が可能に！）
+        yield break;
     }
 
     /// <summary>
-    /// 🛡️ Z-Defense: ホロウスフィア
-    /// 自身の周囲に低速で公転・防御する巨大な球体弾（お札）を環状に展開し、盾として身に纏う
+    /// 生成されたレーザーセットのライフタイムを監視し、終了時にクローズして管理リストから外す
     /// </summary>
-    private IEnumerator ExecuteHollowSphere(PlayerSkillData.SkillSettings s)
+    private IEnumerator ManageIcicleSetLifetime(List<EnemyLaserBeam> laserSet, float duration)
     {
+        // レーザーが生存している間だけマナ自然回復をブロック
         _activeSkillCoroutines++;
-        PlayerMove myMove = GetComponentInParent<PlayerMove>();
 
-        // ディフェンス時はしっかり身を固めて低速精密移動
-        if (myMove != null) myMove.skillSpeedMultiplier = Mathf.Min(s.moveSpeedMultiplier, 0.5f);
-        PlaySkillSE(s.sePath);
+        yield return new WaitForSeconds(duration);
 
-        int sphereCount = Mathf.Max(4, s.count); // 盾の枚数
-        float currentTargetAngle = GetAngleToTarget(transform.position);
-
-        for (int i = 0; i < sphereCount; i++)
+        foreach (var laser in laserSet)
         {
-            // 自身の周囲360度へ環状均等に配置
-            float placementAngle = currentTargetAngle + (360f / sphereCount * i) + s.angleOffset;
-
-            // s.speed を 0f にして、自機の周りに留まらせる（公転や移動は弾のアセット側または低速直進で適合）
-            CreateShot(s.bulletData, transform.position, s.speed, placementAngle, s.delay);
+            if (laser != null)
+            {
+                laser.ForceClose();
+            }
         }
 
-        yield return new WaitForSeconds(s.cooldown);
-        if (myMove != null) myMove.skillSpeedMultiplier = 1.0f;
-        _activeSkillCoroutines--;
-    }
+        if (_activeIcicleLaserSets != null)
+        {
+            _activeIcicleLaserSets.Remove(laserSet);
+        }
 
-    // =========================================================================
-    // ⚔️ 【Xスキル】：アタック（ダークパルサー） ✕ ディフェンス（ディスチャージ）
-    // =========================================================================
+        if (_activeSkillCoroutines > 0)
+        {
+            _activeSkillCoroutines--;
+        }
+    }
+    // 🌟 全方位弾の回転方向反転用フラグ（Xスキル用）
+    private bool _isDarkPulsarRotReversed = false;
 
     /// <summary>
     /// 💥 X-Attack: ダークパルサー
-    /// 前方の空間へ向けて、徐々に横幅が広がりながら敵を飲み込んでいく、不吉なV字型の闇の波動（扇形弾幕）を放つ
+    /// 自機外し全方位弾を、射角を回転させながら段階的に弾速を上げつつ連続発射する弾幕ルーチン
     /// </summary>
     private IEnumerator ExecuteDarkPulsar(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
         PlayerHitHandler myHH = GetComponentInChildren<PlayerHitHandler>();
+        PlayerMove myMove = GetComponentInParent<PlayerMove>();
+
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
         PlaySkillSE(s.sePath);
-        float centerAngle = GetAngleToTarget(transform.position) + s.angleOffset;
+        PlaySkillAnimation(s.skillName);
 
-        int wayCount = Mathf.Max(3, s.count); // 5wayなどの扇形
-        float spread = s.wideAngle > 0 ? s.wideAngle : 45f;
+        Vector3 pos = transform.position;
 
-        float startAngle = centerAngle - (spread / 2f);
-        float stepAngle = spread / (wayCount - 1);
+        // 1. 1波あたりの弾数を設定（偶数丸め処理）
+        int baseBulletCount = s.count > 0 ? s.count : 16;
+        if (baseBulletCount % 2 != 0) baseBulletCount++;
+        int bulletCount = Mathf.Max(4, baseBulletCount);
 
-        // 弾速差をつけた2層のパルスを同時射出（時間差ハメ防止用）
-        for (int layer = 0; layer < 2; layer++)
-        {
-            if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal)) break;
+        float step = 360f / bulletCount;
+        float evenWayOffset = step / 2f;
 
-            float layerSpeed = s.speed * (layer == 0 ? 1.0f : 0.75f);
+        float currentSpeed = 6f; // 初速
 
-            for (int i = 0; i < wayCount; i++)
-            {
-                float finalAngle = startAngle + (stepAngle * i);
-                CreateShot(s.bulletData, transform.position, layerSpeed, finalAngle, s.delay);
-            }
+        // 使うたびに回転方向が反転
+        bool currentRotReversed = _isDarkPulsarRotReversed;
+        _isDarkPulsarRotReversed = !_isDarkPulsarRotReversed;
 
-            // 2フレームだけずらして厚みを持たせる
-            yield return new WaitForFixedUpdate();
-            yield return new WaitForFixedUpdate();
-        }
+        float rotDirection = currentRotReversed ? -1f : 1f;
+        float angleIncrement = 12f * rotDirection; // 1波ごとの回転角
 
-        yield return new WaitForSeconds(s.cooldown);
-        _activeSkillCoroutines--;
-    }
+        float targetAngle = GetAngleToTarget();
+        float baseAngle = targetAngle + s.angleOffset + evenWayOffset + Random.Range(-3f,3f);
 
-    /// <summary>
-    /// 🛡️ X-Defense: ディスチャージ
-    /// 自身の足元から、迫りくる敵弾を押し返すかのような全方位24wayの衝撃波リングを円状に一斉放射する
-    /// </summary>
-    private IEnumerator ExecuteDischarge(PlayerSkillData.SkillSettings s)
-    {
-        _activeSkillCoroutines++;
+
         PlaySkillSE(s.sePath);
 
-        int allWayCount = 24; // 鉄壁の全方位弾幕
-        float stepAngle = 360f / allWayCount;
-        float randomBaseOffset = Random.Range(0f, 360f);
-
-        for (int i = 0; i < allWayCount; i++)
+        // 1波分の全方位弾を生成
+        for (int i = 0; i < bulletCount; i++)
         {
-            float finalAngle = randomBaseOffset + (stepAngle * i) + s.angleOffset;
-
-            // ディスチャージ用の波を四方八方へ一斉射出
-            CreateShot(s.bulletData, transform.position, s.speed, finalAngle, s.delay);
+            float finalAngle = baseAngle + (step * i);
+            CreateShot(s.bulletData, pos, currentSpeed, finalAngle, delay: s.delay);
         }
 
+
+
         yield return new WaitForSeconds(s.cooldown);
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
         _activeSkillCoroutines--;
     }
-
     // =========================================================================
     // ⚔️ 【C・V・EXスキル】：インフラ管理 ＆ モード切り替え窓口
     // =========================================================================
@@ -235,30 +262,41 @@ public class Emitter_Pride : PlayerDanmakuEmitter
     /// 👑 Vスキル: 傲慢のフォームチェンジ（Attack ⇔ Defense）
     /// 使うたびに極性が完全反転。さらに焼き切れ状態でなければ、モード変更のSEとログを美しく出力。
     /// </summary>
+    /// <summary>
+    /// 👑 Vスキル: 傲慢のフォームチェンジ（Attack ⇔ Defense）
+    /// 使うたびに極性が完全反転。切り替え時のアニメーション、SE、詳細なステータスログを出力します。
+    /// </summary>
     private IEnumerator ExecuteFormChangeV(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
 
-        // モードを反転
-        IsAttackmode = !IsAttackmode; 
+        // 1. モード変数を反転（False: ディフェンス ⇄ True: アタック）
+        IsAttackmode = !IsAttackmode;
 
-        // モード変更の切り替え効果音を再生
+        // 2. フォームチェンジ用のアニメーションを再生
+        PlaySkillAnimation(s.skillName);
+
+        // 3. 切り替え効果音を再生
         if (SEManager.Instance != null)
         {
-            SEManager.Instance.Play(SEPath.MENUSELECT, 0.7f);
+            SEManager.Instance.Play(SEPath.MENUSELECT, 0.7f); // 必要に応じて専用のSEパスに変更可能
         }
 
+        // 4. 現在のモードに応じた詳細なデバッグログ（変数状態の可視化）を出力
         if (IsAttackmode)
         {
-            Debug.Log("<color=red>⚔️【傲慢：Change_AtkMode!!】攻撃特化形態へ移行。アイシクルレイ ＆ ダークパルサーが解禁！</color>");
+            Debug.Log($"<color=red>⚔️【傲慢 (Pride) フォームチェンジ】アタックモード起動！ (IsAttackmode = {IsAttackmode}) ➔ [アイシクルレイ ＆ ダークパルサー] が解放されました。</color>");
 
+            // 💡 補足：もしアタックモード時に機体カラーやオーラを変化させたい場合はここに処理を追加できます
         }
         else
         {
-            Debug.Log("<color=cyan>🛡️【傲慢：Change_DefMode!!】絶対防御形態へ移行。ホロウスフィア ＆ ディスチャージが解禁！</color>"); 
+            Debug.Log($"<color=cyan>🛡️【傲慢 (Pride) フォームチェンジ】ディフェンスモード起動！ (IsAttackmode = {IsAttackmode}) ➔ [ホロウスフィア ＆ ディスチャージ] が解放されました。</color>");
+
+            // 💡 補足：ディフェンスモード時の見た目の切り替え処理などもここに記述可能です
         }
 
-        // フォームチェンジ自体の硬直（ごくわずか）
+        // 5. フォームチェンジ自体の硬直（ごくわずかなウェイト）
         yield return new WaitForSeconds(Mathf.Max(0.1f, s.cooldown));
         _activeSkillCoroutines--;
     }
