@@ -16,6 +16,9 @@ public static class SEPath{
 	public const string LASER03             = "SE/Laser03";
 	public const string LASER2              = "SE/Laser2";
 	public const string LASER7              = "SE/Laser7";
+	public const string MECHA02             = "SE/mecha02";
+	public const string MECHA03             = "SE/mecha03";
+	public const string MECHA04             = "SE/mecha04";
 	public const string MENUCANCEL          = "SE/menucancel";
 	public const string MENUDECIDE          = "SE/menudecide";
 	public const string MENUSELECT          = "SE/menuselect";

@@ -142,6 +142,8 @@ public class PlayerSkillData : ScriptableObject
         public string skillDescription;
         public SkillPatternType patternType;
         public BulletData bulletData;
+        [Tooltip("3wayなど複数発射する際、左・中央・右などに個別の弾を指定したい場合はここに3つ登録してください（未設定の場合は上のbulletDataが適用されます）")]
+        public BulletData[] multiBulletDatas;
         [Tooltip("跡引き（トレイル）に別種の弾を使いたい場合はここに別のアセットを登録してください（未設定ならメイン弾と同じになります）")]
         public BulletData trailBulletData;
         public float cooldown;

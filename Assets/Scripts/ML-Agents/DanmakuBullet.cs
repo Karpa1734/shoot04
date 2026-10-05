@@ -5,6 +5,35 @@ using Random = UnityEngine.Random;
 
 public class DanmakuBullet : MonoBehaviour
 {
+    // =========================================================================
+    // 🌟 外側から角度や速度を変更・取得するためのパブリックインターフェース
+    // =========================================================================
+
+    /// <summary>
+    /// 弾の現在の進行角度（度数法）を取得または設定します。
+    /// </summary>
+    public float Angle
+    {
+        get => angle;
+        set => angle = value;
+    }
+
+    /// <summary>
+    /// 弾の進行角度を外部から直接設定します。
+    /// </summary>
+    public void SetAngle(float newAngle)
+    {
+        angle = newAngle;
+    }
+
+    /// <summary>
+    /// 弾の移動速度を外部から直接設定します。
+    /// </summary>
+    public void SetSpeed(float newSpeed)
+    {
+        speed = newSpeed;
+    }
+
     private SpriteRenderer sr;
     private Collider2D col;
     private Collider2D[] allColliders;

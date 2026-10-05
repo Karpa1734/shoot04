@@ -1,0 +1,429 @@
+fileFormatVersion: 2
+guid: b741cf23569e62f45ac9d1974f096a0c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 6814428391173923268
+    second: anime_sp_weapon03_2_0
+  - first:
+      213: -1156332338800378429
+    second: anime_sp_weapon03_2_1
+  - first:
+      213: 7145337265831400360
+    second: anime_sp_weapon03_2_2
+  - first:
+      213: -7064712941866269497
+    second: anime_sp_weapon03_2_3
+  - first:
+      213: 3542346500453017465
+    second: anime_sp_weapon03_2_4
+  - first:
+      213: -2976865392610706128
+    second: anime_sp_weapon03_2_5
+  - first:
+      213: -1597127289158130696
+    second: anime_sp_weapon03_2_6
+  - first:
+      213: 3356917378644283585
+    second: anime_sp_weapon03_2_7
+  - first:
+      213: -1145634119681358617
+    second: anime_sp_weapon03_2_8
+  - first:
+      213: 8134877583954932631
+    second: anime_sp_weapon03_2_9
+  - first:
+      213: 9004882135912063717
+    second: anime_sp_weapon03_2_10
+  - first:
+      213: 7191318718527770112
+    second: anime_sp_weapon03_2_11
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 400
+        width: 88
+        height: 80
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4c122437486b19e50800000000000000
+      internalID: 6814428391173923268
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_1
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 400
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3cdb1874dd1e3ffe0800000000000000
+      internalID: -1156332338800378429
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_2
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 320
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a3dd3ab266592360800000000000000
+      internalID: 7145337265831400360
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_3
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 320
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c4c4f3820915fd90800000000000000
+      internalID: -7064712941866269497
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 240
+        width: 88
+        height: 80
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 977a9debf51f82130800000000000000
+      internalID: 3542346500453017465
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_5
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 240
+        width: 88
+        height: 80
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 03df84192bc00b6d0800000000000000
+      internalID: -2976865392610706128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 160
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8f3a5a4413dd5d9e0800000000000000
+      internalID: -1597127289158130696
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_7
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 160
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1c09d66f19a269e20800000000000000
+      internalID: 3356917378644283585
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 80
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7e443d586d3e910f0800000000000000
+      internalID: -1145634119681358617
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_9
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 80
+        width: 88
+        height: 80
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 793fbeaef04e4e070800000000000000
+      internalID: 8134877583954932631
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 88
+        height: 80
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5e2ac4bb794c7fc70800000000000000
+      internalID: 9004882135912063717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: anime_sp_weapon03_2_11
+      rect:
+        serializedVersion: 2
+        x: 88
+        y: 1
+        width: 88
+        height: 80
+      alignment: 7
+      pivot: {x: 0.5, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00e0774f542bcc360800000000000000
+      internalID: 7191318718527770112
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      anime_sp_weapon03_2_0: 6814428391173923268
+      anime_sp_weapon03_2_1: -1156332338800378429
+      anime_sp_weapon03_2_10: 9004882135912063717
+      anime_sp_weapon03_2_11: 7191318718527770112
+      anime_sp_weapon03_2_2: 7145337265831400360
+      anime_sp_weapon03_2_3: -7064712941866269497
+      anime_sp_weapon03_2_4: 3542346500453017465
+      anime_sp_weapon03_2_5: -2976865392610706128
+      anime_sp_weapon03_2_6: -1597127289158130696
+      anime_sp_weapon03_2_7: 3356917378644283585
+      anime_sp_weapon03_2_8: -1145634119681358617
+      anime_sp_weapon03_2_9: 8134877583954932631
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

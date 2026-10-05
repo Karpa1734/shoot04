@@ -29,8 +29,8 @@ MonoBehaviour:
   spellCircleSprite: {fileID: 21300000, guid: ac6ca36c2293f6a448d41b3e2d30a114, type: 3}
   characterAnimatorController: {fileID: 0}
   characterOverheatDuration: 20
-  characterSpellBGBase: {fileID: 21300000, guid: 707709e9c67f49d4c8bf70624b5f0c08, type: 3}
-  characterSpellBGAdditive: {fileID: 21300000, guid: 970de9a025f853f4bb8620ff3b5cb50c, type: 3}
+  characterSpellBGBase: {fileID: -3981330863790201721, guid: 34e5e779eaeb6c849aad3e9808216d93, type: 3}
+  characterSpellBGAdditive: {fileID: 1580298366651251162, guid: 628d93958a367804e8e59b0f63d8ba73, type: 3}
   isBaseScrollActive: 0
   isAdditiveRotateActive: 0
   isAdditiveScrollActive: 1
@@ -48,6 +48,7 @@ MonoBehaviour:
     skillDescription: 
     patternType: 10
     bulletData: {fileID: 11400000, guid: 314e9bda82372b0468165be25fa34cec, type: 2}
+    multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 0.5
     isChargeSkill: 0
@@ -66,7 +67,8 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
     skillDescription: 
     patternType: 17
-    bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
+    bulletData: {fileID: 11400000, guid: 04124d846af07be4fa24bbf51992d786, type: 2}
+    multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 0.2
     isChargeSkill: 0
@@ -84,17 +86,21 @@ MonoBehaviour:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: b351b8db71d0f994e9b172445ec0ee9a, type: 3}
     skillDescription: 
-    patternType: 18
-    bulletData: {fileID: 11400000, guid: 4446437525ff49b4abfac0fe6ef616ee, type: 2}
+    patternType: 12
+    bulletData: {fileID: 11400000, guid: da9048ab71ff6d34cb4420198b8474ab, type: 2}
+    multiBulletDatas:
+    - {fileID: 11400000, guid: da9048ab71ff6d34cb4420198b8474ab, type: 2}
+    - {fileID: 11400000, guid: e744cce2bf227fc4ab20c8f6521811e3, type: 2}
+    - {fileID: 11400000, guid: d43ac41d1e44f6a4083d2ab9e12612f1, type: 2}
     trailBulletData: {fileID: 0}
     cooldown: 6
-    isChargeSkill: 0
+    isChargeSkill: 1
     isConcurrentAllowed: 0
     sePath: 
-    count: 1
-    speed: 3
+    count: 5
+    speed: 8
     angleOffset: 0
-    wideAngle: 0.3
+    wideAngle: 360
     moveSpeedMultiplier: 0.3
     delay: 5
     cost: 40
@@ -105,16 +111,17 @@ MonoBehaviour:
     skillDescription: 
     patternType: 13
     bulletData: {fileID: 11400000, guid: 780d394183a2cc6489071754715cf0d8, type: 2}
+    multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 15
     isChargeSkill: 0
     isConcurrentAllowed: 0
-    sePath: Slash
+    sePath: mecha02
     count: 0
     speed: 1.5
     angleOffset: 0
     wideAngle: 0
-    moveSpeedMultiplier: 0
+    moveSpeedMultiplier: 1.5
     delay: 10
     cost: 30
     ultimateGain: 15
@@ -123,8 +130,9 @@ MonoBehaviour:
     skillIcon: {fileID: 0}
     skillDescription: 
     patternType: 0
-    bulletData: {fileID: 11400000, guid: 991876ddeee344c439d0a2821b236af9, type: 2}
-    trailBulletData: {fileID: 11400000, guid: 3dfeb7b8d63c8764fb71c698243e5be1, type: 2}
+    bulletData: {fileID: 11400000, guid: b33345006fb26dc4c87ff03dab963f20, type: 2}
+    multiBulletDatas: []
+    trailBulletData: {fileID: 0}
     cooldown: 0
     isChargeSkill: 0
     isConcurrentAllowed: 0

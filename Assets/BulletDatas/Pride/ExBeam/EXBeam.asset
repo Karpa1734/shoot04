@@ -10,18 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 21264d726d8d3e24a9f6272f291feb5d, type: 3}
-  m_Name: YELLOW
+  m_Name: EXBeam
   m_EditorClassIdentifier: 
   isLaser: 0
-  laserColor: 0
-  bulletPrefab: {fileID: 412534742802360219, guid: 77c4ce23d9179ce4fbb88e39b9867f7b, type: 3}
+  laserColor: 6
+  bulletPrefab: {fileID: 9125953019655052234, guid: 87f171f0eeb03ad4886fdf161a6957c2, type: 3}
   sizeType: 0
-  radius: 0.12
+  bulletScale: 1
+  radius: 0.06
   colliderOffset: {x: 0, y: 0}
-  damage: 15
-  bulletSprite: {fileID: -777016650, guid: 0062c26f9fe238d49bfe87d77bf0dcc6, type: 3}
+  damage: 30
+  bulletSprite: {fileID: 7191318718527770112, guid: b741cf23569e62f45ac9d1974f096a0c, type: 3}
   animationSprites: []
   animationFPS: 10
   delaySprite: {fileID: 7099077274376888169, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
-  breakColor: {r: 1, g: 1, b: 0, a: 1}
-  material: {fileID: 2100000, guid: b955a6fe290ae404496e5fc9dc6bd3da, type: 2}
+  breakColor: {r: 1, g: 0, b: 1, a: 1}
+  material: {fileID: 0}
+  auraMaterial: {fileID: 2100000, guid: b955a6fe290ae404496e5fc9dc6bd3da, type: 2}
+  auraWhiteSprite: {fileID: 7191318718527770112, guid: b741cf23569e62f45ac9d1974f096a0c, type: 3}
