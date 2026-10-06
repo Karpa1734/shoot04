@@ -11,6 +11,8 @@ public static class SEPath{
 	public const string CARDCALL            = "SE/cardcall";
 	public const string ENEMY_VANISH_A      = "SE/enemy_vanishA";
 	public const string FAIL                = "SE/fail";
+	public const string FREEZE03            = "SE/freeze03";
+	public const string FREEZE10            = "SE/freeze10";
 	public const string GETSPELLCARD        = "SE/getspellcard";
 	public const string JINGLE10            = "SE/Jingle/jingle10";
 	public const string LASER03             = "SE/Laser03";
@@ -26,6 +28,9 @@ public static class SEPath{
 	public const string MO_UP               = "SE/moUP";
 	public const string ONE07               = "SE/one07";
 	public const string PAUSE               = "SE/pause";
+	public const string POWER_LOGO          = "SE/power_logo";
+	public const string POWER_LOGO2         = "SE/power_logo2";
+	public const string POWER_LOGO3         = "SE/power_logo3";
 	public const string POWER36             = "SE/power36";
 	public const string SE_DAMAGE00         = "SE/se_damage00";
 	public const string SE_DAMAGE01         = "SE/se_damage01";

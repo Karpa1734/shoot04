@@ -17,7 +17,7 @@ MonoBehaviour:
   bulletPrefab: {fileID: 412534742802360219, guid: 77c4ce23d9179ce4fbb88e39b9867f7b, type: 3}
   sizeType: 2
   bulletScale: 1
-  radius: 0.06
+  radius: 0.12
   colliderOffset: {x: 0, y: 0}
   damage: 15
   bulletSprite: {fileID: -1135999042, guid: d29b5033959ad5b4a92af0e49964ff4e, type: 3}

@@ -67,7 +67,7 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
     skillDescription: 
     patternType: 17
-    bulletData: {fileID: 11400000, guid: 04124d846af07be4fa24bbf51992d786, type: 2}
+    bulletData: {fileID: 11400000, guid: e4230bca0091b104db099bf153478477, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 0.2

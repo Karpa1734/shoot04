@@ -171,7 +171,10 @@ public class PlayerStatusManager : MonoBehaviour
     public UnityEngine.UI.Slider progressBarSlider;
     [Tooltip("進捗率をパーセンテージ（例: 50%）で表示するテキストUI（任意）")]
     public TextMeshProUGUI progressText;
-
+    private bool _isSlothUltBuffActive = false;
+    private StatusRank _cachedPreBuffAttackRank;
+    private StatusRank _cachedPreBuffMmpRegenRank;
+    private bool _hasSlothBuffApplied = false;
     private struct CharacterRankBackup
     {
         public StatusRank hp;
@@ -183,6 +186,38 @@ public class PlayerStatusManager : MonoBehaviour
     }
     private CharacterRankBackup _originalBackup;
     public static bool FromCharacterSelect = false;
+    /// <summary>
+    /// 🌟 怠惰のULT領域内にいる間、攻撃力とマナ再生ランクを1段階アップさせ、出たら戻す
+    /// </summary>
+    public void SetSlothUltBuffActive(bool active)
+    {
+        if (characterData == null) return;
+
+        if (active && !_hasSlothBuffApplied)
+        {
+            // バフ適用前のランクをバックアップ
+            _cachedPreBuffAttackRank = characterData.rankAttack;
+            _cachedPreBuffMmpRegenRank = characterData.rankMMPRegen;
+
+            // 1段階ランクアップ（EXならEXのまま）
+            characterData.rankAttack = GetNextRank(characterData.rankAttack);
+            characterData.rankMMPRegen = GetNextRank(characterData.rankMMPRegen);
+
+            _hasSlothBuffApplied = true;
+            ApplyCharacterRanks(); // ステータスを即座に再計算・適用
+            Debug.Log("<color=lime>✨【怠惰ULTバフ】領域内に侵入！ 攻撃力＆マナ再生ランクが1段階上昇しました！</color>");
+        }
+        else if (!active && _hasSlothBuffApplied)
+        {
+            // 元のランクに復元
+            characterData.rankAttack = _cachedPreBuffAttackRank;
+            characterData.rankMMPRegen = _cachedPreBuffMmpRegenRank;
+
+            _hasSlothBuffApplied = false;
+            ApplyCharacterRanks(); // ステータスを即座に再計算・適用
+            Debug.Log("<color=yellow>💤【怠惰ULTバフ】領域外へ退出。ランクが通常状態に戻りました。</color>");
+        }
+    }
     void Awake()
     {
         _playerMove = GetComponent<PlayerMove>();

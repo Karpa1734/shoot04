@@ -5,7 +5,7 @@ using UnityEngine;
 public class EnemyLaserBeam : MonoBehaviour
 {
     private const int ANIM_FRAMES = 10;
-
+    private BulletData currentData; // 👈 ここに追加
     public enum LaserType { A_Stationary, B_FollowBoss }
     private LaserType type;
 
@@ -80,33 +80,30 @@ public class EnemyLaserBeam : MonoBehaviour
         this._rootOwner = shooter;
         this._targetTag = target;
         this._damage = damage;
+        this.currentData = data; // 👈 ここでしっかりと保存！
         transform.position = new Vector3(x, y, 0);
 
         ApplyTeamSettings(shooter);
-        SpawnSourceEffect(sourcePrefab, sourceSprite);
+        SpawnSourceEffect(sourcePrefab, sourceSprite, data);
         InitializeBase(length, width, color, delay);
-
-        // 💡 レーザー用アセットデータを手渡ししてオーラを結合
         InjectLaserAuraLink(data);
     }
 
-    // 🎯【修正】：引数の末尾に BulletData data を追加して上流から結合
     public void SetupB(GameObject shooter, string target, int damage, float x, float y, float length, float width, BulletManager.LaserColor color, int delay, GameObject sourcePrefab, Sprite sourceSprite, BulletData data)
     {
         this.type = LaserType.B_FollowBoss;
         this._rootOwner = shooter;
         this._targetTag = target;
         this._damage = damage;
+        this.currentData = data; // 👈 ここでもしっかりと保存！
         this.bossTransform = shooter.transform;
 
         this._centerPos = new Vector3(x, y, 0);
         transform.position = _centerPos;
 
         ApplyTeamSettings(shooter);
-        SpawnSourceEffect(sourcePrefab, sourceSprite);
+        SpawnSourceEffect(sourcePrefab, sourceSprite, data);
         InitializeBase(length, width, color, delay);
-
-        // 💡 レーザー用アセットデータを手渡ししてオーラを結合
         InjectLaserAuraLink(data);
     }
 
@@ -349,7 +346,7 @@ public class EnemyLaserBeam : MonoBehaviour
         if (sourceEffectInstance != null) Destroy(sourceEffectInstance);
     }
 
-    private void SpawnSourceEffect(GameObject prefab, Sprite sprite)
+    private void SpawnSourceEffect(GameObject prefab, Sprite sprite, BulletData data)
     {
         if (prefab != null)
         {
@@ -357,7 +354,10 @@ public class EnemyLaserBeam : MonoBehaviour
             sourceEffectInstance.transform.SetParent(this.transform);
             sourceEffectSr = sourceEffectInstance.GetComponent<SpriteRenderer>();
             if (sourceEffectSr != null) sourceEffectSr.sprite = sprite;
-            sourceEffectInstance.transform.localScale = Vector3.one * 1.5f;
+
+            // 💡 BulletData で設定した sourceEffectScale をベースサイズ（1.5f）に掛け合わせる
+            float scaleMultiplier = (data != null && data.sourceEffectScale > 0f) ? data.sourceEffectScale : 1.0f;
+            sourceEffectInstance.transform.localScale = Vector3.one * (1.5f * scaleMultiplier);
         }
     }
 
@@ -396,7 +396,10 @@ public class EnemyLaserBeam : MonoBehaviour
         if (sourceEffectInstance != null && sourceEffectSr != null)
         {
             float effectRatio = Mathf.Clamp01(w / targetWidth);
-            float dynamicScale = 1.5f * effectRatio;
+            // 💡 データのスケール倍率をここでも反映
+            float scaleMultiplier = (currentData != null && currentData.sourceEffectScale > 0f) ? currentData.sourceEffectScale : 1.0f;
+            float dynamicScale = 1.5f * scaleMultiplier * effectRatio;
+
             sourceEffectInstance.transform.localScale = new Vector3(dynamicScale, dynamicScale, 1f);
             sourceEffectInstance.transform.Rotate(0, 0, 400f * Time.deltaTime);
         }

@@ -47,12 +47,12 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 2e4c353f323c3f34b9ebbd5eeed3e752, type: 3}
     skillDescription: 
     patternType: 0
-    bulletData: {fileID: 11400000, guid: 260a096df65da004bbad4ed3d9d4223b, type: 2}
+    bulletData: {fileID: 11400000, guid: c3bf01bac88cfa74cbb553cd9135dd48, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 1.5
     isChargeSkill: 1
-    isConcurrentAllowed: 0
+    isConcurrentAllowed: 1
     sePath: 
     count: 3
     speed: 7
@@ -67,59 +67,59 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
     skillDescription: 
     patternType: 17
-    bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
+    bulletData: {fileID: 11400000, guid: b12013b3fa94a2441bd2a0367479a48d, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
-    cooldown: 4
+    cooldown: 1.5
     isChargeSkill: 0
     isConcurrentAllowed: 0
-    sePath: 
-    count: 10
-    speed: 4
-    angleOffset: 23
-    wideAngle: 360
-    moveSpeedMultiplier: 0
-    delay: 15
-    cost: 10
+    sePath: Laser2
+    count: 60
+    speed: 1.5
+    angleOffset: 0
+    wideAngle: 0.8
+    moveSpeedMultiplier: 0.3
+    delay: 20
+    cost: 25
     ultimateGain: 8
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
     skillIcon: {fileID: 21300000, guid: b351b8db71d0f994e9b172445ec0ee9a, type: 3}
     skillDescription: 
     patternType: 18
-    bulletData: {fileID: 11400000, guid: 33b2b8650a1b5f84d8880d2294fe894c, type: 2}
+    bulletData: {fileID: 11400000, guid: 63f683aa79254504f94e41b200988dd2, type: 2}
     multiBulletDatas: []
-    trailBulletData: {fileID: 11400000, guid: 50b30e67f1a21ac49b3ddf62fce0f8af, type: 2}
-    cooldown: 6
+    trailBulletData: {fileID: 0}
+    cooldown: 1.5
     isChargeSkill: 0
     isConcurrentAllowed: 0
     sePath: 
     count: 1
-    speed: 3
+    speed: 0
     angleOffset: 0
     wideAngle: 0.3
     moveSpeedMultiplier: 0.3
-    delay: 5
-    cost: 40
-    ultimateGain: 10
+    delay: 1
+    cost: 20
+    ultimateGain: 5
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
     skillIcon: {fileID: 21300000, guid: 467c361a2ad62174fa23d22b481dd4d8, type: 3}
     skillDescription: 
     patternType: 13
-    bulletData: {fileID: 11400000, guid: 780d394183a2cc6489071754715cf0d8, type: 2}
+    bulletData: {fileID: 11400000, guid: b3cef48f06bc8c24280a7aaad5069726, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 15
     isChargeSkill: 0
-    isConcurrentAllowed: 0
+    isConcurrentAllowed: 1
     sePath: Slash
     count: 0
-    speed: 1.5
+    speed: 4.5
     angleOffset: 0
     wideAngle: 0
     moveSpeedMultiplier: 0
-    delay: 10
+    delay: 0
     cost: 30
     ultimateGain: 15
   skillEX:

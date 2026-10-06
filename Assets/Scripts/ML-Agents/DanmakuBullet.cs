@@ -135,16 +135,10 @@ public class DanmakuBullet : MonoBehaviour
         this.isGrazeDone = false;
         this.instanceGenerationId++;
 
-        // =========================================================================
-        // 🎯【最核心バグ修正①】：前世代のオーラ残骸の「即時強制リネームパージ」
-        // =========================================================================
-        // 💡 理由：Destroy()はフレーム終了時までオブジェクトが残るため、Findで見つかってしまいます。
-        //    見つかった古いオーラの名前をその場で全く別の名前に書き換えて「パージ」することで、
-        //    後半の CreateAuraEffect() が古い死体を誤検知して生成を拒否するバグを100%回避します。
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null)
         {
-            oldAura.name = "DELETED_OLD_AURA_REMNANT"; // 👈 即座に隠れみのを剥がす
+            oldAura.name = "DELETED_OLD_AURA_REMNANT";
             Destroy(oldAura.gameObject);
         }
 
@@ -165,11 +159,9 @@ public class DanmakuBullet : MonoBehaviour
 
         _isSpearChargeMode = (data != null && (data.name.Contains("Spear") || data.bulletPrefab.name.Contains("Spear")));
 
-        bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
-        Vector3 templateScale = isCustomPrefabBullet ? transform.localScale : Vector3.one;
-
+        // 🌟【変更】：BulletDataの bulletScale をスケーリングとコライダーに正確に反映
         float multiplier = (data != null && data.bulletScale > 0f) ? data.bulletScale : 1.0f;
-        transform.localScale = new Vector3(templateScale.x * multiplier, templateScale.y * multiplier, templateScale.z * multiplier);
+        transform.localScale = Vector3.one * multiplier;
 
         if (sr != null && data != null)
         {
@@ -178,6 +170,14 @@ public class DanmakuBullet : MonoBehaviour
             else sr.material = SpriteCullingFixInfrastrucure();
 
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
+        }
+
+        // 🌟【追加】：CircleCollider2D（またはコライダー）に radius と offset を適用
+        CircleCollider2D circleCol = GetComponent<CircleCollider2D>();
+        if (circleCol != null && data != null)
+        {
+            circleCol.radius = data.radius > 0f ? data.radius : 0.05f;
+            circleCol.offset = data.colliderOffset;
         }
 
         if (!_isSpearChargeMode || delayFrames <= 0)
@@ -198,11 +198,6 @@ public class DanmakuBullet : MonoBehaviour
 
         SetColliderActive(delayFrames <= 0);
 
-        // =========================================================================
-        // 🎯【最核心バグ修正②】：ディレイの有無に関わらず、生まれたその瞬間にオーラを新造！
-        // =========================================================================
-        // 💡 理由：カウントダウン終了後（数フレーム後）にオーラ生成を後回しにすると、
-        //    高速連射時に同期がズレてハゲる原因になります。生まれた瞬間に100%オーラを纏わせます。
         CreateAuraEffect();
 
         if (delayFrames > 0)
@@ -227,7 +222,6 @@ public class DanmakuBullet : MonoBehaviour
         this.isGrazeDone = false;
         this.instanceGenerationId++;
 
-        // ナイフカウンター側も同様に残骸の即時リネーム名指しパージを実行
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null)
         {
@@ -252,11 +246,9 @@ public class DanmakuBullet : MonoBehaviour
         this.isAnimated = false;
         this._isSpearChargeMode = false;
 
-        bool isCustomPrefabBullet = (GetComponent<BoxCollider2D>() != null || transform.childCount > 0);
-        Vector3 templateScaleKn = isCustomPrefabBullet ? transform.localScale : Vector3.one;
-
+        // 🌟【変更】：BulletDataの scale を反映
         float multiplierKn = (data != null && data.bulletScale > 0f) ? data.bulletScale : 1.0f;
-        transform.localScale = new Vector3(templateScaleKn.x * multiplierKn, templateScaleKn.y * multiplierKn, templateScaleKn.z * multiplierKn);
+        transform.localScale = Vector3.one * multiplierKn;
 
         if (sr != null && data != null)
         {
@@ -267,13 +259,20 @@ public class DanmakuBullet : MonoBehaviour
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
         }
 
+        // 🌟【追加】：CircleCollider2Dに半径とオフセットを反映
+        CircleCollider2D circleCol = GetComponent<CircleCollider2D>();
+        if (circleCol != null && data != null)
+        {
+            circleCol.radius = data.radius > 0f ? data.radius : 0.05f;
+            circleCol.offset = data.colliderOffset;
+        }
+
         _knifeCurrentAngle = Random.Range(0f, 360f);
         transform.rotation = Quaternion.Euler(0, 0, _knifeCurrentAngle - 90f);
 
         if (sr != null) sr.enabled = true;
         SetColliderActive(false);
 
-        // カウンターも生まれた瞬間にオーラ新造を絶対保証
         CreateAuraEffect();
 
         isInitialized = true;

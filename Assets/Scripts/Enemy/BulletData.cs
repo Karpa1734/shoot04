@@ -29,6 +29,10 @@ public class BulletData : ScriptableObject
     public Sprite delaySprite;
     public Color breakColor = Color.white;
     public Material material;
+
+    [Header("🌟 発射源（光源）のサイズ設定")]
+    [Tooltip("レーザーの根元に表示される光源エフェクトの大きさ倍率")]
+    public float sourceEffectScale = 1.0f; // 👈 ここを追加
     // 🌟【新設】：Resources.Loadを永久パージするための、オーラ加算マテリアル静的バインド枠
     [Tooltip("ここにオーラ用の加算合成マテリアル(Additive等)を直接アサインしてください")]
     public Material auraMaterial;

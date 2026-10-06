@@ -491,7 +491,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // 🎯【ファクトリ最高拡張版】：角速度 (angularVelocity) と最大回転角 (maxRotationLimit) をドッキング
     // =========================================================================
     // 🎯【根本バグ修正版】：オーラ消失・レイヤーねじれを完全破砕する超先行初期化ファクトリ
-    protected DanmakuBullet CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay,
+    public DanmakuBullet CreateShot(BulletData data, Vector3 pos, float speed, float angle, float delay,
                                        bool isConverge = false, float accel = 0f, float maxSpeed = 0f,
                                        Material customMaterial = null, float customScale = 1.0f,
                                        bool isIndestructible = false,
