@@ -44,11 +44,11 @@ TagManager:
   - 
   - 
   m_SortingLayers:
-  - name: Default
-    uniqueID: 0
-    locked: 0
   - name: Back
     uniqueID: 1549339301
+    locked: 0
+  - name: Default
+    uniqueID: 0
     locked: 0
   - name: Middle
     uniqueID: 515225517

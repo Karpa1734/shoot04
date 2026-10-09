@@ -595,12 +595,89 @@ public class PlayerHitHandler : MonoBehaviour
             }
         }
     }
+    public void OnHitIgnoreInvincibility(int damage)
+    {
+        Vector3 hitPos = transform.position;
 
-    /// <summary>
-    /// 🌟【人間操作100%完全除外】：AI操作のキャラクターのみを初期位置へ自動巡航させます。
-    /// 人間が操作しているキャラクターは自動移動も、最終フィックス（ワープ）も完全に「ノータッチ」にします。
-    /// </summary>
-   // =========================================================================
+        // 🌟【最重要】：すでにダウン中、復活中、または「すでにHPが0以下で撃破処理中」である場合は完全に無視する
+        if (currentState == PlayerState.Down || currentState == PlayerState.Rebirth) return;
+        if (myStatusManager != null)
+        {
+            if (myStatusManager.isSpellCardActive && myStatusManager.spellHP <= 0f) return;
+            if (!myStatusManager.isSpellCardActive && myStatusManager.currentHP <= 0f) return;
+        }
+
+        bool isDown = false;
+        bool isSpellActive = (myStatusManager != null && myStatusManager.isSpellCardActive);
+
+        if (playerAnim != null && !isSpellActive)
+        {
+            playerAnim.TriggerDamageAnimation();
+        }
+
+        if (myStatusManager != null)
+        {
+            DanmakuAgent agent = GetComponentInParent<DanmakuAgent>();
+            if (agent != null) agent.GiveHitPenalty();
+
+            bool wasSpellActive = myStatusManager.isSpellCardActive;
+
+            isDown = myStatusManager.ApplyDamage(damage);
+
+            if (myStatusManager.isSpellCardActive)
+            {
+                if (myStatusManager.spellHP <= 0f) isDown = true;
+            }
+            else
+            {
+                if (myStatusManager.currentHP <= 0f) isDown = true;
+            }
+
+            if (wasSpellActive && !myStatusManager.isSpellCardActive)
+            {
+                if (GameModeManager.IsStoryMode && myStatusManager.playerId == 2)
+                {
+                    isDown = true;
+                }
+            }
+
+            if (damagePopupPrefab != null)
+            {
+                Vector3 spawnPos = hitPos + new Vector3(0f, 0.5f, 0f);
+                GameObject popupGo = Instantiate(damagePopupPrefab, spawnPos, Quaternion.identity);
+                DamagePopup popupScript = popupGo.GetComponent<DamagePopup>();
+                if (popupScript != null) popupScript.Setup(damage);
+            }
+        }
+
+        if (myStatusManager != null && myStatusManager.isSpellCardActive && !isDown)
+        {
+            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SE_DAMAGE00, 0.5f);
+            return;
+        }
+
+        if (isDown)
+        {
+            if (explosionEffectPrefab != null) Instantiate(explosionEffectPrefab, hitPos, Quaternion.identity);
+            if (SEManager.Instance != null) SEManager.Instance.Play(SEPath.SE_PLAYER_COLLISION, 0.5f);
+
+            isTriggeredByTimeUp = false;
+            currentState = PlayerState.Down;
+
+            if (playerMove != null)
+            {
+                System.Reflection.FieldInfo invTimeField = typeof(PlayerMove).GetField("invincibleTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (invTimeField != null) invTimeField.SetValue(playerMove, 0f);
+            }
+
+            StartCoroutine(ExplosionAndStunRoutine());
+        }
+        else
+        {
+            StartCoroutine(DamageStunRoutine());
+        }
+    }
+    // =========================================================================
     // 🌟【同一シーン連動型リセットインフラ】：槍EX等によるデータ残存・チカチカを100%パージ
     // =========================================================================
     IEnumerator RoundResetSequence()

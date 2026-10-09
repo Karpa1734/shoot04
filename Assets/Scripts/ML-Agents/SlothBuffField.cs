@@ -6,8 +6,6 @@ public class SlothBuffField : MonoBehaviour
 {
     [Header("Field Settings")]
     [SerializeField] private float _duration = 3.0f;
-    [Tooltip("バフが有効になる魔方陣からの距離（この範囲内に自機がいればバフ適用。0なら常時適用）")]
-    [SerializeField] private float _buffRadius = 2.5f;
 
     [Header("Visual Settings")]
     [SerializeField] private float _fieldRotationSpeed = 45f;
@@ -19,14 +17,27 @@ public class SlothBuffField : MonoBehaviour
     private bool _isInitialized = false;
     private Vector3 _originalFieldScale;
 
+    // 🌟 接触中であるかを保持するフラグ
+    private bool _isCollidingWithOwner = false;
+
     void Awake()
     {
         _originalFieldScale = transform.localScale;
         if (_originalFieldScale == Vector3.zero) _originalFieldScale = Vector3.one;
 
-        // ポリゴンコライダーは使用しないため、アタッチされていれば自動で削除または無効化します
+        // 🌟【修正】：コライダーを削除せず、トリガーとして機能させる
         PolygonCollider2D poly = GetComponent<PolygonCollider2D>();
-        if (poly != null) Destroy(poly);
+        if (poly != null)
+        {
+            poly.isTrigger = true;
+        }
+        else
+        {
+            // もしポリゴンコライダーがなければ、サークルコライダー等を付与するか設定してください
+            CircleCollider2D circle = gameObject.AddComponent<CircleCollider2D>();
+            circle.isTrigger = true;
+            circle.radius = 1.5f; // 必要に応じて調整
+        }
     }
 
     public void Initialize(GameObject owner, float overrideDuration = -1f)
@@ -40,16 +51,18 @@ public class SlothBuffField : MonoBehaviour
 
         if (overrideDuration > 0f) _duration = overrideDuration;
 
+        bool isSpellActive = (_statusManager != null && _statusManager.isSpellCardActive);
+        if (isSpellActive)
+        {
+            _originalFieldScale *= 1.5f;
+        }
+
         _timer = 0f;
         _isInitialized = true;
         transform.localScale = Vector3.zero;
 
-        // 生成された瞬間にバフを即座にONにする（もし「魔方陣を出している間ずっとバフ」にしたい場合）
-        if (_statusManager != null)
-        {
-            _isBuffActive = true;
-            _statusManager.SetSlothUltBuffActive(true);
-        }
+        // 💡 以前はここで即座にONにしていましたが、接触判定に変更するため最初はOFFまたは接触時のみにします
+        _isBuffActive = false;
     }
 
     void FixedUpdate()
@@ -85,23 +98,38 @@ public class SlothBuffField : MonoBehaviour
             transform.localScale = _originalFieldScale;
         }
 
-        // 💡 距離による判定（必要に応じて有効化。今回は魔方陣が展開されている間は確実にバフが乗る設計にしています）
-        if (_owner != null && _statusManager != null)
+        // 🌟【修正の核心】：コライダー接触中（_isCollidingWithOwner）であるかに基づいてバフを制御
+        if (_statusManager != null)
         {
-            float dist = Vector3.Distance(transform.position, _owner.transform.position);
-            bool isNear = (dist <= _buffRadius);
-
-            // 範囲内にいる（または常時適用）かつ、まだバフが有効でなければON
-            if (isNear && !_isBuffActive)
+            if (_isCollidingWithOwner && !_isBuffActive)
             {
                 _isBuffActive = true;
                 _statusManager.SetSlothUltBuffActive(true);
             }
-            else if (!isNear && _isBuffActive)
+            else if (!_isCollidingWithOwner && _isBuffActive)
             {
                 _isBuffActive = false;
                 _statusManager.SetSlothUltBuffActive(false);
             }
+        }
+    }
+
+    // =========================================================================
+    // 🛡️ 2Dコライダーの接触判定コールバック
+    // =========================================================================
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (_owner != null && (collision.gameObject == _owner || collision.transform.root == _owner.transform.root))
+        {
+            _isCollidingWithOwner = true;
+        }
+    }
+
+    void OnTriggerExit2D(Collider2D collision)
+    {
+        if (_owner != null && (collision.gameObject == _owner || collision.transform.root == _owner.transform.root))
+        {
+            _isCollidingWithOwner = false;
         }
     }
 

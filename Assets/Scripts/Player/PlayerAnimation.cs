@@ -30,7 +30,7 @@ public class PlayerAnimation : MonoBehaviour
         if (statusManager == null) statusManager = GetComponentInParent<PlayerStatusManager>();
 
         // =========================================================================
-        // 🌟【固有アニメーション自動アタッチ】
+        // 🌟【固有アニメーション自動アタッチ（個別インスタンス化対応）】
         // PlayerSkillData に登録された専用 Animator Controller を動的に適用する
         // =========================================================================
         if (statusManager != null && statusManager.characterData != null)
@@ -38,8 +38,11 @@ public class PlayerAnimation : MonoBehaviour
             RuntimeAnimatorController charController = statusManager.characterData.characterAnimatorController;
             if (charController != null && animator != null)
             {
-                animator.runtimeAnimatorController = charController;
-                Debug.Log($"<color=lime>🎬 [PlayerAnimation] {statusManager.characterData.characterName} 専用のアニメーションコントローラーを正常にアタッチしました。</color>");
+                // 💡【修正の核心】：AnimatorOverrideController を用いて、1Pと2Pで完全に独立したインスタンスとして動かす！
+                AnimatorOverrideController overrideController = new AnimatorOverrideController(charController);
+                animator.runtimeAnimatorController = overrideController;
+
+                Debug.Log($"<color=lime>🎬 [PlayerAnimation] {statusManager.characterData.characterName} 専用のアニメーターを独立インスタンスとしてアタッチしました。</color>");
             }
         }
     }
@@ -122,44 +125,37 @@ public class PlayerAnimation : MonoBehaviour
     {
         if (animator == null) return;
 
-        // 1. プレイヤーの入力値（リプレイ入力またはキーボード等の直接入力）を取得
+        // 自身にアタッチされている、または親にある PlayerMove を厳密に取得
+        if (playerMove == null)
+        {
+            playerMove = GetComponent<PlayerMove>();
+            if (playerMove == null) playerMove = GetComponentInParent<PlayerMove>();
+        }
+
         float hInput = 0f;
         float vInput = 0f;
 
         if (playerMove != null)
         {
+            // 固有のインスタンス変数から直接取得
             hInput = playerMove.currentFrameInput.h;
             vInput = playerMove.currentFrameInput.v;
         }
 
-        // もしPlayerMove側が未取得の場合は通常のInputをフォールバックとして使用
-        if (Mathf.Approximately(hInput, 0f) && Mathf.Approximately(vInput, 0f))
-        {
-            hInput = Input.GetAxisRaw("Horizontal");
-            vInput = Input.GetAxisRaw("Vertical");
-        }
-
-        // 🌟 ごく小さな入力をカットするデッドゾーン処理（スティックのわずかな傾きによる誤作動防止）
+        // デッドゾーン処理
         if (Mathf.Abs(hInput) < 0.1f) hInput = 0f;
         if (Mathf.Abs(vInput) < 0.1f) vInput = 0f;
 
-        // 2. 左右反転している場合は、Animatorに送るXの数値を反転させる
         float finalXSpeed = hInput;
         if (spriteRenderer != null && spriteRenderer.flipX)
         {
             finalXSpeed = -finalXSpeed;
         }
 
-        // Animatorへ数値（XSpeed / YSpeed）を送信
         animator.SetFloat("XSpeed", finalXSpeed);
         animator.SetFloat("YSpeed", vInput);
 
-        // =========================================================================
-        // 🌟【完全入力判定】：速度ではなく「キーが押されているかどうか」だけでBoolを決定
-        // =========================================================================
         bool isInputting = (hInput != 0f) || (vInput != 0f);
-
-        // Animatorの bool パラメータへ反映
         animator.SetBool("IsMoving", isInputting);
     }
 

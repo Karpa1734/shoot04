@@ -279,6 +279,8 @@ public class DanmakuAgent : Agent
     public void GiveGrazeReward() => AddReward(0.05f);
     public void GiveHitPenalty() => AddReward(-0.5f);
 
+    // 🌟【新規追加】：チャージ段階をランダムかつ動的に変動させるための保持変数
+    public int _aiDynamicChargeTarget = 55;
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (!PlayerMove.CanInput || (hitHandler != null && hitHandler.currentState != PlayerHitHandler.PlayerState.Normal))
@@ -355,8 +357,16 @@ public class DanmakuAgent : Agent
 
         if (isCurrentZCharge && attackAction == 1)
         {
+            // 🌟【チャージ開始時の完全ランダム抽選】：
+            // Zスキルを押し始めた瞬間に、今回のチャージ限界フレームを完全にランダム（25フレーム〜85フレームの間）で決定！
+            if (_aiChargeFrameTimer == 0)
+            {
+                _aiDynamicChargeTarget = UnityEngine.Random.Range(25, 86);
+            }
+
             _aiChargeFrameTimer++;
-            if (_aiChargeFrameTimer <= 45)
+
+            if (_aiChargeFrameTimer <= _aiDynamicChargeTarget)
             {
                 frameInput.shotZ = true;
             }
@@ -833,36 +843,57 @@ public class DanmakuAgent : Agent
         bool isEmergencyThreat = (nearbyBulletCount >= 4);
         bool canUseV = isVReady && (currentMP >= costV) && (!isMyVjtActive || isEmergencyThreat);
 
-        if (selectedSkill == 0)
+        if (selectedSkill == 0 && charData != null)
         {
+            // 🌟 各スキルの優先度ウェイトをスキルデータから安全に取得（未設定時のフォールバックは 1.0f）
+            float weightZ = (charData.skillZ.aiPriorityWeight > 0f) ? charData.skillZ.aiPriorityWeight : 1.0f;
+            float weightX = (charData.skillX.aiPriorityWeight > 0f) ? charData.skillX.aiPriorityWeight : 1.0f;
+            float weightC = (charData.skillC.aiPriorityWeight > 0f) ? charData.skillC.aiPriorityWeight : 1.0f;
+            float weightV = (charData.skillV.aiPriorityWeight > 0f) ? charData.skillV.aiPriorityWeight : 1.0f;
+
             System.Collections.Generic.List<int> candidateSkills = new System.Collections.Generic.List<int>();
 
             if (canUseZ)
             {
-                candidateSkills.Add(1);
-                candidateSkills.Add(1);
+                // ウェイト（数値）の大きさに比例して候補リストへ複数登録することで、自然な重み付き確率を実現
+                int countZ = Mathf.Max(1, Mathf.RoundToInt(weightZ * 2f));
+                for (int i = 0; i < countZ; i++) candidateSkills.Add(1);
             }
             if (canUseX)
             {
-                if (distanceIdBetween(distanceToEnemy, 2.0f, 8.5f)) { candidateSkills.Add(2); candidateSkills.Add(2); }
-                else { candidateSkills.Add(2); }
+                int countX = Mathf.Max(1, Mathf.RoundToInt(weightX * 2f));
+                // 距離に応じた戦術的ボーナスをさらに掛け合わせる
+                if (distanceIdBetween(distanceToEnemy, 2.0f, 8.5f))
+                {
+                    for (int i = 0; i < countX * 2; i++) candidateSkills.Add(2);
+                }
+                else
+                {
+                    for (int i = 0; i < countX; i++) candidateSkills.Add(2);
+                }
             }
             if (canUseC)
             {
-                if (distanceToEnemy >= 4.0f && nearbyBulletCount <= 2) { candidateSkills.Add(3); candidateSkills.Add(3); }
-                else { candidateSkills.Add(3); }
+                int countC = Mathf.Max(1, Mathf.RoundToInt(weightC * 2f));
+                if (distanceToEnemy >= 4.0f && nearbyBulletCount <= 2)
+                {
+                    for (int i = 0; i < countC * 2; i++) candidateSkills.Add(3);
+                }
+                else
+                {
+                    for (int i = 0; i < countC; i++) candidateSkills.Add(3);
+                }
             }
             if (canUseV)
             {
+                int countV = Mathf.Max(1, Mathf.RoundToInt(weightV * 2f));
                 if (isEmergencyThreat)
                 {
-                    candidateSkills.Add(4);
-                    candidateSkills.Add(4);
-                    candidateSkills.Add(4);
+                    for (int i = 0; i < countV * 3; i++) candidateSkills.Add(4);
                 }
                 else if (nearbyBulletCount >= 2)
                 {
-                    candidateSkills.Add(4);
+                    for (int i = 0; i < countV; i++) candidateSkills.Add(4);
                 }
             }
 

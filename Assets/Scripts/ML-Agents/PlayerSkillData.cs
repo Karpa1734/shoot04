@@ -151,7 +151,6 @@ public class PlayerSkillData : ScriptableObject
         [Tooltip("ボタン長押しによる引き絞り/溜めチャージ系スキルの場合はチェックを入れてください")]
         public bool isChargeSkill;
 
-        // 🌟【新規追加】：このスキルを使用中も、他のスキルの同時使用（並列実行）を許可するかどうか
         [Tooltip("チェックを入れると、このスキルの持続中であっても他のスキルを同時に使用できるようになります")]
         public bool isConcurrentAllowed;
 
@@ -169,6 +168,11 @@ public class PlayerSkillData : ScriptableObject
 
         public float cost;
         public float ultimateGain;
+
+        // 🌟【新規追加】：AIがこのスキルを選択する際の優先度・重み（デフォルトは1.0。大きいほど頻繁に使います）
+        [Header("🤖 AI Behavior Settings")]
+        [Tooltip("AIがこのスキルを選択する際の優先度（数値が高いほど優先的に使用されます）")]
+        public float aiPriorityWeight;
     }
 
     [Header("Normal Skills")]

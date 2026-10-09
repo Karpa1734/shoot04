@@ -209,5 +209,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   assignedBulletData: {fileID: 11400000, guid: 260a096df65da004bbad4ed3d9d4223b, type: 2}
+  domainBulletData: {fileID: 11400000, guid: b2b43013bb51bdc46887ce1806655df6, type: 2}
   _rotationSpeed: 180
   _scaleDuration: 0.3

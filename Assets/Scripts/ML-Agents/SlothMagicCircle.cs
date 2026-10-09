@@ -11,10 +11,13 @@ public class SlothMagicCircle : MonoBehaviour
     private string targetTag;
     private float fireInterval;
     private float fireTimer = 0f;
-    private float lifeTimer = 20f;
+    private float lifeTimer = 16f;
 
-    [Header("🌟 外部からアタッチする弾幕データ")]
+    [Header("🌟 通常時の弾幕データ")]
     [SerializeField] private BulletData assignedBulletData;
+
+    [Header("🌟 領域内（スペル中）専用の弾幕データ")]
+    [SerializeField] private BulletData domainBulletData;
 
     [Header("Behavior Settings")]
     [SerializeField] private float _rotationSpeed = 180f;   // 1秒間の回転角度（常時回転）
@@ -93,9 +96,11 @@ public class SlothMagicCircle : MonoBehaviour
 
             int connectedCount = GetConnectedCount();
 
-            // 🌟【ULT中の発射間隔半減】：ULT領域が展開中の時は、間隔の短縮係数を強める（または基本間隔を半分にする）
-            SlothUltDomain activeDomain = Object.FindAnyObjectByType<SlothUltDomain>();
-            float intervalMultiplier = (activeDomain != null) ? 0.5f : 1.0f;
+            PlayerStatusManager statusMgr = shooter != null ? shooter.GetComponent<PlayerStatusManager>() : null;
+            if (statusMgr == null && shooter != null) statusMgr = shooter.GetComponentInChildren<PlayerStatusManager>();
+            bool isSpellActive = (statusMgr != null && statusMgr.isSpellCardActive);
+
+            float intervalMultiplier = isSpellActive ? 0.8f : 1.0f;
 
             float enhancedInterval = Mathf.Max(0.1f, (fireInterval - (connectedCount * 0.15f)) * intervalMultiplier);
             fireTimer = enhancedInterval;
@@ -140,7 +145,7 @@ public class SlothMagicCircle : MonoBehaviour
     private int GetConnectedCount()
     {
         int count = 0;
-        float linkThreshold = 7.5f;
+        float linkThreshold = 9.0f;
 
         foreach (var other in AllCircles)
         {
@@ -161,7 +166,7 @@ public class SlothMagicCircle : MonoBehaviour
         if (lineRenderer == null) return;
 
         List<Vector3> connectedPositions = new List<Vector3>();
-        float linkThreshold = 7.5f;
+        float linkThreshold = 9.0f;
 
         foreach (var other in AllCircles)
         {
@@ -192,45 +197,46 @@ public class SlothMagicCircle : MonoBehaviour
 
     private void FireCircleBullet()
     {
-        BulletData dataToUse = assignedBulletData;
+        PlayerStatusManager statusMgr = shooter != null ? shooter.GetComponent<PlayerStatusManager>() : null;
+        if (statusMgr == null && shooter != null) statusMgr = shooter.GetComponentInChildren<PlayerStatusManager>();
+        bool isSpellActive = (statusMgr != null && statusMgr.isSpellCardActive);
+
+        BulletData dataToUse = (isSpellActive && domainBulletData != null) ? domainBulletData : assignedBulletData;
         if (dataToUse == null) return;
 
         int connectedCount = GetConnectedCount();
 
-        // 1. 通常時のway数計算
         int baseWayCount = 1 + (connectedCount * 2);
         float speed = 3.0f + (connectedCount * 0.5f);
 
-        // 🌟【ULT中の強化判定】：フィールドに SlothUltDomain が存在するかチェック
         SlothUltDomain activeDomain = Object.FindAnyObjectByType<SlothUltDomain>();
         bool isUltActive = (activeDomain != null);
 
-        // 🌟【way数を1.5倍にする】：ULT中なら 1.5倍の弾数（way数）にスケールアップ（端数は四捨五入）
-        int wayCount = isUltActive ? Mathf.RoundToInt(baseWayCount * 1.5f) : baseWayCount;
-
-        // 奇数wayの綺麗さを維持するため、もし偶数になってしまった場合は +1 して奇数に保つ
-        if (wayCount % 2 == 0) wayCount += 1;
-
-        // 2. 基準角度（ベースアングル）の決定
-        float baseAngle = 0f;
+        int wayCount;
         if (isUltActive)
         {
-            // 🌟【ULT中は基準角度をランダムに】：0度〜360度の間で完全にランダムな方向を基準とする
-            baseAngle = Random.Range(0f, 360f);
+            // 🌟 ULT時は天井なしでスケールアップ（1.5倍）
+            wayCount = Mathf.RoundToInt(baseWayCount * 1.5f);
+            if (wayCount % 2 == 0) wayCount += 1;
         }
         else
         {
-            // 通常時は従来通り自機狙い
-            Transform enemyTarget = null;
-            foreach (var p in PlayerMove.AllPlayers)
-            {
-                if (p != null && p.gameObject != shooter) { enemyTarget = p.transform; break; }
-            }
-            if (enemyTarget != null)
-            {
-                Vector3 dir = enemyTarget.position - transform.position;
-                baseAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-            }
+            // 🌟 通常時およびスペル時は最大 7way を上限（天井）にする
+            wayCount = baseWayCount;
+            if (wayCount % 2 == 0) wayCount += 1;
+            wayCount = Mathf.Min(wayCount, 7);
+        }
+
+        float baseAngle = 0f;
+        Transform enemyTarget = null;
+        foreach (var p in PlayerMove.AllPlayers)
+        {
+            if (p != null && p.gameObject != shooter) { enemyTarget = p.transform; break; }
+        }
+        if (enemyTarget != null)
+        {
+            Vector3 dir = enemyTarget.position - transform.position;
+            baseAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         }
 
         PlayerDanmakuEmitter emitter = shooter != null ? shooter.GetComponentInChildren<PlayerDanmakuEmitter>() : null;
@@ -243,7 +249,6 @@ public class SlothMagicCircle : MonoBehaviour
         {
             float finalAngle = baseAngle + ((i - centerIndex) * stepAngle);
 
-            // 領域内侵入ガード
             if (activeDomain != null)
             {
                 float rad = finalAngle * Mathf.Deg2Rad;

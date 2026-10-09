@@ -694,13 +694,15 @@ public class PlayerStatusManager : MonoBehaviour
             PlayerHitHandler oppHitHandler = oppMove != null ? oppMove.GetComponentInChildren<PlayerHitHandler>() : null;
 
             bool isRoundEnded = (hitHandler != null && hitHandler.currentState == PlayerHitHandler.PlayerState.Down) ||
-                                (oppHitHandler != null && oppHitHandler.currentState == PlayerHitHandler.PlayerState.Down);
+                                (oppHitHandler != null && oppHitHandler.currentState == PlayerHitHandler.PlayerState.Down); 
             if (!isRoundEnded)
             {
                 bool isULTActive = (myEmitter != null && myEmitter.IsUltimateSkillActive);
-
-                // 領域の残り時間によるタイマーを進める
-                spellTimer -= Time.deltaTime;
+                // 🌟【修正の核心】：ULT（EXスキル）が稼働中（isULTActive == true）の間は、領域の残りタイマー（spellTimer）を減らさずにストップする！
+                if (!isULTActive)
+                {
+                    spellTimer -= Time.deltaTime;
+                }
 
                 // =========================================================================
                 // 🌟【最重要修正】：領域中のアルカナゲージの制御

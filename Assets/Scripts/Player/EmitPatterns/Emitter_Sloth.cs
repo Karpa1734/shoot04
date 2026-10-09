@@ -32,9 +32,6 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
         yield return StartCoroutine(SkillTempleteEX(s));
     }
 
-    /// <summary>
-    /// 💤 3段階チャージ式・インジケーター非表示 ＆ 発射時ターゲット捕捉 ＆ 段階的効果音つき弾幕ルーチン
-    /// </summary>
     private IEnumerator ExecuteSlothChargeShotRoutine(PlayerSkillData.SkillSettings s)
     {
         if (_isSlothCharging) yield break;
@@ -73,21 +70,20 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
 
         try
         {
-            // チャージ開始音
             PlaySkillSE(SEPath.POWER_LOGO2);
             if (BossEffectManager.Instance != null && _rootOwner != null)
             {
                 BossEffectManager.Instance.PlayChargeEffect(0.1f, s.bulletData.breakColor, _rootOwner.transform.position);
             }
-            int elapsedFrames = 0;
+            float elapsedFrames = 0f;
             bool isKeyReleased = false;
 
             int tier1Frames = 25;
             int tier2Frames = 55;
-            int maxChargeFrames = 90;
             int currentTier = 1;
-            int previousTier = 1; // 💡 チャージ音の切り替わり検知用
+            int previousTier = 1;
 
+            // 🌟【修正の核心】：AI（DanmakuAgent）からのフレーム入力、または人間の入力が離されるまで自由にチャージ時間を可変させる
             while (!isKeyReleased)
             {
                 if (!PlayerMove.CanShoot || (myHH != null && myHH.currentState != PlayerHitHandler.PlayerState.Normal))
@@ -98,12 +94,11 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
 
                 if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = chargeMoveSpeed;
 
-                // チャージ段階の判定
-                if (elapsedFrames < tier1Frames) currentTier = 1;
-                else if (elapsedFrames < tier2Frames) currentTier = 2;
+                int intElapsed = Mathf.FloorToInt(elapsedFrames);
+                if (intElapsed < tier1Frames) currentTier = 1;
+                else if (intElapsed < tier2Frames) currentTier = 2;
                 else currentTier = 3;
 
-                // 🌟【追加】：チャージ段階（Tier）が上がった瞬間に効果音を鳴らす
                 if (currentTier > previousTier)
                 {
                     if (BossEffectManager.Instance != null && _rootOwner != null)
@@ -115,20 +110,27 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
                 }
 
                 yield return new WaitForFixedUpdate();
-                elapsedFrames++;
+
+                float chargeSpeedMultiplier = (myStatus != null && myStatus.isSpellCardActive) ? 1.5f : 1.0f;
+                elapsedFrames += 1f * chargeSpeedMultiplier;
 
                 DanmakuAgent agent = GetComponentInChildren<DanmakuAgent>();
                 if (agent == null) agent = GetComponentInParent<DanmakuAgent>();
 
                 if (agent != null && agent._useAutoEvadeAI)
                 {
-                    if (elapsedFrames >= tier2Frames) isKeyReleased = true;
+                    // 🤖 AI操作の場合：DanmakuAgent側が決定したランダムなチャージフレーム（_aiDynamicChargeTarget）に到達したら自動でキーを離す！
+                    if (elapsedFrames >= agent._aiDynamicChargeTarget)
+                    {
+                        isKeyReleased = true;
+                    }
                 }
                 else
                 {
+                    // 人間プレイヤーの場合：キーが離されたら発射
                     if (zAction != null && !zAction.IsPressed()) isKeyReleased = true;
                     else if (zAction == null && !Input.anyKey) isKeyReleased = true;
-                    else if (elapsedFrames >= maxChargeFrames) isKeyReleased = true;
+                    else if (elapsedFrames >= 90f) isKeyReleased = true;
                 }
             }
 
@@ -140,34 +142,29 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
 
             PlaySkillSE(SEPath.SHOT2);
 
-            // 🌟【修正】：チャージ中ではなく、ボタンを離して発射した「この瞬間」の敵機方向を新しく取得する
             float fixedBaseAngle = GetAngleToTarget(transform.position) + s.angleOffset;
-
             float baseSpeed = s.speed > 0f ? s.speed : 5f;
             float wide = s.wideAngle > 0f ? s.wideAngle : 10f;
 
-            // =========================================================================
-            // 🚀 チャージ段階に応じた「同時射出・速度差」パターン
-            // =========================================================================
             if (currentTier == 1)
             {
-                // 段階1：普通の3way
                 FireNWay(s.bulletData, fixedBaseAngle, wide, 3, baseSpeed, s.delay);
             }
             else if (currentTier == 2)
             {
-                // 段階2：広がり係数を `1.2f` に指定して発射
                 int[] waysTier2 = new int[] { 2, 3, 4 };
                 float[] speedsTier2 = new float[] { baseSpeed * 1.3f, baseSpeed * 1.2f, baseSpeed * 1.1f };
                 FireSimultaneousSpeedWaves(s.bulletData, fixedBaseAngle, wide, waysTier2, speedsTier2, s.delay, 1.2f);
             }
             else
             {
-                // 段階3：最大の広がり（1.8f）で 2way から 7way までの最大ウェーブ
                 int[] waysTier3 = new int[] { 2, 3, 4, 5, 6, 7 };
                 float[] speedsTier3 = new float[] { baseSpeed * 1.6f, baseSpeed * 1.4f, baseSpeed * 1.2f, baseSpeed * 1.0f, baseSpeed * 0.85f, baseSpeed * 0.7f };
                 FireSimultaneousSpeedWaves(s.bulletData, fixedBaseAngle, wide, waysTier3, speedsTier3, s.delay, 1.8f);
             }
+
+            if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+            _isSlothCharging = false;
 
             yield return new WaitForSeconds(s.cooldown);
         }
@@ -240,37 +237,11 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
         }
     }
 
-    private void DrawFanMesh(MeshFilter filter, Mesh targetMesh, float spreadAngle, float centerAngle, float radius)
-    {
-        if (filter == null || targetMesh == null) return;
-        targetMesh.Clear();
-
-        int segments = 24;
-        Vector3[] vertices = new Vector3[segments + 2];
-        int[] triangles = new int[segments * 3];
-
-        vertices[0] = Vector3.zero;
-        float startAngle = centerAngle - (spreadAngle / 2f);
-        float stepAngle = spreadAngle / segments;
-
-        for (int i = 0; i <= segments; i++)
-        {
-            float rad = (startAngle + (stepAngle * i)) * Mathf.Deg2Rad;
-            vertices[i + 1] = new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0f) * radius;
-        }
-
-        for (int i = 0; i < segments; i++) { triangles[i * 3] = 0; triangles[i * 3 + 1] = i + 1; triangles[i * 3 + 2] = i + 2; }
-
-        targetMesh.vertices = vertices;
-        targetMesh.triangles = triangles;
-        targetMesh.RecalculateNormals();
-        filter.mesh = targetMesh;
-    }
-
     // 🔄 前回の回転方向を保持するフラグ（使用ごとに±が交互に入れ替わります）
     private bool _isSlothXReversed = false;
 
-    protected  IEnumerator SkillTempleteX(PlayerSkillData.SkillSettings s)
+
+    protected IEnumerator SkillTempleteX(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
         if (BulletManager.Instance == null) { _activeSkillCoroutines--; yield break; }
@@ -286,7 +257,11 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
             }
         }
 
-        int laserWay = 4;
+        // 🌟【修正の核心】：VJT（スペルカード）展開中なら6way、通常時は4wayに切り替える
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+        int laserWay = isSpellActive ? 6 : 4;
         int laserCount = Mathf.Max(1, laserWay);
         float radius = 1.2f; // 自機から離した弾源の距離
 
@@ -311,22 +286,21 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
             {
                 spawnedLasers.Add(laser);
 
-                // 1本あたりの基本配置角度
+                // 1本あたりの基本配置角度（6wayなら60度刻み、4wayなら90度刻みに自動分配）
                 float slotBaseAngle = targetBaseAngle + (360f / laserCount * i);
 
-                // 🎯 弾源（公転位置）を ±60度 ずらした位置からスタートさせる
-                float initialDistAngleOffset = 60f * rotDir;
+                // 🎯 6wayの密度と広がり方に合わせて、開始時のずらし位置と変化量を調整
+                // 6wayのときは本数が多く密集するため、開始オフセットと回転量を少し広めにダイナミックに設定します
+                float initialDistAngleOffset = (isSpellActive ? 40f : 60f) * rotDir;
                 float startDistAngle = slotBaseAngle + initialDistAngleOffset;
 
-                // 🎯 1秒かけて ±1度 の位置まで弾源を公転させるための変化量
-                float targetDistAngleOffset = -10f * rotDir;
+                // 🎯 1秒かけて目標角度へ公転させるための変化量
+                float targetDistAngleOffset = (isSpellActive ? -10f : -10f) * rotDir;
                 float totalDeltaDistAngle = targetDistAngleOffset - initialDistAngleOffset;
                 float frameDistAngleVel = totalDeltaDistAngle / rotateDurationFrames;
 
-                // 💡【修正の核心】：レーザーの向き（laserAngle）を「弾源の位置（distAngle）」と完全に一致させます。
-                // EnemyLaserBeamの描画上、distAngle と laserAngle を同じにすることで、光源から外側へ真っ直ぐビームが伸びるようになります。
                 float initialLaserAngle = startDistAngle;
-                float frameLaserAngleVel = frameDistAngleVel; // 弾源と同じ速度でレーザーの向きも回転させる
+                float frameLaserAngleVel = frameDistAngleVel; // 弾源と同じ速度でレーザーの向きも連動させる
 
                 // データ1：予告線期間（フレーム0 ～ 5）
                 laser.AddData(new EnemyLaserBeam.LaserTransformData
@@ -340,12 +314,12 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
                     isSmooth = false
                 });
 
-                // データ2：回転開始（フレーム5）：弾源とレーザーの向きを同じ速度（frameDistAngleVel）で一緒に±5度へ公転・回転させる
+                // データ2：回転開始（フレーム5）
                 laser.AddData(new EnemyLaserBeam.LaserTransformData
                 {
                     frame = warningFrame,
                     distAngleVel = frameDistAngleVel,
-                    laserAngleVel = frameLaserAngleVel, // 👈 弾源の移動に合わせてレーザーの向きも連動させる
+                    laserAngleVel = frameLaserAngleVel,
                     isSmooth = true
                 });
 
@@ -450,15 +424,10 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
                 SlothBuffField buffField = fieldObj.GetComponent<SlothBuffField>();
                 if (buffField == null) buffField = fieldObj.AddComponent<SlothBuffField>();
 
-                float duration = 10.0f;
+                float duration = 8.0f;
                 buffField.Initialize(_rootOwner, duration);
             }
 
-            // 💡【修正の核心】：
-            // 他の弾幕系スキルと違い、Vスキルは魔方陣を「設置して終わり」のフィールド技です。
-            // s.cooldown（硬直時間）の間ずっとエミッターを占有してしまうと、SkillManager側で
-            // 「スキル発動中（Active）」と判定され続け、マナの自然回復ロックが解除されなくなります。
-            // そのため、生成モーションの最低限のウェイト（例: 0.1秒など）だけ挟み、速やかにコルーチンを解放します。
             yield return new WaitForSeconds(0.1f);
         }
         finally
@@ -474,6 +443,9 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
         _isEXSkillActive = true;
         _activeSkillCoroutines++;
 
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponentInChildren<PlayerStatusManager>();
+
         try
         {
             // 🌟【発動条件チェック】：魔方陣が規定数以上存在するか確認
@@ -487,8 +459,8 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
             List<SlothMagicCircle> linkedCircles = new List<SlothMagicCircle>(activeCircles);
 
             PlaySkillSE(SEPath.SLASH);
-
             PlaySkillSE(SEPath.LASER7);
+
             // 🎬 モーションや演出の再生
             PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
             if (pAnim != null) pAnim.TriggerSkillAnimation(s.skillName);
@@ -497,34 +469,43 @@ public class Emitter_Sloth : PlayerDanmakuEmitter
             GameObject domainObj = new GameObject("SlothUltDomainArea");
             SlothUltDomain domainLogic = domainObj.AddComponent<SlothUltDomain>();
 
-            PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
             int ownerId = (myStatus != null) ? myStatus.playerId : 1;
             domainObj.tag = (ownerId == 1) ? "PlayerBullet" : "EnemyBullet";
 
-            float duration = 3.0f;
-            domainLogic.Initialize(_rootOwner, targetTag,1, linkedCircles, duration);
+            // 🌟 スペル中（VJT展開中）かどうかの判定
+            bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+            float baseDuration = 4.0f;
+            // スペル中であれば持続時間が1.5倍に拡張されます（SlothUltDomain側でも同期されます）
+            float duration = isSpellActive ? baseDuration * 1.5f : baseDuration;
+
+            domainLogic.Initialize(_rootOwner, targetTag, 1, linkedCircles, baseDuration);
 
             // 領域が持続している間待機
             yield return new WaitForSeconds(duration);
         }
         finally
         {
-            // =========================================================================
-            // 🌟【追加】：ULT技が終了した際（正常終了・中断問わず）、場に出ている魔方陣をすべて消滅させる
-            // =========================================================================
-            // 💡 リストをコピーしてから逆順でループして安全に一斉削除・縮小消滅させる
+            // 1. 場に出ている魔方陣をすべて消滅させる
             List<SlothMagicCircle> circlesToDestroy = new List<SlothMagicCircle>(SlothMagicCircle.AllCircles);
             foreach (var circle in circlesToDestroy)
             {
                 if (circle != null)
                 {
-                    circle.StartDestroyRoutine(); // 縮小しながら綺麗に消滅させる
+                    circle.StartDestroyRoutine();
                 }
             }
             SlothMagicCircle.AllCircles.Clear();
 
             _isEXSkillActive = false;
             _activeSkillCoroutines--;
+
+            // 🌟【修正の核心】：スペル中にULTを使用した場合、技の終了時（finally）に聖少女領域（VJT）を強制終了（解除）する
+            if (myStatus != null && myStatus.isSpellCardActive)
+            {
+                myStatus.DeactivateSpellCard(false);
+                Debug.Log("<color=cyan>✨ [SLOTH ULT] スペル中のULT使用に伴い、聖少女領域（VJT）を強制終了しました。</color>");
+            }
         }
     }
 }

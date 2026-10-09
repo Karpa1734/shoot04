@@ -104,11 +104,10 @@ public class MenuInputManager : MonoBehaviour
         }
         else
         {
-            Debug.Log("<color=orange>⌨️【MenuInput】コントローラー未接続。1P(矢印キー)・2P(WASDキー)ともにキーボード信号から抽出します。</color>");
+            Debug.Log("<color=orange>⌨️【MenuInput】コントローラー未接続。メニュー操作のキー割り当てに従って駆動します。</color>");
 
-            // コントローラーがない場合はキーボード全体を両マップに共有し、アセット側のキー縄張り（矢印とWASD）に制御を委ねます
-            if (p1MenuMap != null) p1MenuMap.devices = new InputDevice[] { Keyboard.current };
-            if (p2MenuMap != null) p2MenuMap.devices = new InputDevice[] { Keyboard.current };
+            if (p1MenuMap != null) p1MenuMap.devices = null;
+            if (p2MenuMap != null) p2MenuMap.devices = null;
         }
     }
 
