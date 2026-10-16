@@ -44,7 +44,7 @@ MonoBehaviour:
   vjtEffectType: 7
   skillZ:
     skillName: "\u30A2\u30A4\u30B7\u30AF\u30EB\u30EC\u30A4"
-    skillIcon: {fileID: 21300000, guid: 2e4c353f323c3f34b9ebbd5eeed3e752, type: 3}
+    skillIcon: {fileID: 21300000, guid: 6c60a3fde6476654e9946d408432c6ed, type: 3}
     skillDescription: 
     patternType: 10
     bulletData: {fileID: 11400000, guid: 314e9bda82372b0468165be25fa34cec, type: 2}
@@ -62,12 +62,13 @@ MonoBehaviour:
     delay: 1
     cost: 35
     ultimateGain: 8
+    aiPriorityWeight: 0
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
-    skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
+    skillIcon: {fileID: 21300000, guid: b0e24b6b3b20b1c44826ca8bae0db2bf, type: 3}
     skillDescription: 
     patternType: 17
-    bulletData: {fileID: 11400000, guid: e4230bca0091b104db099bf153478477, type: 2}
+    bulletData: {fileID: 11400000, guid: 04124d846af07be4fa24bbf51992d786, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
     cooldown: 0.2
@@ -76,15 +77,16 @@ MonoBehaviour:
     sePath: 
     count: 24
     speed: 4
-    angleOffset: 23
+    angleOffset: 0
     wideAngle: 360
     moveSpeedMultiplier: 0
     delay: 5
     cost: 20
     ultimateGain: 8
+    aiPriorityWeight: 0
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
-    skillIcon: {fileID: 21300000, guid: b351b8db71d0f994e9b172445ec0ee9a, type: 3}
+    skillIcon: {fileID: 21300000, guid: 0bd84404ee87a69408b5f156188b122b, type: 3}
     skillDescription: 
     patternType: 12
     bulletData: {fileID: 11400000, guid: da9048ab71ff6d34cb4420198b8474ab, type: 2}
@@ -105,9 +107,10 @@ MonoBehaviour:
     delay: 5
     cost: 40
     ultimateGain: 10
+    aiPriorityWeight: 0
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
-    skillIcon: {fileID: 21300000, guid: 467c361a2ad62174fa23d22b481dd4d8, type: 3}
+    skillIcon: {fileID: 21300000, guid: c91519b935dfa5842bca08324d8ffc44, type: 3}
     skillDescription: 
     patternType: 13
     bulletData: {fileID: 11400000, guid: 780d394183a2cc6489071754715cf0d8, type: 2}
@@ -125,6 +128,7 @@ MonoBehaviour:
     delay: 10
     cost: 30
     ultimateGain: 15
+    aiPriorityWeight: 0
   skillEX:
     skillName: "\u30D5\u30EB\u30FC\u30EB\u30FB\u30C9\u30FB\u30E2\u30CD"
     skillIcon: {fileID: 0}
@@ -145,3 +149,4 @@ MonoBehaviour:
     delay: 0
     cost: 0
     ultimateGain: 0
+    aiPriorityWeight: 0

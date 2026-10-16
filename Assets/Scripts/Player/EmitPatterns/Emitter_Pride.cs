@@ -208,6 +208,9 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         int bulletCount = Mathf.Max(4, baseBulletCount);
 
         float step = 360f / bulletCount;
+
+        // 🌟【修正の核心】：偶数弾で綺麗に自機を外す（隙間が自機に向くようにする）ためのオフセット
+        // 弾と弾の間隔（step）の半分（半位相）ずらすことで、プレイヤーの正面に弾ではなく「隙間」が来るようにします
         float evenWayOffset = step / 2f;
 
         float currentSpeed = 6f; // 初速
@@ -220,8 +223,10 @@ public class Emitter_Pride : PlayerDanmakuEmitter
         float angleIncrement = 12f * rotDirection; // 1波ごとの回転角
 
         float targetAngle = GetAngleToTarget();
-        float baseAngle = targetAngle + s.angleOffset + evenWayOffset + Random.Range(-6f,6f);
 
+        // 🌟 自機への方向（targetAngle）を基準に、インスペクター等のオフセット（s.angleOffset）に加え、
+        // 必ず「半位相（evenWayOffset）」を綺麗に足し引きして、自機の位置に弾が来ない（隙間が向く）ように確定させます。
+        float baseAngle = targetAngle + s.angleOffset + evenWayOffset;
 
         PlaySkillSE(s.sePath);
 
@@ -231,8 +236,6 @@ public class Emitter_Pride : PlayerDanmakuEmitter
             float finalAngle = baseAngle + (step * i);
             CreateShot(s.bulletData, pos, currentSpeed, finalAngle, delay: s.delay);
         }
-
-
 
         yield return new WaitForSeconds(s.cooldown);
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;

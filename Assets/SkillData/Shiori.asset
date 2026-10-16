@@ -44,7 +44,7 @@ MonoBehaviour:
   vjtEffectType: 6
   skillZ:
     skillName: "\u932C\u91D1\u5263\u30B4\u30FC\u30EB\u30C9\u30A2\u30BE\u30C3\u30C8"
-    skillIcon: {fileID: 21300000, guid: 2e4c353f323c3f34b9ebbd5eeed3e752, type: 3}
+    skillIcon: {fileID: 21300000, guid: a0a700c774444e848b7bf6c5151fdd15, type: 3}
     skillDescription: 
     patternType: 0
     bulletData: {fileID: 11400000, guid: c3bf01bac88cfa74cbb553cd9135dd48, type: 2}
@@ -65,7 +65,7 @@ MonoBehaviour:
     aiPriorityWeight: 10
   skillX:
     skillName: "\u865A\u98FE\u306E\u8CA1\u8CA8"
-    skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
+    skillIcon: {fileID: 21300000, guid: 66bbc6b11d1fd8643a462ad4ff22d3b5, type: 3}
     skillDescription: 
     patternType: 17
     bulletData: {fileID: 11400000, guid: b12013b3fa94a2441bd2a0367479a48d, type: 2}
@@ -86,7 +86,7 @@ MonoBehaviour:
     aiPriorityWeight: 8
   skillC:
     skillName: "\u30A2\u30EB\u30B1\u30DF\u30FC\u30D5\u30E9\u30C3\u30B7\u30E5"
-    skillIcon: {fileID: 21300000, guid: b351b8db71d0f994e9b172445ec0ee9a, type: 3}
+    skillIcon: {fileID: 21300000, guid: 0eb8aa42069106140ae802c1fe5f4b12, type: 3}
     skillDescription: 
     patternType: 18
     bulletData: {fileID: 11400000, guid: 63f683aa79254504f94e41b200988dd2, type: 2}
@@ -107,7 +107,7 @@ MonoBehaviour:
     aiPriorityWeight: 20
   skillV:
     skillName: "\u30DE\u30B0\u30CD\u30C3\u30C8\u30B9\u30EC\u30A4\u30D6"
-    skillIcon: {fileID: 21300000, guid: 467c361a2ad62174fa23d22b481dd4d8, type: 3}
+    skillIcon: {fileID: 21300000, guid: 161fe27c68eb89d4186b06d993d27647, type: 3}
     skillDescription: 
     patternType: 13
     bulletData: {fileID: 11400000, guid: b3cef48f06bc8c24280a7aaad5069726, type: 2}
