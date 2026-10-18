@@ -23,7 +23,10 @@ public class PlayerStatusManager : MonoBehaviour
     public float currentHP = 100f; // 通常時のHP（インスペクター準拠で100）
     public float maxHP = 100f;     // 通常時の最大HP（インスペクター準拠で100）
     public int stockLives = 2;    // 通常時の残機
-
+    [Header("--- Damage Cap Settings ---")]
+    [Tooltip("連続被弾時にダメージを制限する無敵クールダウン時間（秒）。0にすると同一フレーム内のみ制限")]
+    public float damageCapCooldown = 0.05f; // 例: 0.05秒（約3フレーム）以内の重複ダメージを無効化
+    private float _damageCapTimer = 0f;
     [Header("Piece Settings")]
     public int lifePieces = 0;
     public int lifePiecesRequired = 3;
@@ -597,7 +600,11 @@ public class PlayerStatusManager : MonoBehaviour
             _failedSpellSoundTimer -= Time.deltaTime;
         }
 
-
+        // 🌟 ダメージキャップ用タイマーの減算
+        if (_damageCapTimer > 0f)
+        {
+            _damageCapTimer -= Time.deltaTime;
+        }
 
         // =========================================================================
         // 🍰【新規実装】暴食：【生命への超還元】（通常時：毎秒アルカナ0.5%消費➔体力0.5%自動回復 / 領域中：消費なしで再生力10倍）
@@ -1472,15 +1479,20 @@ public class PlayerStatusManager : MonoBehaviour
 
     public bool ApplyDamage(int amount)
     {
+        // 🌟【新規実装：ダメージキャップ / 連続被弾ガード】
+        if (_damageCapTimer > 0f && !isSpellCardActive)
+        {
+            return false;
+        }
+        _damageCapTimer = damageCapCooldown;
+
         // 🚨 ダメージを受けた瞬間にパッシブ「被弾時攻撃力強化」を持っているかスキャン
         if (HasPassiveSkill(PassiveSkillType.WrathCounter))
         {
-            _passiveAtkBoostTimer = 8.0f; // 8秒間持続バフ点灯！
+            _passiveAtkBoostTimer = 8.0f;
             Debug.Log($"<color=orange>⚔️【パッシブ発動】被弾をトリガーに8秒間、攻撃力1.3倍バフが起動しました！</color>");
         }
 
-        // 🔮 スペルカード（バリア）展開中の処理
-        // 🔮 スペルカード（バリア）展開中の処理
         // 🔮 スペルカード（バリア）展開中の処理
         if (isSpellCardActive)
         {
@@ -1490,18 +1502,13 @@ public class PlayerStatusManager : MonoBehaviour
             if (spellHP <= 0)
             {
                 spellHP = 0;
-
-                // 🌟【最重要】：ストーリーモードかつボス(Player 2)の場合、
-                // バリアを削り切った（＝剥がれた）時点で即座にスペルカード撃破（true）とする！
                 bool isStoryBossSpell = GameModeManager.IsStoryMode && playerId == 2;
-
                 DeactivateSpellCard(true);
 
                 if (isStoryBossSpell)
                 {
-                    return true; // 🎯 これによりバリア剥離 ＝ スペル撃破（次段階への即時移行）が確定します
+                    return true;
                 }
-
                 return false;
             }
             return false;
@@ -1511,10 +1518,15 @@ public class PlayerStatusManager : MonoBehaviour
         currentHP -= amount;
         UpdateUI();
 
+        // 通常HPが 0 以下になった場合の処理
         if (currentHP <= 0)
         {
             currentHP = 0;
-            return true;
+
+            // 🛑【修正】：ここで勝手に SubtractLifeAndCheckRebirth() を呼ぶのを廃止！
+            // 勝ち星の加算とラウンド終了判定は、PlayerHitHandler 側のダウン演出ルーチン（ExplosionAndStunRoutine）に一任します。
+
+            return true; // ダウン（死亡）状態へ移行
         }
         return false;
     }
@@ -1560,7 +1572,7 @@ public class PlayerStatusManager : MonoBehaviour
         } //
         return false; //
     }
- 
+
     public bool SubtractLifeAndCheckRebirth()
     {
         if (GameModeManager.IsStoryMode)
@@ -1576,44 +1588,38 @@ public class PlayerStatusManager : MonoBehaviour
         }
         else
         {
-            // 🔷 VSモード（対戦モード）時：2ラウンド先取制（2つの星が点灯したら終了）
+            // 🔷 VSモード（対戦モード）時：2ラウンド先取制
+            // 💡 ルール：ダウンしたプレイヤー（this）ではなく、「生き残った対戦相手（勝者）」の勝星（life）を +1 加算します。
             if (_playerMove != null && _playerMove.Opponent != null)
             {
                 PlayerStatusManager oppStatus = _playerMove.Opponent.GetComponent<PlayerStatusManager>();
                 if (oppStatus != null)
                 {
-                    // =========================================================================
-                    // ⚔️【デバッグ機能】：エンドレスモード（Eキーデバッグ）の割り込み
-                    // 💡 理由：IsEndlessMode が true の時は、勝ち星を一切増やさず、
-                    //          即座に false を返して次のラウンド（バトル継続）へ強制移行させます！
-                    // =========================================================================
+                    // デバッグ用エンドレスモードの割り込み
                     if (GameDifficultyManager.IsEndlessMode)
                     {
                         Debug.Log("<color=orange>🔄【Endless Mode】エンドレスモード稼働中。勝ち星を加算せず、次のラウンドへ進みます。</color>");
-
-                        // 画面上のUIの更新だけは安全に通す
                         oppStatus.UpdateUI();
                         UpdateUI();
-
-                        return false; // ゲームセットさせず、100%次のラウンドへ継続 (false)
+                        return false;
                     }
 
-                    // ➔ 通常モード時（エンドレスOFF）は従来通りの2本先取ルールを適用
-                    // 🌟 相手の現在の星（life）が既に 1 だった場合、今回の勝利で 2 に到達するため【マッチ終了】
-                    if (oppStatus.life >= 1)
+                    // 🌟【修正の核心】：勝者の勝星（life）を 1 ずつ確実に加算する！
+                    oppStatus.life++;
+
+                    Debug.Log($"<color=lime>🏆 ラウンド決着！ Player {oppStatus.playerId} が1勝追加しました。（現在の勝星: {oppStatus.life} / 2）</color>");
+
+                    oppStatus.UpdateUI();
+                    UpdateUI();
+
+                    // 🌟 勝者の勝星が「2」に到達していればマッチ終了（true）、まだなら次のラウンドへ継続（false）
+                    if (oppStatus.life >= 2)
                     {
-                        oppStatus.life = 2;
-                        oppStatus.UpdateUI();
-                        UpdateUI();
-                        return true; // 2ラウンド先取したため、ゲームセット確定！ (true)
+                        return true; // 2勝達成＝ゲームセット確定！
                     }
                     else
                     {
-                        // 🌟 相手の現在の星が 0 だった場合は、今回で 1 個目が灯るので【ラウンド継続】
-                        oppStatus.life = 1;
-                        oppStatus.UpdateUI();
-                        UpdateUI();
-                        return false; // まだ1本目なので、次のラウンドへ進む (false)
+                        return false; // まだ1勝目＝次のラウンドへ！
                     }
                 }
             }

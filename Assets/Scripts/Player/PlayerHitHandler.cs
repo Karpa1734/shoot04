@@ -349,22 +349,27 @@ public class PlayerHitHandler : MonoBehaviour
             }
             myStatusManager.SendMessage("UpdateUI", SendMessageOptions.DontRequireReceiver);
         }
-
-        // 星の計算の事前評価
+// 星の計算の事前評価
         bool isMatchGameOver = false;
         if (myStatusManager != null && !GameModeManager.IsStoryMode && playerMove != null && playerMove.Opponent != null)
         {
             PlayerStatusManager oppStatus = playerMove.Opponent.GetComponent<PlayerStatusManager>();
-            if (oppStatus != null && oppStatus.life >= 1)
+            if (oppStatus != null)
             {
-                isMatchGameOver = true;
+                // 🌟【修正の核心】：
+                // 従来、相手の life が 1 以上なら即 matchGameOver と判定していましたが、
+                // SubtractLifeAndCheckRebirth() の中で自動的に life がインクリメントされて判定されるため、
+                // ここで二重に判定・加算してしまうと一気に2勝分進んでしまいます。
+                // したがって、ここでは純粋に「今回のラウンドで相手（勝者）の星が2に到達するか」を安全に受ける形にします。
             }
         }
 
         if (myStatusManager != null)
         {
-            myStatusManager.SubtractLifeAndCheckRebirth();
+            // 💡 敗者側のライフ減少とラウンド継続・終了のジャッジメントは、この関数1箇所に一本化します！
+            isMatchGameOver = myStatusManager.SubtractLifeAndCheckRebirth();
         }
+        
         ClearAllBullets(true);
 
         // 2勝決着時のみ、この爆散の瞬間にSEを最優先再生
@@ -599,13 +604,11 @@ public class PlayerHitHandler : MonoBehaviour
     {
         Vector3 hitPos = transform.position;
 
-        // 🌟【最重要】：すでにダウン中、復活中、または「すでにHPが0以下で撃破処理中」である場合は完全に無視する
+        // 🌟【修正の核心】：
+        // すでに完全に「ダウン状態（Down）」でやられている最中なら無視しますが、
+        // 「まだダウン演出（ExplosionAndStunRoutine）が始まっておらず、HPが0になったまさにその瞬間」の削り弾によるトドメは
+        // しっかり受け付けるように条件を緩和します！
         if (currentState == PlayerState.Down || currentState == PlayerState.Rebirth) return;
-        if (myStatusManager != null)
-        {
-            if (myStatusManager.isSpellCardActive && myStatusManager.spellHP <= 0f) return;
-            if (!myStatusManager.isSpellCardActive && myStatusManager.currentHP <= 0f) return;
-        }
 
         bool isDown = false;
         bool isSpellActive = (myStatusManager != null && myStatusManager.isSpellCardActive);
@@ -622,8 +625,10 @@ public class PlayerHitHandler : MonoBehaviour
 
             bool wasSpellActive = myStatusManager.isSpellCardActive;
 
+            // ダメージを適用
             isDown = myStatusManager.ApplyDamage(damage);
 
+            // スペル中ならバリアHPが0以下、通常時ならHPが0以下になったらダウン確定
             if (myStatusManager.isSpellCardActive)
             {
                 if (myStatusManager.spellHP <= 0f) isDown = true;

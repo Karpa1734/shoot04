@@ -8,27 +8,19 @@ public class DanmakuBullet : MonoBehaviour
     // =========================================================================
     // 🌟 外側から角度や速度を変更・取得するためのパブリックインターフェース
     // =========================================================================
-
-    /// <summary>
-    /// 弾の現在の進行角度（度数法）を取得または設定します。
-    /// </summary>
+    // 🌟 削り弾フラグの内部保持用
+    private bool _isContinuousDamageBullet = false;
     public float Angle
     {
         get => angle;
         set => angle = value;
     }
 
-    /// <summary>
-    /// 弾の進行角度を外部から直接設定します。
-    /// </summary>
     public void SetAngle(float newAngle)
     {
         angle = newAngle;
     }
 
-    /// <summary>
-    /// 弾の移動速度を外部から直接設定します。
-    /// </summary>
     public void SetSpeed(float newSpeed)
     {
         speed = newSpeed;
@@ -50,7 +42,10 @@ public class DanmakuBullet : MonoBehaviour
     private bool isActive = true;
     private int delayFrames = 0;
     private int totalDelay = 0;
-
+    private int _bulletAgeFrames = 0;
+    private float _initialSpeedForDecel = 0f;
+    private bool _isDecelerating = false;
+    private float _decelerationProgress = 0f;
     public int DelayFrames => delayFrames;
 
     private int currentAnimFrame = 0;
@@ -67,12 +62,8 @@ public class DanmakuBullet : MonoBehaviour
     private float _selfDestructTimer = -1f;
     private bool _hasSelfDestructTriggered = false;
 
-    // =========================================================================
-    // 🧬【耐久貫通・多段ヒットインフラ】：敵やフィールドに接触しても消えないフラグ
-    // =========================================================================
     [HideInInspector] public bool isIndestructible = false;
     [HideInInspector] public GameObject originPrefab;
-    // 🌟【最核心新設】：プール再利用時に前回の世代のコルーチンからの誤消去命令を物理遮断するID
     [HideInInspector] public int instanceGenerationId = 0;
     private int _nextHitEnableFrame = 0;
     private const int MULTI_HIT_INTERVAL_FRAMES = 5;
@@ -129,12 +120,16 @@ public class DanmakuBullet : MonoBehaviour
 
     public void Initialize(GameObject shooter, string target, float speed, float angle, float accel, float maxSpeed, float angVel, float delay, BulletData data, bool converge = false)
     {
+        this._bulletAgeFrames = 0;
+        this._isDecelerating = false;
+        this._decelerationProgress = 0f;
         this.isMovementSuspended = false;
         this._hasSelfDestructTriggered = false;
         this._selfDestructTimer = -1f;
         this.isGrazeDone = false;
         this.instanceGenerationId++;
-
+        // 🌟【修正の核心】：BulletData から削り弾フラグを確実に取得して保持する
+        this._isContinuousDamageBullet = (data != null && data.isContinuousDamageBullet);
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null)
         {
@@ -159,7 +154,6 @@ public class DanmakuBullet : MonoBehaviour
 
         _isSpearChargeMode = (data != null && (data.name.Contains("Spear") || data.bulletPrefab.name.Contains("Spear")));
 
-        // 🌟【変更】：BulletDataの bulletScale をスケーリングとコライダーに正確に反映
         float multiplier = (data != null && data.bulletScale > 0f) ? data.bulletScale : 1.0f;
         transform.localScale = Vector3.one * multiplier;
 
@@ -170,9 +164,12 @@ public class DanmakuBullet : MonoBehaviour
             else sr.material = SpriteCullingFixInfrastrucure();
 
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
+
+            Color c = sr.color;
+            c.a = 1.0f;
+            sr.color = c;
         }
 
-        // 🌟【追加】：CircleCollider2D（またはコライダー）に radius と offset を適用
         CircleCollider2D circleCol = GetComponent<CircleCollider2D>();
         if (circleCol != null && data != null)
         {
@@ -216,12 +213,16 @@ public class DanmakuBullet : MonoBehaviour
 
     public void InitializeKnifeCounter(GameObject shooter, string target, float shootSpeed, float delayDuration, BulletData data)
     {
+        this._bulletAgeFrames = 0;
+        this._isDecelerating = false;
+        this._decelerationProgress = 0f;
         this.isMovementSuspended = false;
         this._hasSelfDestructTriggered = false;
         this._selfDestructTimer = -1f;
         this.isGrazeDone = false;
         this.instanceGenerationId++;
-
+        // 🌟【修正の核心】：BulletData から削り弾フラグを確実に取得して保持する
+        this._isContinuousDamageBullet = (data != null && data.isContinuousDamageBullet);
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null)
         {
@@ -246,7 +247,6 @@ public class DanmakuBullet : MonoBehaviour
         this.isAnimated = false;
         this._isSpearChargeMode = false;
 
-        // 🌟【変更】：BulletDataの scale を反映
         float multiplierKn = (data != null && data.bulletScale > 0f) ? data.bulletScale : 1.0f;
         transform.localScale = Vector3.one * multiplierKn;
 
@@ -257,9 +257,12 @@ public class DanmakuBullet : MonoBehaviour
             else sr.material = SpriteCullingFixInfrastrucure();
 
             sr.sortingOrder = AllocateNextSortingOrder(data.sizeType);
+
+            Color c = sr.color;
+            c.a = 1.0f;
+            sr.color = c;
         }
 
-        // 🌟【追加】：CircleCollider2Dに半径とオフセットを反映
         CircleCollider2D circleCol = GetComponent<CircleCollider2D>();
         if (circleCol != null && data != null)
         {
@@ -288,7 +291,6 @@ public class DanmakuBullet : MonoBehaviour
 
     private void CreateAuraEffect()
     {
-        // 💡 名前の書き換えパージを行っているため、古い死体と衝突せず確実にここを突破します
         if (transform.Find("PureColorAuraObject") != null) return;
         if (sr == null || currentData == null) return;
 
@@ -341,6 +343,8 @@ public class DanmakuBullet : MonoBehaviour
         if (!isInitialized || !isActive) return;
         if (isAnimated) UpdateAnimation();
 
+        _bulletAgeFrames++;
+
         if (_selfDestructTimer > 0f)
         {
             _selfDestructTimer -= Time.fixedDeltaTime;
@@ -390,7 +394,7 @@ public class DanmakuBullet : MonoBehaviour
                 {
                     angle = GetAngleToTarget();
                     transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
-                    CreateAuraEffect(); // 💡 カウンターナイフが射出される瞬間にも確実に結合を保証
+                    CreateAuraEffect();
                 }
             }
             return;
@@ -399,6 +403,54 @@ public class DanmakuBullet : MonoBehaviour
         if (isMovementSuspended) return;
 
         float dtMove = Time.fixedDeltaTime;
+
+        if (currentData != null && currentData.useRangeDeceleration)
+        {
+            int startFrame = currentData.decelerationStartFrame;
+            int durationFrames = Mathf.Max(1, currentData.decelerationDurationFrames);
+
+            if (_bulletAgeFrames >= startFrame)
+            {
+                if (!_isDecelerating)
+                {
+                    _isDecelerating = true;
+                    _initialSpeedForDecel = speed;
+                }
+
+                float decelElapsed = _bulletAgeFrames - startFrame;
+                _decelerationProgress = Mathf.Clamp01(decelElapsed / durationFrames);
+
+                speed = Mathf.Lerp(_initialSpeedForDecel, 0f, _decelerationProgress);
+
+                float fadeAlpha = Mathf.Lerp(1.0f, 0f, _decelerationProgress);
+
+                if (sr != null)
+                {
+                    Color c = sr.color;
+                    c.a = fadeAlpha;
+                    sr.color = c;
+                }
+
+                Transform auraChild = transform.Find("PureColorAuraObject");
+                if (auraChild != null)
+                {
+                    SpriteRenderer auraSR = auraChild.GetComponent<SpriteRenderer>();
+                    if (auraSR != null)
+                    {
+                        Color ac = auraSR.color;
+                        ac.a = fadeAlpha * 0.6f;
+                        auraSR.color = ac;
+                    }
+                }
+
+                if (_decelerationProgress >= 1.0f || speed <= 0.01f)
+                {
+                    Deactivate(false, force: true);
+                    return;
+                }
+            }
+        }
+
         angle += angularVelocity * dtMove * 60f;
         speed += accel * dtMove * 60f;
         if (accel != 0 && speed > maxSpeed) speed = maxSpeed;
@@ -480,18 +532,55 @@ public class DanmakuBullet : MonoBehaviour
     private void HandleHitCollisionLogic(Collider2D collision)
     {
         if (!isInitialized || owner == null || !isActive) return;
+
+        // 自分自身や自分の子オブジェクトの判定には当たらないようにする
         if (collision.gameObject == owner || collision.transform.IsChildOf(owner.transform)) return;
 
+        PlayerStatusManager statusMgr = collision.GetComponent<PlayerStatusManager>();
+        if (statusMgr == null) statusMgr = collision.GetComponentInParent<PlayerStatusManager>();
+
+        PlayerHitHandler hitHandler = collision.GetComponent<PlayerHitHandler>();
+        if (hitHandler == null) hitHandler = collision.GetComponentInParent<PlayerHitHandler>();
+
+        // 🌟 A. 【削り弾（継続ダメージ弾）の処理】
+        // 削り弾は相手のどこに触れても（領域や判定を問わず）継続的にダメージを与え続けます
+        if (_isContinuousDamageBullet)
+        {
+            if (collision.CompareTag(targetTag) || statusMgr != null)
+            {
+                if (statusMgr != null)
+                {
+                    if (hitHandler != null)
+                    {
+                        hitHandler.OnHitIgnoreInvincibility(currentData.damage);
+                    }
+                    else
+                    {
+                        statusMgr.ApplyDamage(currentData.damage);
+                    }
+                }
+            }
+            return;
+        }
+
+        // 🌟 B. 【通常弾の処理】
+        // 通常弾は、相手の指定されたターゲットタグ（例: "EnemyBullet" や "PlayerBullet" など）を持つオブジェクト、
+        // または明確なヒットボックス（Hitboxタグ等）に接触したときだけ命中とみなして消滅させる
         if (collision.CompareTag(targetTag))
         {
-            if (Time.frameCount >= _nextHitEnableFrame)
+            if (statusMgr != null && statusMgr.gameObject != owner)
             {
-                _nextHitEnableFrame = Time.frameCount + MULTI_HIT_INTERVAL_FRAMES;
-                collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
-
-                if (!isIndestructible)
+                if (Time.frameCount >= _nextHitEnableFrame)
                 {
-                    Deactivate(true);
+                    _nextHitEnableFrame = Time.frameCount + MULTI_HIT_INTERVAL_FRAMES;
+
+                    collision.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
+                    statusMgr.SendMessage("OnHit", currentData.damage, SendMessageOptions.DontRequireReceiver);
+
+                    if (!isIndestructible)
+                    {
+                        Deactivate(true);
+                    }
                 }
             }
         }
@@ -535,7 +624,6 @@ public class DanmakuBullet : MonoBehaviour
             Destroy(gameObject);
         }
     }
-
     public void Deactivate(bool playBreakEffect) { Deactivate(playBreakEffect, force: false); }
     public void Deactivate() { Deactivate(false, force: false); }
 }
