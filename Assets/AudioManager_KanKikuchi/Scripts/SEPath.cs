@@ -35,6 +35,7 @@ public static class SEPath{
 	public const string SE_DAMAGE00         = "SE/se_damage00";
 	public const string SE_DAMAGE01         = "SE/se_damage01";
 	public const string SE_EXTEND2          = "SE/se_extend2";
+	public const string SE_LGODS1           = "SE/se_lgods1";
 	public const string SE_NODAMAGE         = "SE/se_nodamage";
 	public const string SE_PLST00           = "SE/se_plst00";
 	public const string SE_GRAZE            = "SE/seGraze";

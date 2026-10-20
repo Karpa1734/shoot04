@@ -18,6 +18,12 @@ public class BulletData : ScriptableObject
     public float bulletScale = 1.0f;
     public float radius = 0.05f;
     public Vector2 colliderOffset = Vector2.zero;
+    // =========================================================================
+    // 🌟【新規追加】：弾の回転設定
+    // =========================================================================
+    [Header("🌟 弾の回転設定")]
+    [Tooltip("有効にすると、弾の進行方向（角度）に合わせてスプライトの向きが回転します。丸弾などの場合はオフにしてください")]
+    public bool rotateSpriteWithAngle = true;
 
     [Header("ダメージ設定")]
     public int damage = 10;

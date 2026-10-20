@@ -308,14 +308,51 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     protected virtual IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s) { yield return null; }
 
     // =========================================================================
-    // 🛠️【リファクタリング】：独自のInstantiateをパージし、CreateShotへ完全統合！
+    // 🌟【新規追加】：エミッター側から自由度高く呼び出せる「Xスキル用・湾曲減速全方位弾ヘルパー」
     // =========================================================================
-    // =========================================================================
-    // 🛠️【リファクタリング】：独自のInstantiateをパージし、CreateShotへ完全統合！
-    // =========================================================================
-    // =========================================================================
-    // 🛠️【リファクタリング】：SubShot生成時の引数混線・オーラ消失を完全破砕
-    // =========================================================================
+    protected void FireCurvingOmnidirectionalShot(PlayerSkillData.SkillSettings s, float minDecelRatio, float angularMin, float angularMax)
+    {
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        PlaySkillSE(s.sePath);
+
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null) pAnim.TriggerSkillAnimation(s.skillName);
+
+        // 1. 1セットごとのランダムな曲がり方向（左 or 右）と曲がりの強さを一括決定
+        float curveDirection = (Random.value < 0.5f) ? 1f : -1f;
+        float curveIntensity = Random.Range(angularMin, angularMax);
+        float setTargetAngularVelocity = curveDirection * curveIntensity;
+
+        // 2. 自機外し全方位の計算
+        int wayCount = Mathf.Max(3, s.count);
+        float angleStep = 360f / wayCount;
+        float offsetBase = Random.Range(0f, 360f);
+
+        for (int i = 0; i < wayCount; i++)
+        {
+            float finalAngle = offsetBase + (angleStep * i);
+
+            // 弾を生成
+            DanmakuBullet bullet = CreateShot(s.bulletData, transform.position, s.speed, finalAngle, delay: s.delay);
+
+            if (bullet != null)
+            {
+                // DanmakuBullet 側に曲がり・減速パラメータを注入
+                bullet.useXSkillCurve = true;
+                bullet.xDecelStartFrame = 20;
+                bullet.xMinSpeedRatio = minDecelRatio;
+                bullet.xTargetAngularVelocity = setTargetAngularVelocity;
+            }
+        }
+
+        if (myMove != null)
+        {
+            myMove.AddUltimateEnergy(s.ultimateGain);
+        }
+    }
+
+
     public void ExecuteSubShot(BulletData data, Vector3 pos, float speed, float angle, float accel, float maxSpeed, string tag, int layer, float delay_ = 0f)
     {
         if (data == null || data.bulletPrefab == null) return;

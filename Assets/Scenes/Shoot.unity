@@ -11872,6 +11872,7 @@ MonoBehaviour:
   currentHP: 100
   maxHP: 100
   stockLives: 0
+  damageCapCooldown: 0.05
   lifePieces: 0
   lifePiecesRequired: 3
   invincibleTimer: 0
@@ -11999,6 +12000,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetTag: Player
   maxConcurrentSkills: 1
+  jealousyFogPrefab: {fileID: 5171544187879475593, guid: a1aeb04ef9170c44e992061c4bfc765d, type: 3}
 --- !u!114 &695556701
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -32511,6 +32513,7 @@ MonoBehaviour:
   currentHP: 100
   maxHP: 100
   stockLives: 0
+  damageCapCooldown: 0.05
   lifePieces: 0
   lifePiecesRequired: 3
   invincibleTimer: 0
@@ -32638,6 +32641,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetTag: Player
   maxConcurrentSkills: 1
+  jealousyFogPrefab: {fileID: 5171544187879475593, guid: a1aeb04ef9170c44e992061c4bfc765d, type: 3}
 --- !u!114 &1872656881
 MonoBehaviour:
   m_ObjectHideFlags: 0

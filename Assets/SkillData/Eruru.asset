@@ -55,7 +55,7 @@ MonoBehaviour:
     isConcurrentAllowed: 0
     sePath: 
     count: 5
-    speed: 8
+    speed: 6.5
     angleOffset: 0
     wideAngle: 0
     moveSpeedMultiplier: 0.3
@@ -68,19 +68,19 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 9f4db34d57a3e1c4589fc0744ce2a074, type: 3}
     skillDescription: 
     patternType: 17
-    bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
+    bulletData: {fileID: 11400000, guid: a5dd41059696a834e884d9bd732fb9dc, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
-    cooldown: 4
+    cooldown: 1
     isChargeSkill: 0
     isConcurrentAllowed: 0
-    sePath: 
-    count: 10
+    sePath: se_lgods1
+    count: 8
     speed: 4
     angleOffset: 23
     wideAngle: 360
     moveSpeedMultiplier: 0
-    delay: 15
+    delay: 5
     cost: 10
     ultimateGain: 8
     aiPriorityWeight: 0
@@ -89,15 +89,17 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 8cbf5a40e3b58d44cb4b65d5fa5a1cbf, type: 3}
     skillDescription: 
     patternType: 18
-    bulletData: {fileID: 11400000, guid: 33b2b8650a1b5f84d8880d2294fe894c, type: 2}
-    multiBulletDatas: []
-    trailBulletData: {fileID: 11400000, guid: 50b30e67f1a21ac49b3ddf62fce0f8af, type: 2}
-    cooldown: 6
+    bulletData: {fileID: 11400000, guid: a5198864f416dd846825078411707cc3, type: 2}
+    multiBulletDatas:
+    - {fileID: 11400000, guid: b4e3cba261749a840bf5785078a5a996, type: 2}
+    - {fileID: 11400000, guid: e7ebef7083f319c41a56b40f205c80d4, type: 2}
+    trailBulletData: {fileID: 11400000, guid: e7ebef7083f319c41a56b40f205c80d4, type: 2}
+    cooldown: 12
     isChargeSkill: 0
-    isConcurrentAllowed: 0
+    isConcurrentAllowed: 1
     sePath: 
-    count: 1
-    speed: 3
+    count: 0
+    speed: 0
     angleOffset: 0
     wideAngle: 0.3
     moveSpeedMultiplier: 0.3

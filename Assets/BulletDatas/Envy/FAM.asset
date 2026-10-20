@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21264d726d8d3e24a9f6272f291feb5d, type: 3}
+  m_Name: FAM
+  m_EditorClassIdentifier: 
+  isLaser: 0
+  laserColor: 0
+  bulletPrefab: {fileID: 2629776414886954406, guid: 14015c45655b7654daf604263ad75106, type: 3}
+  sizeType: 2
+  bulletScale: 1
+  radius: 0
+  colliderOffset: {x: 0, y: 0}
+  rotateSpriteWithAngle: 1
+  damage: 0
+  useRangeDeceleration: 0
+  decelerationStartFrame: 30
+  decelerationDurationFrames: 20
+  isContinuousDamageBullet: 0
+  bulletSprite: {fileID: 0}
+  animationSprites: []
+  animationFPS: 10
+  delaySprite: {fileID: 8914514243730790440, guid: e292aa3f482b5a44cb4ad11f0aece734, type: 3}
+  breakColor: {r: 0, g: 1, b: 0, a: 1}
+  material: {fileID: 0}
+  sourceEffectScale: 1
+  auraMaterial: {fileID: 0}
+  auraWhiteSprite: {fileID: 0}

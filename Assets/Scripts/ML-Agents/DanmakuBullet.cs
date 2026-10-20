@@ -69,11 +69,21 @@ public class DanmakuBullet : MonoBehaviour
     private const int MULTI_HIT_INTERVAL_FRAMES = 5;
 
     private bool _isSpearChargeMode = false;
-
+    // 🌟 Xスキル用：全方位ランダム湾曲・減速インフラ変数
+    [HideInInspector] public bool useXSkillCurve = false;
+    [HideInInspector] public int xDecelStartFrame = 15;       // 減速を開始するフレーム
+    [HideInInspector] public float xMinSpeedRatio = 0.6f;    // 速度0までは減らない（元の速度の何割まで減るか、例: 30%）
+    [HideInInspector] public float xTargetAngularVelocity = 0f; // この弾が曲がる目標の角速度（度/秒）
+    [HideInInspector] public float xCurveAccelDuration = 30f;  // 曲がり始めるまでの滑らかな補間時間
+    private float _xInitialSpeedForCurve = 0f;
+    private float _currentAngularVelocityForX = 0f;
     private static int _smallOrderCounter = 15000;
     private static int _mediumOrderCounter = 10000;
     private static int _largeOrderCounter = 5000;
-
+    // 🌟 一定角度まで曲がったらまっすぐ進むための追跡用変数
+    private float _accumulatedCurveAngle = 0f;
+    [HideInInspector] public float xMaxCurveAngle = 60f; // 例: 合計で60度曲がったらまっすぐ進む（インスペクターやEmitterから調整可能）
+    private bool _hasReachedMaxCurve = false;
     private int AllocateNextSortingOrder(BulletSize size)
     {
         switch (size)
@@ -136,7 +146,11 @@ public class DanmakuBullet : MonoBehaviour
             oldAura.name = "DELETED_OLD_AURA_REMNANT";
             Destroy(oldAura.gameObject);
         }
-
+        this._accumulatedCurveAngle = 0f;
+        this._hasReachedMaxCurve = false;
+        this.useXSkillCurve = false;
+        this.xTargetAngularVelocity = 0f;
+        this._currentAngularVelocityForX = 0f;
         this.owner = shooter;
         this.targetTag = target;
         this.currentData = data;
@@ -177,9 +191,19 @@ public class DanmakuBullet : MonoBehaviour
             circleCol.offset = data.colliderOffset;
         }
 
+        // 🌟【修正】：rotateSpriteWithAngle が true の場合のみ進行方向に回転させる
+        bool shouldRotate = (data == null || data.rotateSpriteWithAngle);
+
         if (!_isSpearChargeMode || delayFrames <= 0)
         {
-            transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
+            if (shouldRotate)
+            {
+                transform.rotation = Quaternion.Euler(0f, 0f, angle - 90f);
+            }
+            else
+            {
+                transform.rotation = Quaternion.identity; // 回転させない場合は常にデフォルト（上向き等）を維持
+            }
         }
 
         if (data != null && data.animationSprites != null && data.animationSprites.Length > 1)
@@ -229,7 +253,11 @@ public class DanmakuBullet : MonoBehaviour
             oldAura.name = "DELETED_OLD_AURA_REMNANT";
             Destroy(oldAura.gameObject);
         }
-
+        this._accumulatedCurveAngle = 0f;
+        this._hasReachedMaxCurve = false;
+        this.useXSkillCurve = false;
+        this.xTargetAngularVelocity = 0f;
+        this._currentAngularVelocityForX = 0f;
         this.owner = shooter;
         this.targetTag = target;
         this.currentData = data;
@@ -404,6 +432,60 @@ public class DanmakuBullet : MonoBehaviour
 
         float dtMove = Time.fixedDeltaTime;
 
+        // =========================================================================
+        // 🌟【Xスキル用】：発射後の減速 ＆ セットごとに変化するランダム曲がり挙動
+        // =========================================================================
+        if (useXSkillCurve)
+        {
+            if (_bulletAgeFrames == 1)
+            {
+                _xInitialSpeedForCurve = speed > 0f ? speed : 5f; // 初速を安全に記録
+                _accumulatedCurveAngle = 0f;
+                _hasReachedMaxCurve = false;
+            }
+
+            // 指定フレーム以降から減速と湾曲を開始
+            if (_bulletAgeFrames >= xDecelStartFrame)
+            {
+                // 1. 速度0までは減らないように下限（minSpeed）を死守して減速
+                float minSpeed = Mathf.Max(1.5f, _xInitialSpeedForCurve * xMinSpeedRatio);
+                if (speed > minSpeed)
+                {
+                    speed -= 1.5f * dtMove;
+                    if (speed < minSpeed) speed = minSpeed;
+                }
+
+                // 2. 一定角度（xMaxCurveAngle）に達していない場合のみ曲げる
+                if (!_hasReachedMaxCurve)
+                {
+                    // 目標の角速度に向かって滑らかに曲げる
+                    _currentAngularVelocityForX = Mathf.MoveTowards(_currentAngularVelocityForX, xTargetAngularVelocity, 10f * dtMove);
+
+                    float frameAngleDelta = _currentAngularVelocityForX * dtMove;
+                    angle += frameAngleDelta;
+
+                    // 累積でどれくらい曲がったかを絶対値で加算追跡
+                    _accumulatedCurveAngle += Mathf.Abs(frameAngleDelta);
+
+                    // 指定した最大曲げ角度（例: 60度）に到達したら、角速度を0にして以降はまっすぐ進める
+                    if (_accumulatedCurveAngle >= xMaxCurveAngle)
+                    {
+                        _hasReachedMaxCurve = true;
+                        xTargetAngularVelocity = 0f; // 目標角速度を0にして直進状態へ移行
+                    }
+                }
+                else
+                {
+                    // 最大角度到達後は、角速度を滑らかに0に戻して直進を維持
+                    _currentAngularVelocityForX = Mathf.MoveTowards(_currentAngularVelocityForX, 0f, 20f * dtMove);
+                    angle += _currentAngularVelocityForX * dtMove;
+                }
+            }
+        }
+        // =========================================================================
+        // =========================================================================
+        // =========================================================================
+
         if (currentData != null && currentData.useRangeDeceleration)
         {
             int startFrame = currentData.decelerationStartFrame;
@@ -457,7 +539,18 @@ public class DanmakuBullet : MonoBehaviour
 
         float rad = angle * Mathf.Deg2Rad;
         transform.position += new Vector3(Mathf.Cos(rad), Mathf.Sin(rad), 0) * speed * dtMove;
-        transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+
+        // 🌟【修正の核心】：回転設定が有効な弾だけ、進行方向（angle）に合わせて回転を更新する
+        bool shouldRotate = (currentData == null || currentData.rotateSpriteWithAngle);
+        if (shouldRotate)
+        {
+            transform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+        }
+        else
+        {
+            transform.rotation = Quaternion.identity; // 回転させない弾は常にまっすぐ固定
+        }
+
 
         if (Mathf.Abs(transform.position.x) > 10f || Mathf.Abs(transform.position.y) > 10f)
         {

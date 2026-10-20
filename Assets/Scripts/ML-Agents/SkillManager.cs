@@ -366,6 +366,7 @@ public class SkillManager : MonoBehaviour
                 _isZCharging = true;
                 _recoveryDelayTimer = 0f;
                 activeEmitter.Fire(settings);
+
             }
 
             // 💡 B. チャージ解放（ボタンを離して、実際に発射が確定した瞬間）

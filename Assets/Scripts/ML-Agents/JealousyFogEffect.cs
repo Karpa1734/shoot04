@@ -62,11 +62,10 @@ public class JealousyFogEffect : MonoBehaviour
         }
     }
 
-    // 🌟【大修正】：名前空間から不要な '.Clone' を完全に除去し、正しい型に修復しました
     private System.Collections.IEnumerator FadeOutAndDestroy()
     {
         float elapsed = 0f;
-        float fadeDuration = frameDuration; // 最後の1コマ分の時間をかけて消える
+        float fadeDuration = 0.6f; // 少し長くして残像感を出す
         Color startColor = _spriteRenderer.color;
 
         while (elapsed < fadeDuration)
@@ -80,6 +79,6 @@ public class JealousyFogEffect : MonoBehaviour
             yield return null;
         }
 
-        Destroy(gameObject); // メモリから安全に完全パージ
+        Destroy(gameObject);
     }
 }

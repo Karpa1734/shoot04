@@ -1,51 +1,42 @@
 ﻿using KanKikuchi.AudioManager;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class Emitter_Envy : PlayerDanmakuEmitter
 {
-    // 🌟 Zスキルの長押し連射中であることを追跡するフラグ
     private bool _isEnvyZHolding = false;
-
-    // 外部（SkillManagerなど）から「現在長押し連射中か？」を安全に参照できるようにするプロパティ
     public bool IsEnvyZHolding => _isEnvyZHolding;
 
+    [Header("Envy V fog effect")]
+    [SerializeField] private GameObject jealousyFogPrefab;
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
-        // 既に長押し連射が走っている場合は多重起動を防ぐ
         if (_isEnvyZHolding) yield break;
         _isEnvyZHolding = true;
         _activeSkillCoroutines++;
 
         PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
-
-        // 🌟 修正：各エミッター共通の安全な取得方法で PlayerMove を取得
         PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
 
-        // 🌟 修正：PlayerMove 経由で取得したインスタンスからマナ（currentEnergy）を安全に参照
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
 
         PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
         if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
 
-        // 💡 規定フレームごとの発射間隔（例: 0.1秒 = 約6フレーム）
         float fireInterval = 0.05f;
 
         try
         {
             while (true)
             {
-                // 1. 射撃許可やステートの確認
                 if (!PlayerMove.CanShoot || myStatus == null) break;
 
-                // 2. 🌟 修正：myMove 経由でコスト（currentEnergy）が1発分残っているかチェック
                 if (myMove != null && myMove.currentEnergy < s.cost)
                 {
-                    // コストが尽きたら連射ループを抜ける
                     break;
                 }
 
-                // 3. 弾の発射処理
                 PlaySkillSE(s.sePath);
                 if (pAnim != null) pAnim.TriggerSkillAnimation(s.skillName);
 
@@ -67,23 +58,19 @@ public class Emitter_Envy : PlayerDanmakuEmitter
                     CreateShot(s.bulletData, transform.position, s.speed, targetAngle, delay: s.delay);
                 }
 
-                // 🌟 修正：myMove 経由でコスト消費 ＆ アルカナ充填
                 if (myMove != null)
                 {
                     myMove.currentEnergy -= s.cost;
                     myMove.AddUltimateEnergy(s.ultimateGain * 0.2f);
                 }
 
-                // 4. 規定のフレーム/間隔（fireInterval）だけ待機（この間クールタイムは回りません）
                 float elapsed = 0f;
                 while (elapsed < fireInterval)
                 {
                     elapsed += Time.deltaTime;
 
-                    // 5. プレイヤーがボタンを離したかどうかを毎フレーム監視
                     if (!IsZButtonPressed(myStatus))
                     {
-                        // 🌟 ボタンを離した瞬間にループを抜け、finallyブロックで正式なクールタイムが開始されます！
                         yield break;
                     }
                     yield return null;
@@ -92,13 +79,11 @@ public class Emitter_Envy : PlayerDanmakuEmitter
         }
         finally
         {
-            // 6. 🧹【重要】：長押し終了（指を離した、またはマナ枯渇）の瞬間にクールタイムを正式にスタートさせる！
             if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
             _isEnvyZHolding = false;
             _activeSkillCoroutines--;
             if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
 
-            // 💡 SkillManager側のZスキル用クールタイム（timerZ）に正式な長押し後クールタイムを強制注入！
             SkillManager skillMgr = GetComponentInChildren<SkillManager>();
             if (skillMgr == null && _rootOwner != null) skillMgr = _rootOwner.GetComponentInChildren<SkillManager>();
             if (skillMgr != null)
@@ -109,9 +94,6 @@ public class Emitter_Envy : PlayerDanmakuEmitter
         }
     }
 
-    /// <summary>
-    /// 現在Zボタンが押し続けられているかを判定するヘルパー
-    /// </summary>
     private bool IsZButtonPressed(PlayerStatusManager status)
     {
         if (status == null || InputManager.Instance == null) return false;
@@ -125,13 +107,195 @@ public class Emitter_Envy : PlayerDanmakuEmitter
         return Input.GetKey(KeyCode.L) || Input.GetKey(KeyCode.Z);
     }
 
-    protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s) { yield return StartCoroutine(SkillTempleteX(s)); }
-    protected override IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s) { yield return StartCoroutine(SkillTempleteC(s)); }
-    protected override IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s) { yield return StartCoroutine(SkillTempleteV(s)); }
+    protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+
+        if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        try
+        {
+            FireCurvingOmnidirectionalShot(s, 0.6f, 40f, 120f);
+            yield return new WaitForSeconds(s.cooldown);
+        }
+        finally
+        {
+            if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = 1.0f;
+            _activeSkillCoroutines--;
+            if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
+        }
+    }
+    protected override IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+
+        try
+        {
+            if (myMove != null && !_isEXSkillActive)
+                myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+            PlaySkillSE(s.sePath);
+
+            PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+            if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+            if (pAnim != null) pAnim.TriggerSkillAnimation(s.skillName);
+
+            GameObject familiarObj = new GameObject("EnvyFamiliar");
+            familiarObj.transform.position = transform.position;
+
+            Transform targetTransform = null;
+            foreach (var p in PlayerMove.AllPlayers)
+            {
+                if (p != null && p.gameObject != _rootOwner)
+                {
+                    targetTransform = p.transform;
+                    break;
+                }
+            }
+
+            EnvyFamiliarObject familiar = familiarObj.AddComponent<EnvyFamiliarObject>();
+
+            int ownerId = (myStatus != null) ? myStatus.playerId : 1;
+
+            BulletData[] familiarBullets = (s.multiBulletDatas != null && s.multiBulletDatas.Length > 0)
+                ? s.multiBulletDatas
+                : null;
+
+            familiar.Initialize(
+                owner: transform,
+                target: targetTransform,
+                defaultData: s.bulletData,
+                familiarMultiBulletDatas: familiarBullets,
+                emitter: this,
+                targetTag: targetTag,
+                ownerId: ownerId
+            );
+
+            if (myMove != null)
+            {
+                myMove.AddUltimateEnergy(s.ultimateGain);
+            }
+
+            // ここで即終了
+            yield break;
+        }
+        finally
+        {
+            if (myMove != null && !_isEXSkillActive)
+                myMove.skillSpeedMultiplier = 1.0f;
+
+            _activeSkillCoroutines--;
+            if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
+        }
+    }
+    protected override IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s)
+    {
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        if (myMove == null)
+            yield break;
+
+        float duration = 3.0f;
+
+        PlaySkillSE(s.sePath);
+
+        // ここは無敵化だけ
+        myMove.SetInvincible(duration);
+
+        if (!_isEXSkillActive)
+        {
+            myMove.skillSpeedMultiplier = (s.moveSpeedMultiplier > 0f) ? s.moveSpeedMultiplier : 1.0f;
+        }
+
+        // 見た目だけ薄くする
+        SpriteRenderer[] bodyRenderers = GetComponentsInChildren<SpriteRenderer>();
+        if (bodyRenderers.Length == 0 && _rootOwner != null)
+        {
+            bodyRenderers = _rootOwner.GetComponentsInChildren<SpriteRenderer>();
+        }
+
+        Dictionary<SpriteRenderer, Color> originalColors = new Dictionary<SpriteRenderer, Color>();
+        foreach (var sr in bodyRenderers)
+        {
+            if (sr != null)
+            {
+                originalColors[sr] = sr.color;
+                Color c = sr.color;
+                c.a = 0.45f;
+                sr.color = c;
+            }
+        }
+
+        float elapsed = 0f;
+        float fogTimer = 0f;
+        float fogInterval = 0.015f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            fogTimer += Time.deltaTime;
+
+            if (fogTimer >= fogInterval)
+            {
+                fogTimer = 0f;
+                for (int i = 0; i < 9; i++)
+                {
+                    SpawnJealousyFogAura();
+                }
+            }
+
+            yield return null;
+        }
+
+        // V終了後に元に戻す
+        if (myMove != null && !_isEXSkillActive)
+        {
+            myMove.skillSpeedMultiplier = 1.0f;
+        }
+
+        foreach (var kvp in originalColors)
+        {
+            if (kvp.Key != null)
+            {
+                kvp.Key.color = kvp.Value;
+            }
+        }
+    }
+    private void SpawnJealousyFogAura()
+    {
+        if (jealousyFogPrefab == null) return;
+
+        Vector3 offset = new Vector3(
+            Random.Range(-1.3f, 1.3f),
+            Random.Range(-1.3f, 1.3f),
+            0f
+        );
+
+        // 子オブジェクトにしない！ワールド座標で生成
+        GameObject fog = Instantiate(
+            jealousyFogPrefab,
+            transform.position + offset,
+            Quaternion.identity
+        );
+
+        // 霧の大きさを少しばらつかせる
+        float scale = Random.Range(0.8f, 1.6f);
+        fog.transform.localScale = Vector3.one * scale;
+
+        // 霧の見た目を自機の付近に自然に寄せる
+        SpriteRenderer sr = fog.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            Color c = sr.color;
+            c.a = 0.6f;
+            sr.color = c;
+        }
+    }
     protected override IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s) { yield return StartCoroutine(SkillTempleteEX(s)); }
 
-    protected IEnumerator SkillTempleteX(PlayerSkillData.SkillSettings s) { yield return null; }
     protected IEnumerator SkillTempleteC(PlayerSkillData.SkillSettings s) { yield return null; }
-    private IEnumerator SkillTempleteV(PlayerSkillData.SkillSettings s) { yield return null; }
     protected IEnumerator SkillTempleteEX(PlayerSkillData.SkillSettings s) { yield return null; }
 }
