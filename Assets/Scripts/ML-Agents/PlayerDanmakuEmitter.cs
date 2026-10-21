@@ -310,7 +310,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
     // =========================================================================
     // 🌟【新規追加】：エミッター側から自由度高く呼び出せる「Xスキル用・湾曲減速全方位弾ヘルパー」
     // =========================================================================
-    protected void FireCurvingOmnidirectionalShot(PlayerSkillData.SkillSettings s, float minDecelRatio, float angularMin, float angularMax)
+    protected void FireCurvingOmnidirectionalShot(PlayerSkillData.SkillSettings s, float minDecelRatio, float angularMin, float angularMax,int way = 8)
     {
         PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
         PlaySkillSE(s.sePath);
@@ -325,7 +325,7 @@ public class PlayerDanmakuEmitter : MonoBehaviour
         float setTargetAngularVelocity = curveDirection * curveIntensity;
 
         // 2. 自機外し全方位の計算
-        int wayCount = Mathf.Max(3, s.count);
+        int wayCount = Mathf.Max(3, way);
         float angleStep = 360f / wayCount;
         float offsetBase = Random.Range(0f, 360f);
 

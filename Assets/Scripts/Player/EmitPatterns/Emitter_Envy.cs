@@ -12,6 +12,8 @@ public class Emitter_Envy : PlayerDanmakuEmitter
     [SerializeField] private GameObject jealousyFogPrefab;
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
+        float Speed2 = s.speed;
+        int Count2 = s.count;
         if (_isEnvyZHolding) yield break;
         _isEnvyZHolding = true;
         _activeSkillCoroutines++;
@@ -25,6 +27,14 @@ public class Emitter_Envy : PlayerDanmakuEmitter
         if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
 
         float fireInterval = 0.05f;
+
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+        if (isSpellActive && s.bulletData != null) 
+        {
+            Speed2 *= 1.5f; // Increase speed by 50% during spell card
+            Count2 *= 2; // Double the count during spell card
+        }
 
         try
         {
@@ -42,20 +52,20 @@ public class Emitter_Envy : PlayerDanmakuEmitter
 
                 float targetAngle = GetAngleToTarget(transform.position) + s.angleOffset;
 
-                if (s.count > 1)
+                if (Count2 > 1)
                 {
-                    float wayAngle = s.wideAngle / (s.count - 1);
+                    float wayAngle = s.wideAngle / (Count2 - 1);
                     float startWayAngle = targetAngle - (s.wideAngle / 2f);
 
-                    for (int i = 0; i < s.count; i++)
+                    for (int i = 0; i < Count2; i++)
                     {
                         float finalAngle = targetAngle + Random.Range(-16, 16);
-                        CreateShot(s.bulletData, transform.position, s.speed, finalAngle, delay: s.delay);
+                        CreateShot(s.bulletData, transform.position, Speed2, finalAngle, delay: s.delay);
                     }
                 }
                 else
                 {
-                    CreateShot(s.bulletData, transform.position, s.speed, targetAngle, delay: s.delay);
+                    CreateShot(s.bulletData, transform.position, Speed2, targetAngle, delay: s.delay);
                 }
 
                 if (myMove != null)
@@ -113,10 +123,14 @@ public class Emitter_Envy : PlayerDanmakuEmitter
         PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
 
         if (myMove != null && !_isEXSkillActive) myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+
+        bool isSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+        int way = isSpellActive ? 12 : 8; // Increase way count during spell card
 
         try
         {
-            FireCurvingOmnidirectionalShot(s, 0.6f, 40f, 120f);
+            FireCurvingOmnidirectionalShot(s, 0.6f, 40f, 120f,way);
             yield return new WaitForSeconds(s.cooldown);
         }
         finally
@@ -165,6 +179,9 @@ public class Emitter_Envy : PlayerDanmakuEmitter
                 ? s.multiBulletDatas
                 : null;
 
+            float familiarDuration = (myStatus != null && myStatus.isSpellCardActive) ? 12.0f : 8.0f;
+            float spellBoost = (myStatus != null && myStatus.isSpellCardActive) ? 1.5f : 1.0f;
+
             familiar.Initialize(
                 owner: transform,
                 target: targetTransform,
@@ -172,7 +189,9 @@ public class Emitter_Envy : PlayerDanmakuEmitter
                 familiarMultiBulletDatas: familiarBullets,
                 emitter: this,
                 targetTag: targetTag,
-                ownerId: ownerId
+                ownerId: ownerId,
+                duration: familiarDuration,
+                spellBoostMultiplier: spellBoost
             );
 
             if (myMove != null)
@@ -180,7 +199,6 @@ public class Emitter_Envy : PlayerDanmakuEmitter
                 myMove.AddUltimateEnergy(s.ultimateGain);
             }
 
-            // ここで即終了
             yield break;
         }
         finally
@@ -195,14 +213,17 @@ public class Emitter_Envy : PlayerDanmakuEmitter
     protected override IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s)
     {
         PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+
         if (myMove == null)
             yield break;
 
-        float duration = 3.0f;
+        // Spell中は長くする
+        float duration = (myStatus != null && myStatus.isSpellCardActive) ? 5.0f : 3.0f;
 
         PlaySkillSE(s.sePath);
 
-        // ここは無敵化だけ
         myMove.SetInvincible(duration);
 
         if (!_isEXSkillActive)
@@ -210,7 +231,6 @@ public class Emitter_Envy : PlayerDanmakuEmitter
             myMove.skillSpeedMultiplier = (s.moveSpeedMultiplier > 0f) ? s.moveSpeedMultiplier : 1.0f;
         }
 
-        // 見た目だけ薄くする
         SpriteRenderer[] bodyRenderers = GetComponentsInChildren<SpriteRenderer>();
         if (bodyRenderers.Length == 0 && _rootOwner != null)
         {
@@ -250,7 +270,6 @@ public class Emitter_Envy : PlayerDanmakuEmitter
             yield return null;
         }
 
-        // V終了後に元に戻す
         if (myMove != null && !_isEXSkillActive)
         {
             myMove.skillSpeedMultiplier = 1.0f;
@@ -294,8 +313,152 @@ public class Emitter_Envy : PlayerDanmakuEmitter
             sr.color = c;
         }
     }
-    protected override IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s) { yield return StartCoroutine(SkillTempleteEX(s)); }
+    protected override IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
+        _isEXSkillActive = true;
 
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+        if (myStatus == null && _rootOwner != null) myStatus = _rootOwner.GetComponent<PlayerStatusManager>();
+
+        bool wasSpellActive = (myStatus != null && myStatus.isSpellCardActive);
+
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+
+        if (myMove != null)
+        {
+            myMove.skillSpeedMultiplier = (s.moveSpeedMultiplier > 0f) ? s.moveSpeedMultiplier : 0.7f;
+        }
+
+        BulletData mainData = s.bulletData;
+
+        BulletData xData = s.bulletData;
+        if (myStatus != null && myStatus.characterData != null)
+        {
+            var xSettings = myStatus.characterData.skillX;
+            if (xSettings.bulletData != null)
+            {
+                xData = xSettings.bulletData;
+            }
+        }
+
+        PlaySkillSE(SEPath.LASER7);
+
+        float exDuration = wasSpellActive ? 4.5f : 2.5f;
+        float elapsed = 0f;
+        int frameCount = 0;
+
+        try
+        {
+            if (pAnim != null) pAnim.TriggerSkillAnimation(s.skillName);
+
+            while (elapsed < exDuration)
+            {
+                if (!PlayerMove.CanShoot)
+                    break;
+
+                float centerAngle = GetAngleToTarget(transform.position) + s.angleOffset;
+
+                int waveCount = wasSpellActive ? 6 : 4;
+                for (int wave = 0; wave < waveCount; wave++)
+                {
+                    float waveCenter = Random.Range(centerAngle - 60f, centerAngle + 60f);
+                    float spread = wasSpellActive ? 48f : 40f;
+
+                    float angle = waveCenter + Random.Range(-spread, spread);
+
+                    if (Mathf.Abs(Mathf.DeltaAngle(angle, centerAngle)) < 12f)
+                        continue;
+
+                    CreateShot(
+                        mainData,
+                        transform.position,
+                        s.speed > 0f ? s.speed : 6.5f,
+                        angle + Random.Range(-12f, 12f),
+                        delay: s.delay
+                    );
+                }
+
+                if (frameCount % (wasSpellActive ? 10 : 20) == 0)
+                {
+                    PlaySkillSE(SEPath.SE_LGODS1);
+                    FireCurvingOmnidirectionalShotWithData(
+                        xData,
+                        s,
+                        0.6f,
+                        40f,
+                        120f,
+                        wasSpellActive ? 18 : 12
+                    );
+                }
+
+                frameCount++;
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+        finally
+        {
+            if (myMove != null && !_isEXSkillActive)
+                myMove.skillSpeedMultiplier = 1.0f;
+
+            if (wasSpellActive && myStatus != null)
+            {
+                myStatus.DeactivateSpellCard(false);
+            }
+
+            _isEXSkillActive = false;
+            _activeSkillCoroutines--;
+            if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
+        }
+    }
+
+    protected void FireCurvingOmnidirectionalShotWithData(
+        BulletData data,
+        PlayerSkillData.SkillSettings s,
+        float minDecelRatio,
+        float angularMin,
+        float angularMax,
+        int way = 8)
+    {
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        PlaySkillSE(s.sePath);
+
+        PlayerAnimation pAnim = GetComponentInChildren<PlayerAnimation>();
+        if (pAnim == null && _rootOwner != null) pAnim = _rootOwner.GetComponentInChildren<PlayerAnimation>();
+        if (pAnim != null) pAnim.TriggerSkillAnimation(s.skillName);
+
+        float curveDirection = (Random.value < 0.5f) ? 1f : -1f;
+        float curveIntensity = Random.Range(angularMin, angularMax);
+        float setTargetAngularVelocity = curveDirection * curveIntensity;
+
+        int wayCount = Mathf.Max(3, way);
+        float angleStep = 360f / wayCount;
+        float offsetBase = Random.Range(0f, 360f);
+
+        for (int i = 0; i < wayCount; i++)
+        {
+            float finalAngle = offsetBase + (angleStep * i);
+
+            DanmakuBullet bullet = CreateShot(data, transform.position, s.speed, finalAngle, delay: s.delay);
+
+            if (bullet != null)
+            {
+                bullet.useXSkillCurve = true;
+                bullet.xDecelStartFrame = 1;
+                bullet.xMinSpeedRatio = minDecelRatio;
+                bullet.xTargetAngularVelocity = setTargetAngularVelocity;
+                bullet.xMaxCurveAngle = 30f;
+            }
+        }
+
+        if (myMove != null)
+        {
+            myMove.AddUltimateEnergy(s.ultimateGain);
+        }
+    }
     protected IEnumerator SkillTempleteC(PlayerSkillData.SkillSettings s) { yield return null; }
     protected IEnumerator SkillTempleteEX(PlayerSkillData.SkillSettings s) { yield return null; }
 }

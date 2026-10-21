@@ -84,6 +84,7 @@ public class DanmakuBullet : MonoBehaviour
     private float _accumulatedCurveAngle = 0f;
     [HideInInspector] public float xMaxCurveAngle = 60f; // 例: 合計で60度曲がったらまっすぐ進む（インスペクターやEmitterから調整可能）
     private bool _hasReachedMaxCurve = false;
+
     private int AllocateNextSortingOrder(BulletSize size)
     {
         switch (size)
@@ -138,19 +139,22 @@ public class DanmakuBullet : MonoBehaviour
         this._selfDestructTimer = -1f;
         this.isGrazeDone = false;
         this.instanceGenerationId++;
-        // 🌟【修正の核心】：BulletData から削り弾フラグを確実に取得して保持する
+
         this._isContinuousDamageBullet = (data != null && data.isContinuousDamageBullet);
+
         Transform oldAura = transform.Find("PureColorAuraObject");
         if (oldAura != null)
         {
             oldAura.name = "DELETED_OLD_AURA_REMNANT";
             Destroy(oldAura.gameObject);
         }
+
         this._accumulatedCurveAngle = 0f;
         this._hasReachedMaxCurve = false;
         this.useXSkillCurve = false;
         this.xTargetAngularVelocity = 0f;
         this._currentAngularVelocityForX = 0f;
+
         this.owner = shooter;
         this.targetTag = target;
         this.currentData = data;
@@ -160,6 +164,7 @@ public class DanmakuBullet : MonoBehaviour
         this.maxSpeed = maxSpeed;
         this.angularVelocity = angVel;
         this.originPrefab = data != null ? data.bulletPrefab : null;
+
         this.delayFrames = Mathf.RoundToInt(delay);
         this.totalDelay = this.delayFrames;
         this.isConverging = converge;
@@ -191,7 +196,6 @@ public class DanmakuBullet : MonoBehaviour
             circleCol.offset = data.colliderOffset;
         }
 
-        // 🌟【修正】：rotateSpriteWithAngle が true の場合のみ進行方向に回転させる
         bool shouldRotate = (data == null || data.rotateSpriteWithAngle);
 
         if (!_isSpearChargeMode || delayFrames <= 0)
@@ -202,7 +206,7 @@ public class DanmakuBullet : MonoBehaviour
             }
             else
             {
-                transform.rotation = Quaternion.identity; // 回転させない場合は常にデフォルト（上向き等）を維持
+                transform.rotation = Quaternion.identity;
             }
         }
 
@@ -217,13 +221,20 @@ public class DanmakuBullet : MonoBehaviour
             if (sr != null && data != null) sr.sprite = data.bulletSprite;
         }
 
+        // delay中は本体を非表示にする
+        if (sr != null)
+        {
+            sr.enabled = (delayFrames <= 0);
+        }
+
         SetColliderActive(delayFrames <= 0);
 
         CreateAuraEffect();
 
         if (delayFrames > 0)
         {
-            if (sr != null) sr.enabled = true;
+            // delayエフェクトは出るが、本体は見えない
+            if (sr != null) sr.enabled = false;
             StartCoroutine(DelayEffectRoutine(data));
         }
         else
@@ -316,7 +327,20 @@ public class DanmakuBullet : MonoBehaviour
             ? Canvas.GetDefaultCanvasMaterial()
             : new Material(Shader.Find("Sprites/Default"));
     }
+    public void HoldMovement()
+    {
+        isMovementSuspended = true;
+        speed = 0f;
+        // 角度はそのまま保持
+        // 0度に戻さない
+    }
 
+    public void ReleaseMovement(float newSpeed, float newAngle)
+    {
+        speed = newSpeed;
+        angle = newAngle;
+        isMovementSuspended = false;
+    }
     private void CreateAuraEffect()
     {
         if (transform.Find("PureColorAuraObject") != null) return;
@@ -407,11 +431,19 @@ public class DanmakuBullet : MonoBehaviour
             }
 
             delayFrames--;
+
             if (delayFrames <= 0)
             {
-                sr.enabled = true;
+                // delay終了後に本体を表示
+                if (sr != null) sr.enabled = true;
+
                 SetColliderActive(true);
-                if (activeDelayEffect != null) Destroy(activeDelayEffect);
+
+                if (activeDelayEffect != null)
+                {
+                    Destroy(activeDelayEffect);
+                    activeDelayEffect = null;
+                }
 
                 if (_isSpearChargeMode)
                 {
@@ -425,9 +457,9 @@ public class DanmakuBullet : MonoBehaviour
                     CreateAuraEffect();
                 }
             }
+
             return;
         }
-
         if (isMovementSuspended) return;
 
         float dtMove = Time.fixedDeltaTime;
@@ -557,7 +589,25 @@ public class DanmakuBullet : MonoBehaviour
             Deactivate(false, force: true);
         }
     }
+    public void SetRuntimeSpeedAndAngle(float newSpeed, float newAngle)
+    {
+        speed = newSpeed;
+        angle = newAngle;
+        isMovementSuspended = false;
+    }
 
+    public void BeginChargeDrift(float driftSpeed, float driftAngle)
+    {
+        speed = driftSpeed;
+        angle = driftAngle;
+        isMovementSuspended = false;
+    }
+
+    public void StopAtZero()
+    {
+        speed = 0f;
+        isMovementSuspended = true;
+    }
     private float GetAngleToTarget()
     {
         Transform target = null;

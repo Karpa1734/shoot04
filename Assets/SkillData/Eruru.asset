@@ -21,7 +21,7 @@ MonoBehaviour:
   characterName: Eruru
   imageColor: {r: 0, g: 1, b: 0, a: 1}
   characterSprite: {fileID: 0}
-  spellCardName: "\u300C\u2606\u2606\u2606\u2606\u300D"
+  spellCardName: "\u300C\u6DF1\u6DF5\u2606\u30AA\u30F3\u30FB\u30B9\u30C6\u30FC\u30B8\u300D"
   customPassiveName: "\u71C3\u3048\u4E0A\u304C\u308B\u6012\u308A"
   customPassiveDescription: "\u88AB\u5F3E\u6642\u306B\u653B\u6483\u529B\u304C\u4E0A\u6607\u3059\u308B"
   customSpellCardDisplayName: "\u30D5\u30E9\u30E1\u30EB\u306E\u8CE2\u8005\u77F3"
@@ -133,19 +133,19 @@ MonoBehaviour:
     skillIcon: {fileID: 0}
     skillDescription: 
     patternType: 0
-    bulletData: {fileID: 11400000, guid: 991876ddeee344c439d0a2821b236af9, type: 2}
+    bulletData: {fileID: 11400000, guid: 74ed21d5ea7586c458188a67db911078, type: 2}
     multiBulletDatas: []
-    trailBulletData: {fileID: 11400000, guid: 3dfeb7b8d63c8764fb71c698243e5be1, type: 2}
+    trailBulletData: {fileID: 0}
     cooldown: 0
     isChargeSkill: 0
     isConcurrentAllowed: 0
     sePath: 
-    count: 12
-    speed: 8
-    angleOffset: 60
+    count: 1
+    speed: 6.5
+    angleOffset: 0
     wideAngle: 0
-    moveSpeedMultiplier: 0.5
-    delay: 0
+    moveSpeedMultiplier: 0.3
+    delay: 1
     cost: 0
     ultimateGain: 0
     aiPriorityWeight: 0

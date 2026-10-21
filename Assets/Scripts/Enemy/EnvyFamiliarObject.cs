@@ -14,12 +14,12 @@ public class EnvyFamiliarObject : MonoBehaviour
     private Transform _targetOpponent;
 
     [Header("Behavior Settings")]
-    [SerializeField] private float _duration = 8.0f;
+    [SerializeField] private float _duration = 12.0f;
     [SerializeField] private float _dropInterval = 0.05f;
     [SerializeField] private float _moveSpeed = 3.0f;
 
     [Tooltip("寿命の終盤で、弾を出さない猶予時間（秒）")]
-    [SerializeField] private float _noFireWindowBeforeEnd = 1.0f;
+    [SerializeField] private float _noFireWindowBeforeEnd = 1.5f;
 
     private List<BulletData> _bulletDataList = new List<BulletData>();
 
@@ -31,6 +31,8 @@ public class EnvyFamiliarObject : MonoBehaviour
     private BulletData _fallbackDefaultData;
     private BulletData[] _familiarMultiBulletDatas;
 
+    private float _spellBoostMultiplier = 1.0f;
+
     public void Initialize(
         Transform owner,
         Transform target,
@@ -38,7 +40,9 @@ public class EnvyFamiliarObject : MonoBehaviour
         BulletData[] familiarMultiBulletDatas,
         PlayerDanmakuEmitter emitter,
         string targetTag,
-        int ownerId)
+        int ownerId,
+        float duration = 12.0f,
+        float spellBoostMultiplier = 1.0f)
     {
         _owner = owner;
         _ownerEmitter = emitter;
@@ -47,6 +51,8 @@ public class EnvyFamiliarObject : MonoBehaviour
         _targetOpponent = target;
         _fallbackDefaultData = defaultData;
         _familiarMultiBulletDatas = familiarMultiBulletDatas;
+        _spellBoostMultiplier = spellBoostMultiplier;
+        _duration = duration;
 
         if (_ownerEmitter == null)
         {
@@ -56,6 +62,11 @@ public class EnvyFamiliarObject : MonoBehaviour
         }
 
         StartCoroutine(FamiliarRoutine());
+    }
+
+    public void SetSpellBoost(float multiplier)
+    {
+        _spellBoostMultiplier = multiplier;
     }
 
     private BulletData GetNextBulletData()
@@ -102,6 +113,18 @@ public class EnvyFamiliarObject : MonoBehaviour
             elapsed += Time.deltaTime;
             dropTimer += Time.deltaTime;
 
+            float currentBoost = _spellBoostMultiplier;
+
+            if (_owner != null)
+            {
+                PlayerStatusManager ownerStatus = _owner.GetComponent<PlayerStatusManager>();
+                if (ownerStatus == null && _owner.parent != null)
+                    ownerStatus = _owner.parent.GetComponent<PlayerStatusManager>();
+
+                if (ownerStatus != null && ownerStatus.isSpellCardActive)
+                    currentBoost = _spellBoostMultiplier;
+            }
+
             if (_targetOpponent != null)
             {
                 Vector3 toTarget = _targetOpponent.position - transform.position;
@@ -111,21 +134,16 @@ public class EnvyFamiliarObject : MonoBehaviour
                 {
                     Vector3 dir = toTarget.normalized;
 
-                    // 距離が遠いほど早く接近（最大2倍）
-                    // 0〜12unit を 1〜2倍の幅に変換
                     float distanceRatio = Mathf.InverseLerp(0f, 12f, distance);
                     float speedMultiplier = Mathf.Lerp(1f, 2f, distanceRatio);
 
-                    transform.position += dir * _moveSpeed * speedMultiplier * Time.deltaTime;
+                    transform.position += dir * _moveSpeed * speedMultiplier * currentBoost * Time.deltaTime;
                 }
             }
 
-            // ここが追加ポイント
-            // 寿命の終盤（例: 30フレーム前）になったら射撃をストップ
             float remainingTime = _duration - elapsed;
             if (remainingTime <= _noFireWindowBeforeEnd)
             {
-                // 終盤では弾を出さない
                 yield return null;
                 continue;
             }
@@ -196,11 +214,22 @@ public class EnvyFamiliarObject : MonoBehaviour
 
         if (bulletData == null || _ownerEmitter == null) yield break;
 
+        float angle = 0f;
+        if (_targetOpponent != null)
+        {
+            Vector3 dir = _targetOpponent.position - spawnPos;
+            angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        }
+        else
+        {
+            angle = Random.Range(0f, 360f);
+        }
+
         DanmakuBullet spawnedBullet = _ownerEmitter.CreateShot(
             data: bulletData,
             pos: spawnPos,
             speed: 0f,
-            angle: Random.Range(0f, 360f),
+            angle: angle,
             delay: 1.0f,
             isConverge: false,
             accel: 0f,

@@ -19,6 +19,7 @@ MonoBehaviour:
   bulletScale: 1
   radius: 0.32
   colliderOffset: {x: 0, y: 0}
+  rotateSpriteWithAngle: 1
   damage: 1
   useRangeDeceleration: 1
   decelerationStartFrame: 30
