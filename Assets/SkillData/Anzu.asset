@@ -60,7 +60,7 @@ MonoBehaviour:
     wideAngle: 0
     moveSpeedMultiplier: 0.4
     delay: 10
-    cost: 12
+    cost: 25
     ultimateGain: 8
     aiPriorityWeight: 0
   skillX:
@@ -68,20 +68,20 @@ MonoBehaviour:
     skillIcon: {fileID: 21300000, guid: 740ee69dee449674d92d64c732a964ab, type: 3}
     skillDescription: 
     patternType: 17
-    bulletData: {fileID: 11400000, guid: ac38d131436dc834abdea75b2b7d4d54, type: 2}
+    bulletData: {fileID: 11400000, guid: 0d154dab70248474ca11ce64db0e21ee, type: 2}
     multiBulletDatas: []
     trailBulletData: {fileID: 0}
-    cooldown: 4
+    cooldown: 1.5
     isChargeSkill: 0
     isConcurrentAllowed: 0
     sePath: 
-    count: 10
+    count: 3
     speed: 4
     angleOffset: 23
     wideAngle: 360
     moveSpeedMultiplier: 0
-    delay: 15
-    cost: 10
+    delay: 1
+    cost: 3
     ultimateGain: 8
     aiPriorityWeight: 0
   skillC:

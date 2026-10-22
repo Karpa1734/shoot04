@@ -19,7 +19,6 @@ public class Emitter_Gluttony : PlayerDanmakuEmitter
     private bool _jawSetupBuilt = false;
     private bool _jawReleased = false;
     private int _openSettleFrameCounter = 0;
-
     protected override IEnumerator ExecuteSkillZ(PlayerSkillData.SkillSettings s)
     {
         _activeSkillCoroutines++;
@@ -285,8 +284,159 @@ public class Emitter_Gluttony : PlayerDanmakuEmitter
 
         return Input.GetKey(KeyCode.L) || Input.GetKey(KeyCode.Z);
     }
+    protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s)
+    {
+        _activeSkillCoroutines++;
 
-    protected override IEnumerator ExecuteSkillX(PlayerSkillData.SkillSettings s) { yield return null; }
+        PlayerMove myMove = _rootOwner != null ? _rootOwner.GetComponent<PlayerMove>() : GetComponentInParent<PlayerMove>();
+        PlayerStatusManager myStatus = GetComponentInParent<PlayerStatusManager>();
+
+        if (myMove != null && !_isEXSkillActive)
+            myMove.skillSpeedMultiplier = s.moveSpeedMultiplier;
+
+        if (myStatus == null)
+        {
+            _activeSkillCoroutines--;
+            yield break;
+        }
+
+        float fireInterval = 0.08f;
+        float maxCharge = 0.8f;
+        float chargeTime = 0f;
+
+        try
+        {
+            while (true)
+            {
+                if (!PlayerMove.CanShoot)
+                    break;
+
+                if (myMove != null && myMove.currentEnergy < s.cost)
+                    break;
+
+                if (!IsXButtonPressed(myStatus))
+                {
+                    break;
+                }
+
+                chargeTime += Time.deltaTime;
+                chargeTime = Mathf.Min(chargeTime, maxCharge);
+
+
+                // 長押し中は連続発射
+                int shotCount = 6;
+                float baseSpeed = 6.0f;
+
+                Vector3 targetCenter = GetOpponentCenterOrFallback(myMove);
+                for (int i = 0; i < shotCount; i++)
+                {
+                    Vector3 spawn = GetRandomTopSpawnPoint(targetCenter, 1.8f);
+                    float dirAngle = -90f + Random.Range(-3f, 3f);
+                    float speed = baseSpeed + Random.Range(-1.8f, 1.8f);
+
+                    CreateShot(s.bulletData, spawn, speed, dirAngle, delay: 0f);
+                }
+
+                if (myMove != null)
+                {
+                    myMove.currentEnergy -= s.cost;
+                    myMove.AddUltimateEnergy(s.ultimateGain * 0.15f);
+                }
+
+                // ここで長押し中に連射
+                float elapsed = 0f;
+                while (elapsed < fireInterval)
+                {
+                    elapsed += Time.deltaTime;
+
+                    if (!IsXButtonPressed(myStatus))
+                    {
+                        yield break;
+                    }
+
+                    yield return null;
+                }
+            }
+        }
+        finally
+        {
+            if (myMove != null && !_isEXSkillActive)
+                myMove.skillSpeedMultiplier = 1.0f;
+
+            _activeSkillCoroutines--;
+            if (_activeSkillCoroutines < 0) _activeSkillCoroutines = 0;
+        }
+    }
+    private Vector3 GetOpponentCenterOrFallback(PlayerMove me)
+    {
+        if (me != null && me.Opponent != null)
+        {
+            return me.Opponent.transform.position;
+        }
+
+        foreach (var player in PlayerMove.AllPlayers)
+        {
+            if (player != null && player != me)
+            {
+                return player.transform.position;
+            }
+        }
+
+        return Vector3.zero;
+    }
+
+    private Vector3 GetRandomTopSpawnPoint(Vector3 opponentCenter, float noFireWidth)
+    {
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            return new Vector3(Random.Range(-7f, 7f), 8f, 0f);
+        }
+
+        float z = Mathf.Abs(cam.transform.position.z);
+        Vector3 topLeft = cam.ViewportToWorldPoint(new Vector3(0f, 1f, z));
+        Vector3 topRight = cam.ViewportToWorldPoint(new Vector3(1f, 1f, z));
+
+        float minX = topLeft.x;
+        float maxX = topRight.x;
+
+        float safeMin = opponentCenter.x - noFireWidth;
+        float safeMax = opponentCenter.x + noFireWidth;
+
+        float x = 0f;
+        int tries = 0;
+
+        while (tries < 20)
+        {
+            x = Random.Range(minX, maxX);
+            if (x < safeMin || x > safeMax)
+            {
+                break;
+            }
+            tries++;
+        }
+
+        if (tries >= 20)
+        {
+            x = Random.Range(minX, maxX);
+        }
+
+        float y = topLeft.y + 0.8f;
+        return new Vector3(x, y, 0f);
+    }
+
+    private bool IsXButtonPressed(PlayerStatusManager status)
+    {
+        if (status == null || InputManager.Instance == null) return false;
+
+        var inputSet = (status.playerId == 2) ? InputManager.Instance.player2 : InputManager.Instance.player1;
+        if (inputSet.skillX != null && inputSet.skillX.action != null)
+        {
+            return inputSet.skillX.action.IsPressed();
+        }
+
+        return Input.GetKey(KeyCode.X);
+    }
     protected override IEnumerator ExecuteSkillC(PlayerSkillData.SkillSettings s) { yield return null; }
     protected override IEnumerator ExecuteSkillV(PlayerSkillData.SkillSettings s) { yield return null; }
     protected override IEnumerator ExecuteSkillEX(PlayerSkillData.SkillSettings s) { yield return null; }
